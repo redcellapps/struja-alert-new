@@ -84,15 +84,51 @@ describe('devices and authentication', () => {
     expect(c.secret.length).toBeGreaterThanOrEqual(40);
   });
 
-  it('refuses a push token that is already registered (nobody can take a device over)', async () => {
+  it('a push token already on file is taken over: the old device and its addresses are dropped', async () => {
     const c = await register();
+    expect(
+      (await call(c, 'POST', '/v1/subscriptions', { streetId: sid('studenicka') })).statusCode,
+    ).toBe(201);
     const res = await app.inject({
       method: 'POST',
       url: '/v1/devices',
       payload: { pushToken: c.token, platform: 'ios' },
     });
-    expect(res.statusCode).toBe(409);
-    expect(errorSchema.parse(res.json()).error.code).toBe('token_exists');
+    expect(res.statusCode).toBe(201);
+    const fresh = res.json() as { deviceId: string; deviceSecret: string };
+    expect(fresh.deviceId).not.toBe(c.id);
+    // the old credentials stop working, the new ones work
+    const old = await app.inject({
+      method: 'GET',
+      url: '/v1/devices/me',
+      headers: { authorization: `Bearer ${c.id}.${c.secret}` },
+    });
+    expect(old.statusCode).toBe(401);
+    const now = await app.inject({
+      method: 'GET',
+      url: '/v1/devices/me',
+      headers: { authorization: `Bearer ${fresh.deviceId}.${fresh.deviceSecret}` },
+    });
+    expect(now.statusCode).toBe(200);
+    // the old addresses are gone: the app registers its own list again
+    const mine = subscriptionsResponseSchema.parse(
+      (
+        await call(
+          {
+            ...c,
+            id: fresh.deviceId,
+            headers: { authorization: `Bearer ${fresh.deviceId}.${fresh.deviceSecret}` },
+          },
+          'GET',
+          '/v1/subscriptions',
+        )
+      ).json(),
+    );
+    expect(mine.subscriptions).toHaveLength(0);
+    const left = await w.t.db.execute(
+      sql`SELECT count(*)::int AS n FROM subscription WHERE device_id = ${c.id}`,
+    );
+    expect(Number(left.rows[0]?.n)).toBe(0);
   });
 
   it('validates input with a 400 that names the problem', async () => {

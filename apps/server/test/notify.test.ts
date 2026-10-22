@@ -415,6 +415,29 @@ describe('the evening-before reminder', () => {
     expect(titles(a.token)[1]).toMatch(/^Sutra bez struje: Kosmajska, 08:00–10:00$/);
     expect((await planEveningBefore(t.db, evening)).planned).toBe(0);
   });
+
+  it('is skipped for someone whose "new" went out less than two hours earlier', async () => {
+    const a = await addSub({ norm: 'kosmajska' });
+    // announced at 17:30Z: 45 minutes before the reminder
+    const announced = new Date('2026-11-26T17:30:00Z');
+    await page('27.11.2026.', [['Палилула - Ниш', '08:00 - 10:00', 'Космајске']], announced);
+    await plan(announced);
+    await deliver(announced);
+    expect((await planEveningBefore(t.db, new Date('2026-11-26T18:15:00Z'))).planned).toBe(0);
+    expect(titles(a.token, '2026-11-27')).toHaveLength(1);
+  });
+
+  it('is sent when the "new" went out two hours or more earlier', async () => {
+    const a = await addSub({ norm: 'kosmajska' });
+    const announced = new Date('2026-11-27T16:00:00Z'); // 2h15m before the 18:15Z reminder
+    await page('28.11.2026.', [['Палилула - Ниш', '08:00 - 10:00', 'Космајске']], announced);
+    await plan(announced);
+    await deliver(announced);
+    const evening = new Date('2026-11-27T18:15:00Z');
+    expect((await planEveningBefore(t.db, evening)).planned).toBeGreaterThan(0);
+    await deliver(evening);
+    expect(titles(a.token, '2026-11-28')).toHaveLength(2);
+  });
 });
 
 describe('the 12-hour safety net', () => {

@@ -30,6 +30,7 @@
 3. **OSM streets are many ways per name,** so a street's geometry is a list of polylines (MultiLineString), not one LineString.
 4. **`alt_name` / `old_name` exist in OSM** and are used as extra exact names (e.g. `Булевар дванаести фебруар`).
 5. Parity in words (`непарни`/`парни`) and `бб` do appear in real rows.
+6. **How often EDS regenerates its pages (collector, 22 Oct 2026).** The Niš, Kraljevo, Novi Sad and Kragujevac pages were generated at 00:01 UTC and were unchanged at the 12:02, 12:59 and 17:04 UTC fetches. Belgrade was regenerated at 13:30 UTC: `Dan_1` gained a Čukarica outage 09:00–15:00, `Dan_2` lost its Zemun outage (08:30–13:30, a real cancellation: the table went from one row to empty), and `Dan_0` dropped two finished outages. Consequences: outside Belgrade the 07/13/19 scrapes mostly see an identical page (the content hash makes that cheap), and a page can go from one row to none legitimately, which is why the "fewer than half" broken-page rule applies only when the previous good fetch had at least 5 rows.
 
 ## 4. Gazetteer (22 Oct 2026 snapshot)
 

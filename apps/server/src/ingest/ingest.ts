@@ -30,9 +30,10 @@ export interface IngestPageInput {
 
 // How a fetched page looked (the broken page guard):
 //  - truncated / no_table: HTTP 200 but cut off or without an outage table: not used at all.
-//  - reduced: fewer than half the rows of the previous healthy fetch for the same date: its new rows
+//  - reduced: fewer than half the rows of the previous healthy fetch (which had at least 5) for the same date: its new rows
 //    are stored, but it does not count towards "missing" (no cancellation, no pairing).
-//  - confirmed_reduced: the same reduced page twice in a row: taken as real (a mass cancellation).
+//  - confirmed_reduced: a reduced fetch right after another reduced one: taken as real (a mass cancellation).
+export const MIN_BASELINE_ROWS = 5;
 export type PageHealth = 'ok' | 'truncated' | 'no_table' | 'reduced' | 'confirmed_reduced';
 
 export interface IngestResult {
@@ -205,12 +206,15 @@ export async function ingestPage(
   ).rows as { rows_found: number; health: string }[];
   const baseline = history.find((h) => h.health !== 'reduced');
   let health: PageHealth = 'ok';
-  if (baseline && page.rows.length * 2 < baseline.rows_found) {
-    const last = history[0];
-    health =
-      last?.health === 'reduced' && last.rows_found === page.rows.length
-        ? 'confirmed_reduced'
-        : 'reduced';
+  // Small pages (under MIN_BASELINE_ROWS) follow the normal two-missed-fetches rule: going from one
+  // outage to none is an ordinary cancellation, not a broken page.
+  if (
+    baseline &&
+    baseline.rows_found >= MIN_BASELINE_ROWS &&
+    page.rows.length * 2 < baseline.rows_found
+  ) {
+    // Below half again right after a reduced fetch: the drop is real.
+    health = history[0]?.health === 'reduced' ? 'confirmed_reduced' : 'reduced';
   }
   result.health = health;
   const trusted = health !== 'reduced';
@@ -363,39 +367,10 @@ export async function ingestPage(
       }
     }
 
-    // Rows of this date that were not on the page this time. Only a successful fetch of the page
-    // gets here, so an unreachable page never counts as "missing".
-    const missing = !trusted
-      ? []
-      : await tx
-          .update(outage)
-          .set({ missingRuns: sql`${outage.missingRuns} + 1` })
-          .where(
-            and(
-              eq(outage.city, input.city),
-              eq(outage.outageDate, date),
-              sql`${outage.status} IN ('active', 'changed')`,
-              sql`${outage.lastSeenRun} <> ${runId}`,
-            ),
-          )
-          .returning({ id: outage.id });
-    result.missing = missing.length;
-    if (missing.length) {
-      const cancelled = await tx
-        .update(outage)
-        .set({ status: 'cancelled', revision: sql`${outage.revision} + 1` })
-        .where(
-          and(
-            eq(outage.city, input.city),
-            eq(outage.outageDate, date),
-            sql`${outage.status} IN ('active', 'changed')`,
-            sql`${outage.missingRuns} >= ${CANCEL_AFTER_MISSING_RUNS}`,
-            // An outage that already started is just rolling off the page, not cancelled.
-            sql`${outage.startsAt} > ${now.toISOString()}::timestamptz`,
-          ),
-        )
-        .returning({ id: outage.id });
-      result.cancelled = cancelled.length;
+    if (trusted) {
+      const r = await countMissing(tx, input.city, date, runId, now);
+      result.missing = r.missing;
+      result.cancelled = r.cancelled;
     }
 
     await tx
@@ -424,6 +399,72 @@ export async function ingestPage(
 }
 
 type Tx = Parameters<Parameters<Db['transaction']>[0]>[0];
+
+// Rows of a date that were not on the page this time. Only a successful fetch of the page gets
+// here, so an unreachable page never counts as "missing". Two misses cancel a not-yet-started outage.
+async function countMissing(
+  tx: Tx,
+  city: string,
+  date: string,
+  runId: number,
+  now: Date,
+): Promise<{ missing: number; cancelled: number }> {
+  const missing = await tx
+    .update(outage)
+    .set({ missingRuns: sql`${outage.missingRuns} + 1` })
+    .where(
+      and(
+        eq(outage.city, city),
+        eq(outage.outageDate, date),
+        sql`${outage.status} IN ('active', 'changed')`,
+        sql`${outage.lastSeenRun} <> ${runId}`,
+      ),
+    )
+    .returning({ id: outage.id });
+  if (!missing.length) return { missing: 0, cancelled: 0 };
+  const cancelled = await tx
+    .update(outage)
+    .set({ status: 'cancelled', revision: sql`${outage.revision} + 1` })
+    .where(
+      and(
+        eq(outage.city, city),
+        eq(outage.outageDate, date),
+        sql`${outage.status} IN ('active', 'changed')`,
+        sql`${outage.missingRuns} >= ${CANCEL_AFTER_MISSING_RUNS}`,
+        // An outage that already started is just rolling off the page, not cancelled.
+        sql`${outage.startsAt} > ${now.toISOString()}::timestamptz`,
+      ),
+    )
+    .returning({ id: outage.id });
+  return { missing: missing.length, cancelled: cancelled.length };
+}
+
+// A reduced page is only taken as real when it is the latest fetch of its date: the admin confirms
+// it ("this really happened"), which runs the missing/cancel pass that the page skipped.
+export async function confirmReducedRun(
+  db: Db,
+  runId: number,
+  now: Date = new Date(),
+): Promise<'confirmed' | 'not_reduced' | 'superseded'> {
+  return db.transaction(async (tx) => {
+    const run = (
+      await tx.execute(
+        sql`SELECT city, page_date::text AS d, health FROM scrape_run WHERE id = ${runId} FOR UPDATE`,
+      )
+    ).rows[0] as { city: string; d: string; health: string } | undefined;
+    if (!run || run.health !== 'reduced') return 'not_reduced';
+    const later = await tx.execute(
+      sql`SELECT 1 FROM scrape_run WHERE city = ${run.city} AND page_date = ${run.d} AND id > ${runId} AND health IN ('ok','confirmed_reduced','reduced') LIMIT 1`,
+    );
+    if (later.rows.length) return 'superseded';
+    await countMissing(tx, run.city, run.d, runId, now);
+    await tx.execute(sql`UPDATE scrape_run SET health = 'confirmed_reduced' WHERE id = ${runId}`);
+    await tx.execute(
+      sql`UPDATE alert SET resolved_at = now() WHERE kind = 'broken_page' AND resolved_at IS NULL AND dedupe_key LIKE ${`${run.city}|%`} AND details->>'date' = ${run.d}`,
+    );
+    return 'confirmed';
+  });
+}
 
 // The highest flip count among some rows (0 for none).
 async function flipsOf(tx: Tx, ids: number[]): Promise<number> {

@@ -1,6 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { sql } from 'drizzle-orm';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { confirmReducedRun } from '../src/ingest/ingest.ts';
 import { createWorld, type World } from './helpers/world.ts';
 
 // The broken page guard: a page fetched with HTTP 200 that is truncated, has no outage table, or has
@@ -70,11 +71,13 @@ describe('an empty-table page when the previous fetch had rows', () => {
     ['Пантелеј', '09:00 - 10:00', 'Чегарске'],
     ['Медијана', '10:00 - 11:00', 'Космајске'],
     ['Медијана', '11:00 - 12:00', 'Требињске'],
+    ['Црвени крст', '12:00 - 13:00', 'Војводе Путника'],
+    ['Црвени крст', '13:00 - 14:00', 'Бранка Бјеговића'],
   ];
 
   it('is not counted towards cancellation and raises an alert', async () => {
     await w.page(date, rows);
-    const r = await w.page(date, []); // header only: 0 rows, was 4
+    const r = await w.page(date, []); // header only: 0 rows, was 6
     expect(r).toMatchObject({ health: 'reduced', missing: 0, cancelled: 0 });
     expect(
       await count(
@@ -84,12 +87,12 @@ describe('an empty-table page when the previous fetch had rows', () => {
     expect(await openAlerts('broken_page')).toBe(1);
   });
 
-  it('the same reduced page twice in a row is taken as real, and then cancellation can proceed', async () => {
-    const again = await w.page(date, []); // identical reduced page: confirmed
-    expect(again).toMatchObject({ health: 'confirmed_reduced', missing: 4, cancelled: 0 });
-    const third = await w.page(date, []);
+  it('a second fetch that is again below half is taken as real (even with another row count)', async () => {
+    const again = await w.page(date, [rows[0]!]); // 1 row, was 0 then 6: still below half of 6
+    expect(again).toMatchObject({ health: 'confirmed_reduced', missing: 5, cancelled: 0 });
+    const third = await w.page(date, [rows[0]!]);
     // once accepted, the reduced page is the new baseline: the next identical fetch is simply healthy
-    expect(third).toMatchObject({ health: 'ok', missing: 4, cancelled: 4 });
+    expect(third).toMatchObject({ health: 'ok', missing: 5, cancelled: 5 });
     expect(await openAlerts('broken_page')).toBe(0); // accepted as real: the alert is closed
   });
 });
@@ -100,15 +103,17 @@ describe('the boundary: "fewer than half"', () => {
     ['Пантелеј', '09:00 - 10:00', 'Чегарске'],
     ['Медијана', '10:00 - 11:00', 'Космајске'],
     ['Медијана', '11:00 - 12:00', 'Требињске'],
+    ['Црвени крст', '12:00 - 13:00', 'Војводе Путника'],
+    ['Црвени крст', '13:00 - 14:00', 'Бранка Бјеговића'],
   ];
   it('exactly half the rows is fine', async () => {
     await w.page('06.12.2026.', base);
-    const r = await w.page('06.12.2026.', base.slice(0, 2));
-    expect(r).toMatchObject({ health: 'ok', missing: 2 });
+    const r = await w.page('06.12.2026.', base.slice(0, 3));
+    expect(r).toMatchObject({ health: 'ok', missing: 3 });
   });
   it('one row fewer than half is reduced', async () => {
     await w.page('07.12.2026.', base);
-    const r = await w.page('07.12.2026.', base.slice(0, 1));
+    const r = await w.page('07.12.2026.', base.slice(0, 2));
     expect(r).toMatchObject({ health: 'reduced', missing: 0 });
   });
   it('a first-ever fetch, or a date that really has no outages, is fine', async () => {
@@ -119,6 +124,59 @@ describe('the boundary: "fewer than half"', () => {
     await w.page('09.12.2026.', base);
     const r = await w.page('09.12.2026.', [['Нишка бања', '15:00 - 16:00', 'Бубањске долине']]);
     expect(r).toMatchObject({ health: 'reduced', inserted: 1, changed: 0, missing: 0 });
+  });
+});
+
+describe('small pages follow the normal rule (baseline under 5 rows)', () => {
+  it('one outage to an empty table is an ordinary cancellation after two fetches, not a broken page', async () => {
+    const date = '11.12.2026.';
+    await w.page(date, [['Пантелеј', '08:00 - 09:00', 'Студеничке']]);
+    expect(await w.page(date, [])).toMatchObject({ health: 'ok', missing: 1, cancelled: 0 });
+    expect(await w.page(date, [])).toMatchObject({ health: 'ok', missing: 1, cancelled: 1 });
+  });
+  it('a baseline of exactly 5 rows does count', async () => {
+    const date = '12.12.2026.';
+    const five: [string, string, string][] = [1, 2, 3, 4, 5].map((h) => [
+      'Пантелеј',
+      `0${h}:00 - 0${h}:30`,
+      'Студеничке',
+    ]);
+    await w.page(date, five);
+    expect(await w.page(date, five.slice(0, 2))).toMatchObject({ health: 'reduced' });
+  });
+});
+
+describe('the admin confirms a reduced page as real', () => {
+  const date = '13.12.2026.';
+  const six: [string, string, string][] = [1, 2, 3, 4, 5, 6].map((h) => [
+    'Пантелеј',
+    `${String(h).padStart(2, '0')}:00 - ${String(h).padStart(2, '0')}:30`,
+    'Студеничке',
+  ]);
+  it('runs the missing pass the page skipped, and a later fetch cannot be confirmed any more', async () => {
+    await w.page(date, six);
+    const r = await w.page(date, six.slice(0, 1));
+    expect(r).toMatchObject({ health: 'reduced', missing: 0 });
+    const runId = r.runId;
+    expect(await confirmReducedRun(w.t.db, runId, EARLY)).toBe('confirmed');
+    expect(
+      await count(
+        sql`SELECT count(*)::int AS n FROM outage WHERE outage_date = '2026-12-13' AND missing_runs = 1`,
+      ),
+    ).toBe(5);
+    expect(
+      await count(
+        sql`SELECT count(*)::int AS n FROM alert WHERE kind = 'broken_page' AND resolved_at IS NULL AND details->>'date' = '2026-12-13'`,
+      ),
+    ).toBe(0);
+    expect(await confirmReducedRun(w.t.db, runId, EARLY)).toBe('not_reduced'); // only once
+  });
+  it('a reduced run that a newer fetch already followed is left to the automatic rule', async () => {
+    const d2 = '14.12.2026.';
+    await w.page(d2, six);
+    const r = await w.page(d2, six.slice(0, 2));
+    await w.page(d2, six); // the page recovered
+    expect(await confirmReducedRun(w.t.db, r.runId, EARLY)).toBe('superseded');
   });
 });
 

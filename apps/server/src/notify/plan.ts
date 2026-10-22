@@ -672,7 +672,13 @@ async function planReinstated(db: Db, now: Date): Promise<PlanResult> {
   return total;
 }
 
-/** The evening-before reminder (19:15 job): tomorrow's outages, to everyone they may affect. */
+// A "new" notice told to someone less than this long ago makes the evening-before reminder redundant.
+export const EVENING_SKIP_HOURS = 2;
+
+/**
+ * The evening-before reminder (19:15 job): tomorrow's outages, to everyone they may affect, except
+ * those who were told "new" for the same outage less than two hours ago.
+ */
 export async function planEveningBefore(db: Db, now: Date): Promise<PlanResult> {
   const total = empty();
   const tomorrow = belgradeLocal(new Date(now.getTime() + 24 * 3600_000)).date;
@@ -695,6 +701,7 @@ export async function planEveningBefore(db: Db, now: Date): Promise<PlanResult> 
     for (const sub of subs) {
       const m = matchSubscription(sub, rows);
       if (!m) continue;
+      if (await toldNewRecently(db, sub.id, o.id, now)) continue;
       add(
         total,
         await emit(db, now, names, {
@@ -771,4 +778,20 @@ export async function matchedSubscribers(
     if (match) out.push({ sub, match });
   }
   return out;
+}
+
+async function toldNewRecently(
+  db: Db,
+  subscriptionId: number,
+  outageId: number,
+  now: Date,
+): Promise<boolean> {
+  const since = new Date(now.getTime() - EVENING_SKIP_HOURS * 3600_000);
+  const r = await db.execute(sql`
+    SELECT 1 FROM notification_log
+    WHERE subscription_id = ${subscriptionId} AND outage_id = ${outageId} AND kind = 'new'
+      AND status IN ('pending', 'sending', 'sent')
+      AND coalesce(sent_at, created_at) > ${since.toISOString()}::timestamptz
+    LIMIT 1`);
+  return r.rows.length > 0;
 }

@@ -18,6 +18,7 @@ Decisions taken during planning:
 4. Phase 3: before building the map, present Android map options (Google Maps key vs MapLibre + tile provider; cost and setup) and wait for the user's choice.
 5. Phase 3 iOS smoke build needs a paid Apple Developer account. If it isn't ready, move that check to Phase 6 and tell the user.
 6. Ask before installing Maestro (user: wait until Phase 3).
+7a. Phase 3 (device secret, user 22 Oct): the app keeps its own list of saved addresses on the device. If the device secret is missing (reinstall, cleared storage), it registers again (`POST /v1/devices` takes over the push token) and re-adds its addresses; the in-app rule (an added address records the already published outages as told, nothing is pushed) means nothing is pushed twice.
 7. `pnpm-workspace.yaml` has a `minimumReleaseAgeExclude` list (brand-new Expo packages). **Remove the exemptions once those versions pass the age threshold.**
 8. Before the first Play build, block unneeded permissions in `app.json` (`android.blockedPermissions`): `READ_EXTERNAL_STORAGE`, `WRITE_EXTERNAL_STORAGE`, `SYSTEM_ALERT_WINDOW`. This is a Phase 5 item, not applied yet: `SYSTEM_ALERT_WINDOW` comes in for the dev-client overlay, and blocking it in the shared manifest could break debug builds, so apply it for the release profile (or verify debug still works). Also confirm the release manifest has no `ACCESS_LOCAL_NETWORK`.
 9. Every test run writes JUnit and coverage reports to `test-results/` (git-ignored).
