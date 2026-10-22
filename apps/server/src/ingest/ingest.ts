@@ -1,5 +1,5 @@
 import { createHash } from 'node:crypto';
-import { eq, sql } from 'drizzle-orm';
+import { and, eq, sql } from 'drizzle-orm';
 import {
   decodePage,
   nisMunicipality,
@@ -21,6 +21,8 @@ export interface IngestPageInput {
   bytes: Uint8Array;
   httpStatus?: number;
   etag?: string | null;
+  // For tests; defaults to the current time.
+  now?: Date;
 }
 
 export interface IngestResult {
@@ -29,12 +31,22 @@ export interface IngestResult {
   inserted: number;
   // Rows already stored (same content): only their last-seen run was refreshed.
   seen: number;
+  // New rows that replace an older one with the same identity (a changed time window).
+  changed: number;
+  // Rows of this page's date that were missing this time (counted towards cancellation).
+  missing: number;
+  // Rows that became `cancelled` after being missing for two consecutive runs.
+  cancelled: number;
   outOfScope: number;
   // Rows without a readable time window: not stored.
   skippedNoTime: number;
   segments: number;
   unresolvedSegments: number;
 }
+
+// A row that disappears from its page for this many consecutive fetches is cancelled, if it has
+// not started yet (BRIEF §5).
+export const CANCEL_AFTER_MISSING_RUNS = 2;
 
 // In scope = a page of a city the app serves AND, for Niš, one of the five city municipalities as
 // EDS writes them. Everything else is stored (the raw data is kept) but never matched.
@@ -60,14 +72,21 @@ export function identityKey(city: string, date: string, row: PageRow): string {
 }
 
 /**
- * Stores one EDS page: parse, split, resolve and persist. Safe to run again on the same page:
- * rows are keyed by content hash, so a repeat only refreshes `last_seen_run`.
+ * Stores one EDS page: parse, split, resolve and persist, then work out what changed since the
+ * previous fetch of the same date:
+ *  - a row seen before (same content) only refreshes `last_seen_run`;
+ *  - a new row with the identity of an older row that is no longer on the page is a `changed`
+ *    version of it (the older row becomes `cancelled`, linked through `supersedes_outage_id`);
+ *  - a row of this date that is missing for two consecutive fetches, and has not started, is
+ *    `cancelled`.
+ * Safe to run again on the same page.
  */
 export async function ingestPage(
   db: Db,
   gaz: LoadedGazetteer,
   input: IngestPageInput,
 ): Promise<IngestResult> {
+  const now = input.now ?? new Date();
   const { text } = decodePage(input.bytes);
   const page = parsePage(text);
 
@@ -86,6 +105,9 @@ export async function ingestPage(
     rows: page.rows.length,
     inserted: 0,
     seen: 0,
+    changed: 0,
+    missing: 0,
+    cancelled: 0,
     outOfScope: 0,
     skippedNoTime: 0,
     segments: 0,
@@ -101,48 +123,81 @@ export async function ingestPage(
   }
   const date = iso(page.date);
 
+  const prepared = page.rows.flatMap((row) =>
+    row.startsAt && row.endsAt
+      ? [
+          {
+            row,
+            startsAt: row.startsAt,
+            endsAt: row.endsAt,
+            hash: contentHash(input.city, date, row),
+          },
+        ]
+      : [],
+  );
+  result.skippedNoTime = page.rows.length - prepared.length;
+  const present = new Set(prepared.map((p) => p.hash));
+
   await db.transaction(async (tx) => {
-    for (const row of page.rows) {
-      if (!row.startsAt || !row.endsAt) {
-        result.skippedNoTime++;
-        continue;
-      }
+    for (const { row, startsAt, endsAt, hash } of prepared) {
       const inScope = rowInScope(input.city, row);
-      const hash = contentHash(input.city, date, row);
 
       const existing = await tx
-        .select({ id: outage.id })
+        .select({ id: outage.id, status: outage.status })
         .from(outage)
         .where(eq(outage.contentHash, hash));
       if (existing[0]) {
+        // Seen before. A row that had been cancelled and is published again is active again.
         await tx
           .update(outage)
-          .set({ lastSeenRun: runId, missingRuns: 0 })
+          .set({
+            lastSeenRun: runId,
+            missingRuns: 0,
+            ...(existing[0].status === 'cancelled' ? { status: 'active' as const } : {}),
+          })
           .where(eq(outage.id, existing[0].id));
         result.seen++;
         if (!inScope) result.outOfScope++;
         continue;
       }
 
+      // Same identity, different content, and the older row is no longer on the page: a change.
+      const key = identityKey(input.city, date, row);
+      const olderRows = await tx.execute(sql`
+        SELECT o.id, o.content_hash FROM outage o
+        WHERE o.city = ${input.city} AND o.identity_key = ${key}
+          AND o.status IN ('active', 'changed')
+          AND NOT EXISTS (SELECT 1 FROM outage n WHERE n.supersedes_outage_id = o.id)
+        ORDER BY o.id DESC`);
+      const older = (olderRows.rows as { id: number; content_hash: string }[]).find(
+        (o) => !present.has(o.content_hash),
+      );
+
       const [created] = await tx
         .insert(outage)
         .values({
           sourceUrl: input.url,
           contentHash: hash,
-          identityKey: identityKey(input.city, date, row),
+          identityKey: key,
           city: input.city,
           branch: row.ogranak,
           municipality: row.opstina,
           inScope,
           outageDate: date,
-          startsAt: row.startsAt,
-          endsAt: row.endsAt,
+          startsAt,
+          endsAt,
           rawStreets: row.ulice,
           firstSeenRun: runId,
           lastSeenRun: runId,
+          status: older ? 'changed' : 'active',
+          supersedesOutageId: older?.id ?? null,
         })
         .returning({ id: outage.id });
       result.inserted++;
+      if (older) {
+        await tx.update(outage).set({ status: 'cancelled' }).where(eq(outage.id, older.id));
+        result.changed++;
+      }
       if (!inScope) {
         result.outOfScope++;
         continue;
@@ -160,6 +215,39 @@ export async function ingestPage(
       result.segments += resolutions.length;
       result.unresolvedSegments += resolutions.filter((r) => r.by === 'unresolved').length;
       if (values.length) await tx.insert(outageStreet).values(values);
+    }
+
+    // Rows of this date that were not on the page this time. Only a successful fetch of the page
+    // gets here, so an unreachable page never counts as "missing".
+    const missing = await tx
+      .update(outage)
+      .set({ missingRuns: sql`${outage.missingRuns} + 1` })
+      .where(
+        and(
+          eq(outage.city, input.city),
+          eq(outage.outageDate, date),
+          sql`${outage.status} IN ('active', 'changed')`,
+          sql`${outage.lastSeenRun} <> ${runId}`,
+        ),
+      )
+      .returning({ id: outage.id });
+    result.missing = missing.length;
+    if (missing.length) {
+      const cancelled = await tx
+        .update(outage)
+        .set({ status: 'cancelled' })
+        .where(
+          and(
+            eq(outage.city, input.city),
+            eq(outage.outageDate, date),
+            sql`${outage.status} IN ('active', 'changed')`,
+            sql`${outage.missingRuns} >= ${CANCEL_AFTER_MISSING_RUNS}`,
+            // An outage that already started is just rolling off the page, not cancelled.
+            sql`${outage.startsAt} > ${now.toISOString()}::timestamptz`,
+          ),
+        )
+        .returning({ id: outage.id });
+      result.cancelled = cancelled.length;
     }
 
     await tx

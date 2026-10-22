@@ -1,0 +1,1 @@
+ALTER TABLE "outage" ADD COLUMN "supersedes_outage_id" integer;

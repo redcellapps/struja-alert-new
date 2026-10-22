@@ -205,6 +205,9 @@ export const outage = pgTable(
       .references(() => scrapeRun.id),
     missingRuns: integer('missing_runs').notNull().default(0),
     status: outageStatusEnum('status').notNull().default('active'),
+    // Set on a `changed` row: the older outage (same identity, other time) it replaces. That older
+    // row is `cancelled` but superseded, so it must not produce a "cancelled" notification.
+    supersedesOutageId: integer('supersedes_outage_id'),
   },
   (t) => [
     unique('outage_content_hash_unique').on(t.contentHash),
