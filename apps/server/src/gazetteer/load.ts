@@ -1,5 +1,11 @@
 import { sql } from 'drizzle-orm';
-import { Resolver, type NisMunicipality, type NisSettlement, type NisStreet } from '@struja/parser';
+import {
+  Resolver,
+  StreetIndex,
+  type NisMunicipality,
+  type NisSettlement,
+  type NisStreet,
+} from '@struja/parser';
 import type { Db } from '../db/client.ts';
 
 export interface LoadedGazetteer {
@@ -11,6 +17,8 @@ export interface LoadedGazetteer {
   // raw_norm -> street id (human-confirmed aliases, not rejected).
   aliases: Map<string, number>;
   resolver: Resolver;
+  // Villages and other settlements, for segments such as "Део села X".
+  settlementIndex: StreetIndex;
   // Streets that count as address points per normalized name, for the scoring's house-number feature.
   addressNumbers: Map<string, Set<number>>;
 }
@@ -135,6 +143,7 @@ export async function loadGazetteer(db: Db, city: string): Promise<LoadedGazette
     settlements,
     aliases,
     resolver: new Resolver(streets),
+    settlementIndex: new StreetIndex(settlements),
     addressNumbers,
   };
 }

@@ -51,3 +51,4 @@ export {
   type ScoredCandidate,
 } from './resolve.ts';
 export { SCORING } from '../data/scoring.ts';
+export { resolveRow, type CandidateRef, type RowDeps, type SegmentResolution } from './row.ts';

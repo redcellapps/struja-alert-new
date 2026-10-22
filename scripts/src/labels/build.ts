@@ -1,12 +1,12 @@
 import {
   nisMunicipality,
   normalizeName,
+  resolveRow,
   Resolver,
   splitUlice,
   StreetIndex,
-  type LadderResult,
+  type CandidateRef,
   type NisGazetteer,
-  type NisStreet,
   type PageRow,
   type ParsedPage,
 } from '@struja/parser';
@@ -45,10 +45,10 @@ export function rowInScope(city: string, row: PageRow): boolean {
   return city === 'Nis' && nisMunicipality(row.opstina) !== null;
 }
 
-function fmtCandidates(r: LadderResult): string {
-  return r.candidates
+function fmtCandidates(candidates: readonly CandidateRef[]): string {
+  return candidates
     .slice(0, 3)
-    .map((c) => `${c.street.name} (${c.score.toFixed(2)})`)
+    .map((c) => `${c.name} (${c.score.toFixed(2)})`)
     .join('; ');
 }
 
@@ -77,37 +77,13 @@ export function buildLabels(
       const municipality = nisMunicipality(row.opstina);
       const segments = splitUlice(row.ulice);
 
-      // Pass 1: no spatial context. Pass 2: unresolved segments, with the row's other streets.
-      const results = new Map<number, LadderResult>();
-      const anchors: NisStreet[] = [];
-      if (inScope) {
-        segments.forEach((seg, i) => {
-          if (seg.village) return;
-          const r = resolver.resolve(normalizeName(seg.name), {
-            municipality,
-            ranges: seg.ranges,
-            addressNumbers,
-          });
-          results.set(i, r);
-          if (r.street) anchors.push(r.street);
-        });
-        segments.forEach((seg, i) => {
-          const first = results.get(i);
-          if (seg.village || !first || first.street) return;
-          results.set(
-            i,
-            resolver.resolve(normalizeName(seg.name), {
-              municipality,
-              anchors,
-              ranges: seg.ranges,
-              addressNumbers,
-            }),
-          );
-        });
-      }
+      // The shared two-pass resolution (also used by the server): the row's own streets are the
+      // spatial context for segments the cheaper steps could not place.
+      const resolutions = inScope
+        ? resolveRow(segments, { resolver, settlements, municipality, addressNumbers })
+        : null;
 
       segments.forEach((seg, i) => {
-        const name = normalizeName(seg.name);
         const rangesText = seg.ranges.map((r) => r.raw).join(', ');
         const key = [row.opstina, seg.raw].join('|');
         const seen = rows.get(key);
@@ -121,26 +97,13 @@ export function buildLabels(
         let resolvedBy = '';
         let score = '';
         let candidates = '';
-        if (inScope) {
-          if (seg.village) {
-            kind = 'village';
-            const v = settlements.resolve(name);
-            proposed = v.street?.name ?? '';
-            resolvedBy = v.by;
-            candidates = v.candidates
-              .slice(0, 3)
-              .map((c) => c.street.name)
-              .join('; ');
-          } else {
-            kind = 'street';
-            const r = results.get(i);
-            if (r) {
-              proposed = r.street?.name ?? '';
-              resolvedBy = r.by;
-              score = r.score === null ? '' : r.score.toFixed(2);
-              candidates = fmtCandidates(r);
-            }
-          }
+        const res = resolutions?.[i];
+        if (res) {
+          kind = res.kind;
+          proposed = (res.street ?? res.settlement)?.name ?? '';
+          resolvedBy = res.by;
+          score = res.score === null ? '' : res.score.toFixed(2);
+          candidates = fmtCandidates(res.candidates);
         }
         rows.set(key, {
           key,
