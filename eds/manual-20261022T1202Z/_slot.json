@@ -1,0 +1,97 @@
+{
+  "slot_key": "manual-20261022T1202Z",
+  "started_at": "2026-10-22T12:02:05.989Z",
+  "finished_at": "2026-10-22T12:02:32.115Z",
+  "pages": [
+    {
+      "city": "Beograd",
+      "n": 0,
+      "status": 200,
+      "bytes": 11100,
+      "sha256": "284ab3204a5c59223e8952f8d3d064eb0ee4d16ab5c2c8bc0ad8400456e8285b"
+    },
+    {
+      "city": "Beograd",
+      "n": 1,
+      "status": 200,
+      "bytes": 13892,
+      "sha256": "863ed7b576926b7f13538e1b5d492b8ca20fc8866452e65876cf7c87660d0aa4"
+    },
+    {
+      "city": "Beograd",
+      "n": 2,
+      "status": 200,
+      "bytes": 2600,
+      "sha256": "6d7512e759bf6333b58df82134cb172743973c32e7835c3ae12538d07deff9c6"
+    },
+    {
+      "city": "Beograd",
+      "n": 3,
+      "status": 200,
+      "bytes": 1234,
+      "sha256": "f485b813ea55e3f76e15837d0c03e84a30546da4feede90a3a51bdfcb6af6d32"
+    },
+    {
+      "city": "Nis",
+      "n": 0,
+      "status": 200,
+      "bytes": 17511,
+      "sha256": "810fcc64982907269a5dfb20e28450fc6a6cb71f7ae6a7b1e8e47b65e651f0a5"
+    },
+    {
+      "city": "Nis",
+      "n": 1,
+      "status": 200,
+      "bytes": 6996,
+      "sha256": "443d458b6b5af62a79f0b26440f77d3767a7215ba5e0520b9b3eda24c8611fdc"
+    },
+    {
+      "city": "Nis",
+      "n": 2,
+      "status": 200,
+      "bytes": 1455,
+      "sha256": "73d55e3f9beed8d00a7379440d26579208d76839eef7eedbaa5037fb20a5a0b4"
+    },
+    {
+      "city": "Nis",
+      "n": 3,
+      "status": 200,
+      "bytes": 1455,
+      "sha256": "76150ada50cda6ddb7cdcabb2f5ead1f72a4fbf21866fbc205ccff0c38d9bc68"
+    },
+    {
+      "city": "Kraljevo",
+      "n": 0,
+      "status": 200,
+      "bytes": 20310,
+      "sha256": "4225f3cc02865f36d3a3388b44b40b155887842771481ac84d7634b3ae85356f"
+    },
+    {
+      "city": "Kraljevo",
+      "n": 1,
+      "status": 200,
+      "bytes": 21683,
+      "sha256": "4370094383cc06d3736a724de87b5a1cf6dafb42fdad4c788da5e5494111fa80"
+    },
+    {
+      "city": "Kraljevo",
+      "n": 2,
+      "status": 200,
+      "bytes": 4733,
+      "sha256": "a78f1f81f7b58692356484a6596e2e939acc813928125e7b34655cea6f4110b4"
+    },
+    {
+      "city": "Kraljevo",
+      "n": 3,
+      "status": 200,
+      "bytes": 1463,
+      "sha256": "84935e506efd07682dc51ea1101eac95366991b7224a01051e3a06ca3da5d4bb"
+    }
+  ],
+  "max_n": {
+    "Beograd": 3,
+    "Nis": 3,
+    "Kraljevo": 3
+  },
+  "errors": []
+}
