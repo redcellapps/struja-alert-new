@@ -134,6 +134,7 @@ export const sr = {
     retry: 'Pokušaj ponovo',
     empty: 'Ništa za prikaz',
   },
+  weekday: { mon: 'pon', tue: 'uto', wed: 'sre', thu: 'čet', fri: 'pet', sat: 'sub', sun: 'ned' },
   gallery: {
     title: 'Galerija komponenti',
   },

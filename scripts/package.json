@@ -11,7 +11,8 @@
     "label-sample": "node --env-file-if-exists=../.env src/label-sample.ts",
     "gate-report": "node src/gate-report.ts",
     "confirm-labels": "node src/confirm-labels.ts",
-    "synthetic-eval": "node src/synthetic-eval.ts"
+    "synthetic-eval": "node src/synthetic-eval.ts",
+    "design-review": "node src/design-review.ts"
   },
   "dependencies": {
     "@struja/parser": "workspace:*"

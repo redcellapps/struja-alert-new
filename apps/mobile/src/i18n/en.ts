@@ -131,5 +131,6 @@ export const en: Deep<Messages> = {
     retry: 'Try again',
     empty: 'Nothing to show',
   },
+  weekday: { mon: 'Mon', tue: 'Tue', wed: 'Wed', thu: 'Thu', fri: 'Fri', sat: 'Sat', sun: 'Sun' },
   gallery: { title: 'Component gallery' },
 };

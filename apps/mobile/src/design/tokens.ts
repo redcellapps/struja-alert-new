@@ -194,10 +194,10 @@ export const motion = {
   stagger: 40,
 } as const;
 
-export const icons: Record<StatusKey, { md: string; sf: string }> = {
-  clear: { md: 'bolt', sf: 'bolt.fill' },
-  upcoming: { md: 'schedule', sf: 'clock.fill' },
-  imminent: { md: 'timer', sf: 'timer' },
-  active: { md: 'power_off', sf: 'bolt.slash.fill' },
-  past: { md: 'history', sf: 'clock.arrow.circlepath' },
+export const icons: Record<StatusKey, { ios: string; android: string }> = {
+  clear: { android: 'bolt', ios: 'bolt.fill' },
+  upcoming: { android: 'schedule', ios: 'clock.fill' },
+  imminent: { android: 'timer', ios: 'timer' },
+  active: { android: 'power_off', ios: 'bolt.slash.fill' },
+  past: { android: 'history', ios: 'clock.arrow.circlepath' },
 };
