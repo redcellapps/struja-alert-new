@@ -4,14 +4,14 @@
 
 ## 1. What exists
 
-| Piece | State |
-|---|---|
-| Fixture collector (`scripts/`, GH Actions, `fixtures-collect` branch) | Running. Two forced runs so far; the scheduled 07/13/19 slots start from the next window. Discovery from the five branch pages works. |
-| Collected data | 2 snapshots × 5 branches × days 0–3 (12 + 20 pages). |
-| OSM gazetteer for Niš (`fixtures/osm/`) | Streets, address points, admin areas, per-municipality street ids and places, fetched from Overpass on 22 Oct 2026. |
-| Parser (`packages/parser`) | Page decode, page parse, Belgrade time, `Ulice` splitter, house ranges, normalizer, case forms, resolution ladder with spatial scoring. 126 tests. |
-| `fixtures/labels.csv` | 68 distinct Niš-branch segments with proposed answers; `confirmed` column empty for review. |
-| `packages/parser/data/aliases.json` | 8 proposed aliases (non-exact matches) for review. |
+| Piece                                                                 | State                                                                                                                                              |
+| --------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Fixture collector (`scripts/`, GH Actions, `fixtures-collect` branch) | Running. Two forced runs so far; the scheduled 07/13/19 slots start from the next window. Discovery from the five branch pages works.              |
+| Collected data                                                        | 2 snapshots × 5 branches × days 0–3 (12 + 20 pages).                                                                                               |
+| OSM gazetteer for Niš (`fixtures/osm/`)                               | Streets, address points, admin areas, per-municipality street ids and places, fetched from Overpass on 22 Oct 2026.                                |
+| Parser (`packages/parser`)                                            | Page decode, page parse, Belgrade time, `Ulice` splitter, house ranges, normalizer, case forms, resolution ladder with spatial scoring. 126 tests. |
+| `fixtures/labels.csv`                                                 | 68 distinct Niš-branch segments with proposed answers; `confirmed` column empty for review.                                                        |
+| `packages/parser/data/aliases.json`                                   | 8 proposed aliases (non-exact matches) for review.                                                                                                 |
 
 ## 2. Answers to the open questions (BRIEF §10)
 
@@ -47,13 +47,13 @@ Safety rules added after testing: a segment with no letters is never a street; a
 
 ### Real data (in scope = Niš page + one of the five municipalities)
 
-| | Count |
-|---|---|
-| Distinct Niš-branch segments (2 snapshots) | 68 |
-| In scope | **10** (10 street, 0 village) |
-| Out of scope (other branches) | 58 |
-| Resolved automatically, in scope | 10 of 10 |
-| By step | form 7, exact 2, heuristic 1 (number word: `прилаз два` = `прилаз 2`) |
+|                                            | Count                                                                 |
+| ------------------------------------------ | --------------------------------------------------------------------- |
+| Distinct Niš-branch segments (2 snapshots) | 68                                                                    |
+| In scope                                   | **10** (10 street, 0 village)                                         |
+| Out of scope (other branches)              | 58                                                                    |
+| Resolved automatically, in scope           | 10 of 10                                                              |
+| By step                                    | form 7, exact 2, heuristic 1 (number word: `прилаз два` = `прилаз 2`) |
 
 These are the ladder's **proposals**; no human has confirmed them yet, so auto-accept **precision is not measured**. The scored step never fired on real rows. No Медијана or Црвени Крст rows have appeared yet. At roughly 10 new in-scope segments a day (estimate from one day), ~200 would take about three weeks.
 
@@ -61,14 +61,14 @@ These are the ladder's **proposals**; no human has confirmed them yet, so auto-a
 
 `scripts/src/synthetic-eval.ts`: 7,126 perturbed names of the 2,250 real streets (genitive forms, a deleted letter, dropped first word, swapped words) plus junk strings. Truth is known; 17 inputs that equal another real street's name were excluded as unanswerable.
 
-| | Accepted | Precision of accepts |
-|---|---|---|
-| All cases | 81.8% | 100.0% (0 wrong accepts) |
-| Genitive forms | 99.4% | 100% |
-| Typo (one letter deleted) | 77.4% | 100% |
-| Swapped words | 99.7% | 100% |
-| Dropped first word | ~51% | 100% (the rest are left for review) |
-| Junk strings | 0% | n/a |
+|                           | Accepted | Precision of accepts                |
+| ------------------------- | -------- | ----------------------------------- |
+| All cases                 | 81.8%    | 100.0% (0 wrong accepts)            |
+| Genitive forms            | 99.4%    | 100%                                |
+| Typo (one letter deleted) | 77.4%    | 100%                                |
+| Swapped words             | 99.7%    | 100%                                |
+| Dropped first word        | ~51%     | 100% (the rest are left for review) |
+| Junk strings              | 0%       | n/a                                 |
 
 By step: forms 100%, heuristic 100%, scored 100% (1,673 accepts), fuzzy 100% (51). The first run found real flaws (bare numbers, near-equal fuzzy rivals, bare names fitting several streets); each is fixed with a regression test. The thresholds are hand-set and **not tuned on real labels**; this test is easier than real data because its inputs are all derived from real street names.
 
