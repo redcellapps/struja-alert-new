@@ -40,7 +40,7 @@ Ninja/CMake fail when native build paths exceed 260 characters. Keep the repo at
 
 ## Testing and reports
 
-Every `pnpm test` run writes JUnit and coverage reports to `test-results/<package>/` (git-ignored).
+Every `pnpm test` run writes JUnit and coverage reports to `test-results/<package>/` (git-ignored). The turbo `test` task has `cache: false`: with caching on, a cache hit restored the report files as 0-byte files.
 
 ## Fixture collector (Phase 1)
 

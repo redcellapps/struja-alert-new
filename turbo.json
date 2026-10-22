@@ -6,7 +6,7 @@
       "dependsOn": ["^typecheck"]
     },
     "test": {
-      "outputs": ["../../test-results/**"]
+      "cache": false
     }
   }
 }
