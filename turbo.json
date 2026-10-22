@@ -3,14 +3,10 @@
   "tasks": {
     "lint": {},
     "typecheck": {
-      "dependsOn": [
-        "^typecheck"
-      ]
+      "dependsOn": ["^typecheck"]
     },
     "test": {
-      "outputs": [
-        "../../test-results/**"
-      ]
+      "outputs": ["../../test-results/**"]
     }
   }
 }
