@@ -1,10 +1,28 @@
-import { readFileSync } from 'node:fs';
+import { createHash } from 'node:crypto';
+import { readdirSync, readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { decodePage, parsePage } from '../src/index.ts';
 
 // Real pages collected from EDS on 22 Oct 2026 (fixtures/eds/manual-20261022T1202Z).
 const FIXTURES = new URL('../../../fixtures/eds/manual-20261022T1202Z/', import.meta.url);
 const load = (name: string) => parsePage(decodePage(readFileSync(new URL(name, FIXTURES))).text);
+
+describe('raw fixtures', () => {
+  // Guards against line-ending normalization (see `fixtures/** -text` in .gitattributes).
+  it('are byte-for-byte what the collector saved (sha256 in each .meta.json)', () => {
+    const pages = readdirSync(FIXTURES).filter((f) => f.endsWith('.htm'));
+    expect(pages.length).toBeGreaterThan(0);
+    for (const page of pages) {
+      const meta = JSON.parse(
+        readFileSync(new URL(page.replace(/\.htm$/, '.meta.json'), FIXTURES), 'utf8'),
+      );
+      const sha = createHash('sha256')
+        .update(readFileSync(new URL(page, FIXTURES)))
+        .digest('hex');
+      expect(sha, page).toBe(meta.sha256);
+    }
+  });
+});
 
 describe('parsePage: Niš', () => {
   const page = load('Nis_Dan_0.htm');

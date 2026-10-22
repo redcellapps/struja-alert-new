@@ -12,3 +12,11 @@ export {
 export { parsePage, type PageRow, type ParsedPage } from './page.ts';
 export { parseRanges, parseRangePiece, type HouseRange, type Parity } from './ranges.ts';
 export { splitUlice, type Segment } from './split.ts';
+export { generateForms, stemToken, stems } from './forms.ts';
+export {
+  StreetIndex,
+  type Candidate,
+  type GazStreet,
+  type Resolution,
+  type ResolvedBy,
+} from './gazetteer.ts';

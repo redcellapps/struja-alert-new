@@ -3,3 +3,6 @@
 *.jpg binary
 *.keystore binary
 *.jks binary
+
+# Raw EDS/OSM fixtures must stay byte-for-byte as collected (hashes are recorded in the meta files).
+fixtures/** -text
