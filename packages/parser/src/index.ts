@@ -20,3 +20,15 @@ export {
   type Resolution,
   type ResolvedBy,
 } from './gazetteer.ts';
+export {
+  buildNisGazetteer,
+  nisMunicipality,
+  NIS_MUNICIPALITY_KEYS,
+  type MunicipalitySnapshot,
+  type NisGazetteer,
+  type NisMunicipality,
+  type NisSettlement,
+  type NisStreet,
+  type OsmPlace,
+  type OsmStreetWay,
+} from './osm.ts';

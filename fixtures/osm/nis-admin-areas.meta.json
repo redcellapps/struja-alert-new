@@ -1,0 +1,11 @@
+{
+  "fetched_at": "2026-10-22T12:34:06.882Z",
+  "endpoint": "https://overpass-api.de/api/interpreter",
+  "query": "[out:json][timeout:180];(area[\"boundary\"=\"administrative\"][\"name\"~\"^(Ниш|Niš|Град Ниш)$\"];)->.a;rel(area.a)[\"boundary\"=\"administrative\"][\"admin_level\"];out tags bb;",
+  "elements": 85,
+  "osm3s": {
+    "timestamp_osm_base": "2026-10-22T12:32:51Z",
+    "timestamp_areas_base": "2026-10-22T09:01:22Z",
+    "copyright": "The data included in this document is from www.openstreetmap.org. The data is made available under ODbL."
+  }
+}

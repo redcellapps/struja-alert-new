@@ -1,10 +1,13 @@
 import { generateForms, stems } from './forms.ts';
 import { normalizeName } from './normalize.ts';
+import { canonicalizeNumbers } from './numbers.ts';
 
 export interface GazStreet {
   id: string | number;
   name: string;
   nameNorm: string;
+  // Other normalized names for the same street (alt_name, old_name, ...).
+  altNorms?: string[];
   municipality?: string | null;
 }
 
@@ -14,7 +17,8 @@ export interface Candidate {
   overlap: number;
 }
 
-export type ResolvedBy = 'exact' | 'form' | 'ambiguous' | 'unresolved';
+// `heuristic`: matched only after writing numbers as digits on both sides ("прилаз два" = "прилаз 2").
+export type ResolvedBy = 'exact' | 'form' | 'heuristic' | 'ambiguous' | 'unresolved';
 
 export interface Resolution {
   by: ResolvedBy;
@@ -31,14 +35,21 @@ export interface Resolution {
 export class StreetIndex {
   private readonly exactMap = new Map<string, GazStreet[]>();
   private readonly formMap = new Map<string, GazStreet[]>();
+  private readonly numberMap = new Map<string, GazStreet[]>();
   private readonly stemMap = new Map<string, GazStreet[]>();
   private readonly stemsOf = new Map<GazStreet, Set<string>>();
 
   constructor(streets: readonly GazStreet[]) {
     for (const s of streets) {
-      push(this.exactMap, s.nameNorm, s);
-      for (const f of generateForms(s.nameNorm)) push(this.formMap, f, s);
-      const st = new Set(stems(s.nameNorm));
+      const st = new Set<string>();
+      for (const norm of [s.nameNorm, ...(s.altNorms ?? [])]) {
+        push(this.exactMap, norm, s);
+        for (const f of generateForms(norm)) {
+          push(this.formMap, f, s);
+          push(this.numberMap, canonicalizeNumbers(f), s);
+        }
+        for (const t of stems(norm)) st.add(t);
+      }
       this.stemsOf.set(s, st);
       for (const t of st) push(this.stemMap, t, s);
     }
@@ -55,6 +66,8 @@ export class StreetIndex {
     if (exact) return decide('exact', exact);
     const form = this.formMap.get(nameNorm);
     if (form) return decide('form', form);
+    const numeric = this.numberMap.get(canonicalizeNumbers(nameNorm));
+    if (numeric) return decide('heuristic', numeric);
     return {
       by: 'unresolved',
       street: null,
@@ -85,7 +98,7 @@ function push<K, V>(map: Map<K, V[]>, key: K, value: V): void {
   else if (!list.includes(value)) list.push(value);
 }
 
-function decide(by: 'exact' | 'form', matches: GazStreet[]): Resolution {
+function decide(by: 'exact' | 'form' | 'heuristic', matches: GazStreet[]): Resolution {
   // Several streets under one normalized form (or one form shared by two streets) is never
   // auto-accepted here; it goes on to scoring.
   if (matches.length === 1) return { by, street: matches[0] ?? null, matches, candidates: [] };
