@@ -3,6 +3,8 @@ packages:
   - packages/*
   - scripts
 allowBuilds:
+  '@parcel/watcher': false
+  unrs-resolver: false
   cpu-features: false
   esbuild: true
   protobufjs: false

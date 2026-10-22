@@ -7,7 +7,13 @@
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "automatic",
-    "plugins": ["expo-router", "expo-status-bar", "./plugins/with-short-cxx-dir.js"],
+    "plugins": [
+      "expo-router",
+      "expo-status-bar",
+      "./plugins/with-short-cxx-dir.js",
+      "expo-secure-store",
+      "expo-localization"
+    ],
     "ios": {
       "supportsTablet": false,
       "bundleIdentifier": "rs.example.strujaalert"

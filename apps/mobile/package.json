@@ -8,23 +8,62 @@
     "android": "expo run:android",
     "ios": "expo run:ios",
     "typecheck": "tsc -p tsconfig.json",
-    "test": "echo \"no mobile tests yet\""
+    "test": "jest --ci --coverage --coverageDirectory=../../test-results/mobile/coverage --coverageReporters=text-summary --coverageReporters=lcov --reporters=default --reporters=jest-junit && vitest run --reporter=default --reporter=junit --outputFile.junit=../../test-results/mobile/junit-contract.xml",
+    "mock": "node --experimental-strip-types mock-server/run.ts"
   },
   "dependencies": {
+    "@struja/parser": "workspace:*",
+    "@struja/shared": "workspace:*",
+    "@tanstack/react-query": "^5.104.5",
+    "@tanstack/react-query-persist-client": "^5.104.5",
     "expo": "~58.0.17",
     "expo-constants": "~58.0.13",
+    "expo-haptics": "~58.0.7",
     "expo-linking": "~58.0.14",
+    "expo-localization": "~58.0.5",
     "expo-router": "~58.0.25",
+    "expo-secure-store": "~58.0.2",
     "expo-status-bar": "~58.0.4",
     "expo-symbols": "~58.0.4",
     "expo-system-ui": "~58.0.6",
+    "i18next": "^26.5.4",
     "react": "19.3.0",
+    "react-i18next": "^17.1.0",
     "react-native": "0.88.0",
+    "react-native-gesture-handler": "~3.3.0",
+    "react-native-mmkv": "^4.3.2",
+    "react-native-nitro-modules": "^0.37.1",
+    "react-native-reanimated": "4.7.1",
     "react-native-safe-area-context": "~5.10.1",
-    "react-native-screens": "~4.30.0"
+    "react-native-screens": "~4.30.0",
+    "react-native-worklets": "0.13.0",
+    "zustand": "^5.0.15"
   },
   "devDependencies": {
+    "@testing-library/react-native": "^14.1.0",
+    "@types/jest": "^30.0.0",
     "@types/react": "~19.3.0",
+    "jest": "^30.5.2",
+    "jest-expo": "^58.0.12",
+    "jest-junit": "^17.0.0",
+    "react-test-renderer": "^19.3.1",
     "typescript": "~6.0.3"
+  },
+  "jest": {
+    "preset": "jest-expo",
+    "setupFiles": [
+      "<rootDir>/jest.setup.ts"
+    ],
+    "testMatch": [
+      "<rootDir>/__tests__/**/*.test.ts?(x)"
+    ],
+    "collectCoverageFrom": [
+      "src/**/*.{ts,tsx}",
+      "!src/**/*.d.ts"
+    ]
+  },
+  "jest-junit": {
+    "outputDirectory": "../../test-results/mobile",
+    "outputName": "junit.xml"
   }
 }

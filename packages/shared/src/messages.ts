@@ -1,4 +1,5 @@
-import { belgradeLocal, latinToCyrillic } from '@struja/parser';
+import { latinToCyrillic } from '@struja/parser/transliterate';
+import { belgradeLocal } from '@struja/parser/time';
 
 // Notification copy (BRIEF §5). Serbian ekavica; sr-Latn is the source of truth and sr-Cyrl is
 // generated from it with the parser's transliteration (plus a small override map). Street names

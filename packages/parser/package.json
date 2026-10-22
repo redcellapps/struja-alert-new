@@ -14,5 +14,11 @@
   },
   "devDependencies": {
     "@types/node": "^24.19.2"
+  },
+  "exports": {
+    ".": "./src/index.ts",
+    "./transliterate": "./src/transliterate.ts",
+    "./normalize": "./src/normalize.ts",
+    "./time": "./src/time.ts"
   }
 }
