@@ -1,0 +1,68 @@
+name: Collect EDS fixtures
+
+# Phase 1 fixture collector. Saves raw EDS pages three times a day to the orphan branch
+# `fixtures-collect` (never to main). The script itself decides whether a run is due:
+# it collects only while the Europe/Belgrade local hour is 07, 13 or 19 (a one-hour window
+# per slot, so a delayed cron run still counts) and skips a slot that is already collected.
+# Each slot is listed at two UTC hours (summer/winter), and the script discards the one that
+# falls outside the window, so DST needs no manual change. Minute 5 avoids the top-of-hour rush.
+on:
+  schedule:
+    - cron: '5 5,6,11,12,17,18 * * *'
+  workflow_dispatch:
+    inputs:
+      force:
+        description: 'Bypass the slot window (manual run; saved under its own manual-* key)'
+        type: boolean
+        default: false
+
+concurrency:
+  group: collect-fixtures
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+
+jobs:
+  collect:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check out the fixtures branch (create it on first run)
+        run: |
+          if git ls-remote --exit-code --heads origin fixtures-collect >/dev/null 2>&1; then
+            git fetch --depth=1 origin fixtures-collect
+            git worktree add -B fixtures-collect fixtures-data origin/fixtures-collect
+          else
+            git worktree add --orphan -b fixtures-collect fixtures-data
+          fi
+
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile --filter "@struja/scripts..."
+
+      - name: Collect
+        run: pnpm --filter @struja/scripts collect
+        env:
+          SCRAPER_CONTACT_EMAIL: ${{ secrets.SCRAPER_CONTACT_EMAIL }}
+          FIXTURES_DIR: ${{ github.workspace }}/fixtures-data
+          COLLECT_CITIES: Nis,Kraljevo
+          FORCE: ${{ inputs.force && '1' || '0' }}
+
+      - name: Commit and push new fixtures
+        working-directory: fixtures-data
+        run: |
+          git add -A
+          if git diff --cached --quiet; then
+            echo "Nothing new to commit."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -m "Collect EDS fixtures $(date -u +%Y-%m-%dT%H:%MZ)"
+          git push origin fixtures-collect
