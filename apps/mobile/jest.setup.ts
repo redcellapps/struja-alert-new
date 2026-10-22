@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-require-imports -- jest.mock factories must use require */
 import { memoryStorage, setStorage } from './src/store/storage';
 
 // MMKV is native; the tests use an in-memory store.
