@@ -16,6 +16,17 @@ export interface ParsedPage {
   title: string;
   date: PageDate | null;
   rows: PageRow[];
+  // An outage table with the Улице header was found. A page with the header and no rows is valid
+  // data ("no outages"); a page with no table at all is not.
+  tableFound: boolean;
+}
+
+/**
+ * EDS pages end with the closing html tag. A page cut off in the middle (a truncated download that
+ * still came back with HTTP 200) does not, and its last rows may be garbled.
+ */
+export function isCompletePage(html: string): boolean {
+  return /<\/html\s*>\s*$/i.test(html.trimEnd());
 }
 
 const text = (node: Parameters<typeof DomUtils.textContent>[0]) =>
@@ -64,5 +75,5 @@ export function parsePage(html: string): ParsedPage {
       endsAt: window?.endsAt ?? null,
     });
   }
-  return { title, date, rows };
+  return { title, date, rows, tableFound: cols !== null };
 }

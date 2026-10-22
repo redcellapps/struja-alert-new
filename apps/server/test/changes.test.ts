@@ -135,10 +135,16 @@ describe('cancellation', () => {
   it('a single missing fetch is forgiven when the row returns', async () => {
     const d = '30.10.2026.';
     const s = 'делови Бубањске долине; (flap)';
-    await fetchPage(d, [['Медијана', '08:00 - 10:00', s]]);
-    await fetchPage(d, []); // missing once
-    await fetchPage(d, [['Медијана', '08:00 - 10:00', s]]); // back
-    await fetchPage(d, []); // missing once again: the counter restarted
+    // a second row keeps the page above the "fewer than half the rows" guard
+    const other: [string, string, string] = [
+      'Медијана',
+      '12:00 - 13:00',
+      'делови Требињске; (flap2)',
+    ];
+    await fetchPage(d, [['Медијана', '08:00 - 10:00', s], other]);
+    await fetchPage(d, [other]); // missing once
+    await fetchPage(d, [['Медијана', '08:00 - 10:00', s], other]); // back
+    await fetchPage(d, [other]); // missing once again: the counter restarted
     expect(await status(s)).toMatchObject([{ status: 'active', missing_runs: 1 }]);
   });
 
@@ -157,14 +163,14 @@ describe('cancellation', () => {
     const d = '31.10.2026.';
     const s = 'делови Чегарске; (unreach)';
     await fetchPage(d, [['Медијана', '08:00 - 10:00', s]]);
-    await expect(
-      ingestPage(t.db, gaz, {
-        city: 'Nis',
-        url: 'x',
-        bytes: new TextEncoder().encode('<html></html>'),
-        now: NOW,
-      }),
-    ).rejects.toThrow();
+    // an HTTP 200 page without an outage table is a failed fetch: it counts as nothing
+    const r = await ingestPage(t.db, gaz, {
+      city: 'Nis',
+      url: 'x',
+      bytes: new TextEncoder().encode('<html></html>'),
+      now: NOW,
+    });
+    expect(r).toMatchObject({ health: 'no_table', inserted: 0, missing: 0 });
     expect(await status(s)).toMatchObject([{ status: 'active', missing_runs: 0 }]);
   });
 });

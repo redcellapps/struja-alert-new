@@ -205,12 +205,16 @@ describe('cases the real pages do not contain', () => {
     expect(String(run.rows[0]?.error)).toContain('without a time window');
   });
 
-  it('fails a page without a date and records the error on the run', async () => {
+  it('fails a page with an outage table but no date and records the error on the run', async () => {
+    const noDate = new TextEncoder().encode(
+      '<HTML><BODY><TABLE><TR><TD><B>НИШ</B></TD></TR></TABLE>' +
+        '<TABLE><tr><td>Огранак</td><td>Општина</td><td>Време</td><td>Улице</td></tr></TABLE></BODY></HTML>',
+    );
     await expect(
       ingestPage(t.db, gaz, {
         city: 'Nis',
         url: 'https://example.test/synthetic-4',
-        bytes: new TextEncoder().encode('<html><body>nothing here</body></html>'),
+        bytes: noDate,
       }),
     ).rejects.toThrow(/No date/);
     const run = await t.db.execute(

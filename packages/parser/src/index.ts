@@ -11,7 +11,7 @@ export {
   type BelgradeLocal,
   type PageDate,
 } from './time.ts';
-export { parsePage, type PageRow, type ParsedPage } from './page.ts';
+export { isCompletePage, parsePage, type PageRow, type ParsedPage } from './page.ts';
 export { parseRanges, parseRangePiece, type HouseRange, type Parity } from './ranges.ts';
 export { splitUlice, type Segment } from './split.ts';
 export { generateForms, stemToken, stems } from './forms.ts';

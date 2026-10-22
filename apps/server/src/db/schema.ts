@@ -176,8 +176,39 @@ export const scrapeRun = pgTable(
     etag: text('etag'),
     rowsFound: integer('rows_found'),
     error: text('error'),
+    // The date in the page header, and how the page looked (see the broken page guard):
+    // 'ok' | 'truncated' | 'no_table' | 'reduced' (fewer than half the rows of the previous healthy
+    // fetch: not counted towards "missing") | 'confirmed_reduced' (the same reduced page twice in
+    // a row: taken as real, e.g. a mass cancellation).
+    pageDate: date('page_date'),
+    health: text('health'),
   },
-  (t) => [index('scrape_run_started_idx').on(t.startedAt)],
+  (t) => [
+    index('scrape_run_started_idx').on(t.startedAt),
+    index('scrape_run_page_idx').on(t.city, t.pageDate, t.id),
+  ],
+);
+
+// Things the operator must hear about (BRIEF §4 Monitoring). Step 9 delivers them (email + admin
+// push); until then they are recorded here. One open alert per (kind, dedupe_key): a condition that
+// stays true does not raise a new alert on every fetch.
+export const alert = pgTable(
+  'alert',
+  {
+    id: serial('id').primaryKey(),
+    kind: text('kind').notNull(),
+    dedupeKey: text('dedupe_key').notNull(),
+    message: text('message').notNull(),
+    details: jsonb('details'),
+    createdAt: tstz('created_at').notNull().defaultNow(),
+    resolvedAt: tstz('resolved_at'),
+    notifiedAt: tstz('notified_at'),
+  },
+  (t) => [
+    uniqueIndex('alert_open_unique')
+      .on(t.kind, t.dedupeKey)
+      .where(sql`${t.resolvedAt} IS NULL`),
+  ],
 );
 
 export const outage = pgTable(
@@ -218,6 +249,10 @@ export const outage = pgTable(
     // cancellation (missing for two fetches), an undone cancellation, a reverted change. A repeat
     // run with nothing new leaves it alone, so it sends nothing.
     revision: integer('revision').notNull().default(0),
+    // How many times the displayed version of this outage has switched (a changed time, an edited
+    // street list, a revert): a replacing row has its predecessor's count + 1. More than two raises
+    // the flip-flop alert.
+    flips: integer('flips').notNull().default(0),
   },
   (t) => [
     unique('outage_content_hash_unique').on(t.contentHash),

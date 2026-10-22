@@ -2,6 +2,7 @@ import { createHash } from 'node:crypto';
 import { and, eq, sql } from 'drizzle-orm';
 import {
   decodePage,
+  isCompletePage,
   nisMunicipality,
   normalizeName,
   parsePage,
@@ -10,6 +11,7 @@ import {
   type PageRow,
   type SegmentResolution,
 } from '@struja/parser';
+import { raiseAlert, resolveAlerts } from '../alerts.ts';
 import type { Db } from '../db/client.ts';
 import type { LoadedGazetteer } from '../gazetteer/load.ts';
 import { outage, outageStreet, scrapeRun } from '../db/schema.ts';
@@ -26,8 +28,16 @@ export interface IngestPageInput {
   now?: Date;
 }
 
+// How a fetched page looked (the broken page guard):
+//  - truncated / no_table: HTTP 200 but cut off or without an outage table: not used at all.
+//  - reduced: fewer than half the rows of the previous healthy fetch for the same date: its new rows
+//    are stored, but it does not count towards "missing" (no cancellation, no pairing).
+//  - confirmed_reduced: the same reduced page twice in a row: taken as real (a mass cancellation).
+export type PageHealth = 'ok' | 'truncated' | 'no_table' | 'reduced' | 'confirmed_reduced';
+
 export interface IngestResult {
   runId: number;
+  health: PageHealth;
   rows: number;
   inserted: number;
   // Rows already stored (same content): only their last-seen run was refreshed.
@@ -114,6 +124,7 @@ export async function ingestPage(
   const runId = run?.id as number;
   const result: IngestResult = {
     runId,
+    health: 'ok',
     rows: page.rows.length,
     inserted: 0,
     seen: 0,
@@ -127,6 +138,36 @@ export async function ingestPage(
     segments: 0,
     unresolvedSegments: 0,
   };
+
+  const alertKey = `${input.city}|${input.url}`;
+  const structural: PageHealth | null = !isCompletePage(text)
+    ? 'truncated'
+    : !page.tableFound
+      ? 'no_table'
+      : null;
+  if (structural) {
+    // Treated as a failed fetch: nothing is stored and nothing counts as missing.
+    await db
+      .update(scrapeRun)
+      .set({
+        finishedAt: sql`now()`,
+        rowsFound: page.rows.length,
+        health: structural,
+        pageDate: page.date ? iso(page.date) : null,
+        error: `page ${structural}`,
+      })
+      .where(eq(scrapeRun.id, runId));
+    await raiseAlert(db, {
+      kind: 'broken_page',
+      dedupeKey: alertKey,
+      message: `${input.url} came back with HTTP ${input.httpStatus ?? 200} but is ${
+        structural === 'truncated' ? 'cut off' : 'missing the outage table'
+      }; treated as a failed fetch`,
+      details: { health: structural, bytes: input.bytes.length, rowsParsed: page.rows.length },
+    });
+    result.health = structural;
+    return result;
+  }
 
   if (!page.date) {
     await db
@@ -151,6 +192,28 @@ export async function ingestPage(
   );
   result.skippedNoTime = page.rows.length - prepared.length;
   const present = new Set(prepared.map((p) => p.hash));
+
+  // Fewer than half the rows of the previous healthy fetch for the same date? Then this page may be
+  // broken even though it parses: it must not count towards "missing". The same reduced page twice
+  // in a row is taken as real (e.g. most outages of the day really were cancelled).
+  const history = (
+    await db.execute(sql`
+      SELECT rows_found, health FROM scrape_run
+      WHERE city = ${input.city} AND page_date = ${date}
+        AND health IN ('ok', 'confirmed_reduced', 'reduced') AND id <> ${runId}
+      ORDER BY id DESC LIMIT 20`)
+  ).rows as { rows_found: number; health: string }[];
+  const baseline = history.find((h) => h.health !== 'reduced');
+  let health: PageHealth = 'ok';
+  if (baseline && page.rows.length * 2 < baseline.rows_found) {
+    const last = history[0];
+    health =
+      last?.health === 'reduced' && last.rows_found === page.rows.length
+        ? 'confirmed_reduced'
+        : 'reduced';
+  }
+  result.health = health;
+  const trusted = health !== 'reduced';
 
   await db.transaction(async (tx) => {
     const created: PairRow[] = [];
@@ -233,7 +296,7 @@ export async function ingestPage(
     }
 
     // Pair the new rows with the stored rows of this date that left the page.
-    if (created.length > 0) {
+    if (trusted && created.length > 0) {
       const newIds = new Set(created.map((c) => c.id));
       const candidates = (
         await tx.execute(sql`
@@ -267,7 +330,12 @@ export async function ingestPage(
 
       const { pairs, groups } = pairChanges(created, olds);
       for (const p of pairs) {
-        await tx.update(outage).set({ status: 'changed' }).where(eq(outage.id, p.newId));
+        const before = await flipsOf(tx, [p.oldId]);
+        await tx
+          .update(outage)
+          .set({ status: 'changed', flips: before + 1 })
+          .where(eq(outage.id, p.newId));
+        await flagFlips(tx, p.newId, before + 1);
         await tx
           .update(outage)
           .set({ status: 'cancelled', supersededByOutageId: p.newId })
@@ -276,11 +344,13 @@ export async function ingestPage(
       }
       for (const g of groups) {
         const groupId = Math.min(...g.newIds);
+        const before = await flipsOf(tx, g.oldIds);
         for (const id of g.newIds) {
           await tx
             .update(outage)
-            .set({ status: 'changed', changeGroupId: groupId })
+            .set({ status: 'changed', changeGroupId: groupId, flips: before + 1 })
             .where(eq(outage.id, id));
+          await flagFlips(tx, id, before + 1);
         }
         for (const id of g.oldIds) {
           await tx
@@ -295,18 +365,20 @@ export async function ingestPage(
 
     // Rows of this date that were not on the page this time. Only a successful fetch of the page
     // gets here, so an unreachable page never counts as "missing".
-    const missing = await tx
-      .update(outage)
-      .set({ missingRuns: sql`${outage.missingRuns} + 1` })
-      .where(
-        and(
-          eq(outage.city, input.city),
-          eq(outage.outageDate, date),
-          sql`${outage.status} IN ('active', 'changed')`,
-          sql`${outage.lastSeenRun} <> ${runId}`,
-        ),
-      )
-      .returning({ id: outage.id });
+    const missing = !trusted
+      ? []
+      : await tx
+          .update(outage)
+          .set({ missingRuns: sql`${outage.missingRuns} + 1` })
+          .where(
+            and(
+              eq(outage.city, input.city),
+              eq(outage.outageDate, date),
+              sql`${outage.status} IN ('active', 'changed')`,
+              sql`${outage.lastSeenRun} <> ${runId}`,
+            ),
+          )
+          .returning({ id: outage.id });
     result.missing = missing.length;
     if (missing.length) {
       const cancelled = await tx
@@ -331,14 +403,60 @@ export async function ingestPage(
       .set({
         finishedAt: sql`now()`,
         rowsFound: page.rows.length,
+        pageDate: date,
+        health,
         error: result.skippedNoTime ? `${result.skippedNoTime} rows without a time window` : null,
       })
       .where(eq(scrapeRun.id, runId));
   });
+
+  if (health === 'reduced') {
+    await raiseAlert(db, {
+      kind: 'broken_page',
+      dedupeKey: alertKey,
+      message: `${input.url} has ${page.rows.length} rows, fewer than half of the ${baseline?.rows_found} of the previous fetch for ${date}; not counted towards cancellations`,
+      details: { health, rows: page.rows.length, previousRows: baseline?.rows_found, date },
+    });
+  } else {
+    await resolveAlerts(db, 'broken_page', alertKey);
+  }
   return result;
 }
 
 type Tx = Parameters<Parameters<Db['transaction']>[0]>[0];
+
+// The highest flip count among some rows (0 for none).
+async function flipsOf(tx: Tx, ids: number[]): Promise<number> {
+  let max = 0;
+  for (const id of ids) {
+    const r = await tx.select({ f: outage.flips }).from(outage).where(eq(outage.id, id));
+    max = Math.max(max, r[0]?.f ?? 0);
+  }
+  return max;
+}
+
+// An outage whose displayed version switched more than twice (A->B->A->B ...) raises an alert.
+export const FLIP_ALERT_OVER = 2;
+async function flagFlips(tx: Tx, outageId: number, flips: number): Promise<void> {
+  if (flips <= FLIP_ALERT_OVER) return;
+  const r = (
+    await tx
+      .select({
+        key: outage.identityKey,
+        date: outage.outageDate,
+        municipality: outage.municipality,
+      })
+      .from(outage)
+      .where(eq(outage.id, outageId))
+  )[0];
+  if (!r) return;
+  await raiseAlert(tx, {
+    kind: 'flip_flop',
+    dedupeKey: `identity:${r.key}`,
+    message: `The outage in ${r.municipality} on ${r.date} has switched its published version ${flips} times`,
+    details: { outageId, flips, identityKey: r.key },
+  });
+}
 
 /**
  * A `cancelled` row is published again. If it had been replaced (a changed time or an edited
@@ -352,15 +470,15 @@ async function reappear(
   row: { id: number; supersededBy: number | null; changeGroupId: number | null },
   present: ReadonlySet<string>,
 ): Promise<boolean> {
-  const replacements: { id: number; content_hash: string }[] = [];
+  const replacements: { id: number; content_hash: string; flips: number }[] = [];
   if (row.supersededBy !== null) {
     const r = await tx.execute(
-      sql`SELECT id, content_hash FROM outage WHERE id = ${row.supersededBy}`,
+      sql`SELECT id, content_hash, flips FROM outage WHERE id = ${row.supersededBy}`,
     );
     replacements.push(...(r.rows as typeof replacements));
   } else if (row.changeGroupId !== null) {
     const r = await tx.execute(sql`
-      SELECT id, content_hash FROM outage
+      SELECT id, content_hash, flips FROM outage
       WHERE change_group_id = ${row.changeGroupId} AND status = 'changed' AND id <> ${row.id}`);
     replacements.push(...(r.rows as typeof replacements));
   }
@@ -381,6 +499,7 @@ async function reappear(
     return false;
   }
   // A reverted change: a new revision, so this "Izmena" is not swallowed by the earlier one.
+  const flips = Math.max(...gone.map((g) => g.flips)) + 1;
   await tx
     .update(outage)
     .set({
@@ -388,8 +507,10 @@ async function reappear(
       supersededByOutageId: null,
       changeGroupId: null,
       revision: sql`${outage.revision} + 1`,
+      flips,
     })
     .where(eq(outage.id, row.id));
+  await flagFlips(tx, row.id, flips);
   for (const g of gone) {
     await tx
       .update(outage)
