@@ -1,0 +1,1 @@
+ALTER TABLE "outage" DROP COLUMN "supersedes_outage_id";

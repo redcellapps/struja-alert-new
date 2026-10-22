@@ -13,6 +13,7 @@ import {
 import type { Db } from '../db/client.ts';
 import type { LoadedGazetteer } from '../gazetteer/load.ts';
 import { outage, outageStreet, scrapeRun } from '../db/schema.ts';
+import { pairChanges, type PairRow } from './pairing.ts';
 
 export interface IngestPageInput {
   // The collector's slug for the page's city ("Nis", "Kraljevo", ...).
@@ -31,8 +32,12 @@ export interface IngestResult {
   inserted: number;
   // Rows already stored (same content): only their last-seen run was refreshed.
   seen: number;
-  // New rows that replace an older one with the same identity (a changed time window).
+  // New rows that replace an older one (a changed time or an edited street list).
   changed: number;
+  // Ambiguous changes: groups of rows that could not be paired one to one.
+  groups: number;
+  // A replaced row that came back (EDS reverted a change).
+  reverted: number;
   // Rows of this page's date that were missing this time (counted towards cancellation).
   missing: number;
   // Rows that became `cancelled` after being missing for two consecutive runs.
@@ -64,21 +69,28 @@ export function contentHash(city: string, date: string, row: PageRow): string {
   return sha256(JSON.stringify([city, row.ogranak, row.opstina, date, row.vreme, row.ulice]));
 }
 
+const streetSet = (ulice: string) => new Set(splitUlice(ulice).map((s) => normalizeName(s.name)));
+
 // Identity key (BRIEF §4): city + municipality + date + sorted normalized street set. The time
 // window is deliberately not part of it, so a changed time is "changed", not "new" + "cancelled".
 export function identityKey(city: string, date: string, row: PageRow): string {
-  const names = new Set(splitUlice(row.ulice).map((s) => normalizeName(s.name)));
-  return [city, normalizeName(row.opstina), date, [...names].sort().join(',')].join('|');
+  return [city, normalizeName(row.opstina), date, [...streetSet(row.ulice)].sort().join(',')].join(
+    '|',
+  );
 }
 
 /**
  * Stores one EDS page: parse, split, resolve and persist, then work out what changed since the
  * previous fetch of the same date:
  *  - a row seen before (same content) only refreshes `last_seen_run`;
- *  - a new row with the identity of an older row that is no longer on the page is a `changed`
- *    version of it (the older row becomes `cancelled`, linked through `supersedes_outage_id`);
- *  - a row of this date that is missing for two consecutive fetches, and has not started, is
- *    `cancelled`.
+ *  - a new row that replaces an old row which left the page is `changed` (a different time
+ *    window, or an edited street list); the old row becomes `cancelled` and is linked to its
+ *    replacement through `superseded_by_outage_id`, so it never produces a "cancelled" notice;
+ *  - when old and new rows cannot be paired one to one without guessing, they share a change
+ *    group (`change_group_id`);
+ *  - a replaced row that is published again (EDS reverted the change) is `changed` back to the
+ *    original, and the newer row it had replaced becomes the superseded one;
+ *  - a row of this date missing for two consecutive fetches, which has not started, is `cancelled`.
  * Safe to run again on the same page.
  */
 export async function ingestPage(
@@ -106,6 +118,8 @@ export async function ingestPage(
     inserted: 0,
     seen: 0,
     changed: 0,
+    groups: 0,
+    reverted: 0,
     missing: 0,
     cancelled: 0,
     outOfScope: 0,
@@ -139,41 +153,38 @@ export async function ingestPage(
   const present = new Set(prepared.map((p) => p.hash));
 
   await db.transaction(async (tx) => {
+    const created: PairRow[] = [];
+
     for (const { row, startsAt, endsAt, hash } of prepared) {
       const inScope = rowInScope(input.city, row);
 
-      const existing = await tx
-        .select({ id: outage.id, status: outage.status })
-        .from(outage)
-        .where(eq(outage.contentHash, hash));
-      if (existing[0]) {
-        // Seen before. A row that had been cancelled and is published again is active again.
+      const existing = (
+        await tx
+          .select({
+            id: outage.id,
+            status: outage.status,
+            supersededBy: outage.supersededByOutageId,
+            changeGroupId: outage.changeGroupId,
+          })
+          .from(outage)
+          .where(eq(outage.contentHash, hash))
+      )[0];
+      if (existing) {
         await tx
           .update(outage)
-          .set({
-            lastSeenRun: runId,
-            missingRuns: 0,
-            ...(existing[0].status === 'cancelled' ? { status: 'active' as const } : {}),
-          })
-          .where(eq(outage.id, existing[0].id));
+          .set({ lastSeenRun: runId, missingRuns: 0 })
+          .where(eq(outage.id, existing.id));
+        if (existing.status === 'cancelled') {
+          const reverted = await reappear(tx, existing, present);
+          if (reverted) result.reverted++;
+        }
         result.seen++;
         if (!inScope) result.outOfScope++;
         continue;
       }
 
-      // Same identity, different content, and the older row is no longer on the page: a change.
       const key = identityKey(input.city, date, row);
-      const olderRows = await tx.execute(sql`
-        SELECT o.id, o.content_hash FROM outage o
-        WHERE o.city = ${input.city} AND o.identity_key = ${key}
-          AND o.status IN ('active', 'changed')
-          AND NOT EXISTS (SELECT 1 FROM outage n WHERE n.supersedes_outage_id = o.id)
-        ORDER BY o.id DESC`);
-      const older = (olderRows.rows as { id: number; content_hash: string }[]).find(
-        (o) => !present.has(o.content_hash),
-      );
-
-      const [created] = await tx
+      const [inserted] = await tx
         .insert(outage)
         .values({
           sourceUrl: input.url,
@@ -189,15 +200,19 @@ export async function ingestPage(
           rawStreets: row.ulice,
           firstSeenRun: runId,
           lastSeenRun: runId,
-          status: older ? 'changed' : 'active',
-          supersedesOutageId: older?.id ?? null,
         })
         .returning({ id: outage.id });
+      const id = inserted?.id as number;
       result.inserted++;
-      if (older) {
-        await tx.update(outage).set({ status: 'cancelled' }).where(eq(outage.id, older.id));
-        result.changed++;
-      }
+      created.push({
+        id,
+        identityKey: key,
+        municipality: normalizeName(row.opstina),
+        date,
+        startsAt,
+        endsAt,
+        streets: streetSet(row.ulice),
+      });
       if (!inScope) {
         result.outOfScope++;
         continue;
@@ -211,10 +226,71 @@ export async function ingestPage(
         aliases: gaz.aliases,
         addressNumbers: gaz.addressNumbers,
       });
-      const values = resolutions.flatMap((res, i) => segmentRows(created?.id as number, i, res));
+      const values = resolutions.flatMap((res, i) => segmentRows(id, i, res));
       result.segments += resolutions.length;
       result.unresolvedSegments += resolutions.filter((r) => r.by === 'unresolved').length;
       if (values.length) await tx.insert(outageStreet).values(values);
+    }
+
+    // Pair the new rows with the stored rows of this date that left the page.
+    if (created.length > 0) {
+      const newIds = new Set(created.map((c) => c.id));
+      const candidates = (
+        await tx.execute(sql`
+          SELECT id, identity_key, municipality, outage_date::text AS d, starts_at, ends_at,
+                 raw_streets, content_hash
+          FROM outage
+          WHERE city = ${input.city} AND outage_date = ${date}
+            AND status IN ('active', 'changed')
+            AND superseded_by_outage_id IS NULL AND change_group_id IS NULL`)
+      ).rows as {
+        id: number;
+        identity_key: string;
+        municipality: string;
+        d: string;
+        starts_at: string;
+        ends_at: string;
+        raw_streets: string;
+        content_hash: string;
+      }[];
+      const olds: PairRow[] = candidates
+        .filter((o) => !newIds.has(o.id) && !present.has(o.content_hash))
+        .map((o) => ({
+          id: o.id,
+          identityKey: o.identity_key,
+          municipality: normalizeName(o.municipality),
+          date: o.d,
+          startsAt: new Date(o.starts_at),
+          endsAt: new Date(o.ends_at),
+          streets: streetSet(o.raw_streets),
+        }));
+
+      const { pairs, groups } = pairChanges(created, olds);
+      for (const p of pairs) {
+        await tx.update(outage).set({ status: 'changed' }).where(eq(outage.id, p.newId));
+        await tx
+          .update(outage)
+          .set({ status: 'cancelled', supersededByOutageId: p.newId })
+          .where(eq(outage.id, p.oldId));
+        result.changed++;
+      }
+      for (const g of groups) {
+        const groupId = Math.min(...g.newIds);
+        for (const id of g.newIds) {
+          await tx
+            .update(outage)
+            .set({ status: 'changed', changeGroupId: groupId })
+            .where(eq(outage.id, id));
+        }
+        for (const id of g.oldIds) {
+          await tx
+            .update(outage)
+            .set({ status: 'cancelled', changeGroupId: groupId })
+            .where(eq(outage.id, id));
+        }
+        result.changed += g.newIds.length;
+        result.groups++;
+      }
     }
 
     // Rows of this date that were not on the page this time. Only a successful fetch of the page
@@ -260,6 +336,55 @@ export async function ingestPage(
       .where(eq(scrapeRun.id, runId));
   });
   return result;
+}
+
+type Tx = Parameters<Parameters<Db['transaction']>[0]>[0];
+
+/**
+ * A `cancelled` row is published again. If it had been replaced (a changed time or an edited
+ * street list), EDS reverted the change: this row is now the `changed` one (back to the original)
+ * and the rows that replaced it become the superseded ones, so there is an "Izmena" back and never
+ * a "cancelled" for the newer row (KNOWN GAP 2). Otherwise it had only been cancelled by the
+ * missing-runs rule and is simply active again. Returns true for a revert.
+ */
+async function reappear(
+  tx: Tx,
+  row: { id: number; supersededBy: number | null; changeGroupId: number | null },
+  present: ReadonlySet<string>,
+): Promise<boolean> {
+  const replacements: { id: number; content_hash: string }[] = [];
+  if (row.supersededBy !== null) {
+    const r = await tx.execute(
+      sql`SELECT id, content_hash FROM outage WHERE id = ${row.supersededBy}`,
+    );
+    replacements.push(...(r.rows as typeof replacements));
+  } else if (row.changeGroupId !== null) {
+    const r = await tx.execute(sql`
+      SELECT id, content_hash FROM outage
+      WHERE change_group_id = ${row.changeGroupId} AND status = 'changed' AND id <> ${row.id}`);
+    replacements.push(...(r.rows as typeof replacements));
+  }
+
+  const gone = replacements.filter((r) => !present.has(r.content_hash));
+  if (gone.length === 0) {
+    // Nothing it was replaced by has left the page (or it was never replaced): simply active.
+    await tx
+      .update(outage)
+      .set({ status: 'active', supersededByOutageId: null, changeGroupId: null })
+      .where(eq(outage.id, row.id));
+    return false;
+  }
+  await tx
+    .update(outage)
+    .set({ status: 'changed', supersededByOutageId: null, changeGroupId: null })
+    .where(eq(outage.id, row.id));
+  for (const g of gone) {
+    await tx
+      .update(outage)
+      .set({ status: 'cancelled', supersededByOutageId: row.id, changeGroupId: null })
+      .where(eq(outage.id, g.id));
+  }
+  return true;
 }
 
 // One row per house range; a segment with no ranges (the whole street) is one row.

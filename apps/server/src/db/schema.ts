@@ -205,9 +205,12 @@ export const outage = pgTable(
       .references(() => scrapeRun.id),
     missingRuns: integer('missing_runs').notNull().default(0),
     status: outageStatusEnum('status').notNull().default('active'),
-    // Set on a `changed` row: the older outage (same identity, other time) it replaces. That older
-    // row is `cancelled` but superseded, so it must not produce a "cancelled" notification.
-    supersedesOutageId: integer('supersedes_outage_id'),
+    // On the OLD row: the row that replaced it (a changed time or an edited street list). A
+    // replaced row is `cancelled` but must never produce a "cancelled" notification.
+    supersededByOutageId: integer('superseded_by_outage_id'),
+    // Ambiguous changes: several old and new rows that could not be paired one to one share a
+    // group, and the notifier sends one "Izmena" listing the new windows.
+    changeGroupId: integer('change_group_id'),
   },
   (t) => [
     unique('outage_content_hash_unique').on(t.contentHash),
@@ -315,7 +318,18 @@ export const notificationLog = pgTable(
       .notNull()
       .references(() => outage.id, { onDelete: 'cascade' }),
     kind: notificationKindEnum('kind').notNull(),
-    sentAt: tstz('sent_at').notNull().defaultNow(),
+    // The log doubles as the outbox: the planner inserts a row (claiming the notification through
+    // the unique constraint) and the delivery job sends it. 'pending' | 'sent' | 'failed' |
+    // 'suppressed' (the user turned this kind off, or the device is gone: recorded, never sent).
+    status: text('status').notNull().default('pending'),
+    // Not before this time (quiet hours); an urgent notification is deliverable immediately.
+    deliverAt: tstz('deliver_at'),
+    // Title, body and the data the app needs, rendered at planning time.
+    payload: jsonb('payload'),
+    attempts: integer('attempts').notNull().default(0),
+    lastError: text('last_error'),
+    createdAt: tstz('created_at').notNull().defaultNow(),
+    sentAt: tstz('sent_at'),
     // Expo push ticket / receipt, so dead tokens can be dropped.
     ticketId: text('ticket_id'),
     receiptStatus: text('receipt_status'),
@@ -324,6 +338,7 @@ export const notificationLog = pgTable(
   (t) => [
     unique('notification_log_dedupe').on(t.subscriptionId, t.outageId, t.kind),
     index('notification_log_ticket_idx').on(t.ticketId),
+    index('notification_log_pending_idx').on(t.status, t.deliverAt),
   ],
 );
 
