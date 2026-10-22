@@ -1,1 +1,2 @@
-export const MAX_ADDRESSES = 3;
+export * from './constants.ts';
+export * from './schemas/gazetteer.ts';

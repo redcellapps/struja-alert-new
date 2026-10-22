@@ -29,6 +29,7 @@ export {
   type NisMunicipality,
   type NisSettlement,
   type NisStreet,
+  type OsmLatLon,
   type OsmPlace,
   type OsmStreetWay,
 } from './osm.ts';
