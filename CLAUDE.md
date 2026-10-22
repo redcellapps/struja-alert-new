@@ -45,3 +45,10 @@ Every `pnpm test` run writes JUnit and coverage reports to `test-results/<packag
 ## Fixture collector (Phase 1)
 
 `scripts/` (`@struja/scripts`): `pnpm --filter @struja/scripts collect` needs `SCRAPER_CONTACT_EMAIL`; it refuses to run without it. It collects only inside the 07/13/19 Europe/Belgrade one-hour windows and dedupes per slot. Raw pages go to `$FIXTURES_DIR/eds/<slot>/`. In CI it runs from `.github/workflows/collect.yml` and pushes to the `fixtures-collect` branch, never to main. Do not run it locally against the live site unless asked.
+
+## Phase 1 gate and labels
+
+- `pnpm --filter @struja/scripts label-sample` rebuilds `fixtures/labels.csv` and `packages/parser/data/aliases.json` from the saved fixtures. It never loses a review: `confirmed`/`notes` carry over and reviewed aliases are kept.
+- `pnpm --filter @struja/scripts gate-report` measures the gate on in-scope rows only, with the sample size and a 95% lower bound. Re-run weekly (a workflow does it).
+- Scoring weights and thresholds in `packages/parser/data/scoring.ts` are provisional: freeze them only after the gate passes and before the Phase 5 live run.
+- `pnpm --filter @struja/scripts synthetic-eval` is a SYNTHETIC stress test; never quote it as a measurement on real data.

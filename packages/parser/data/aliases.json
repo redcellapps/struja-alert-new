@@ -4,55 +4,71 @@
     "raw_norm": "bubanjske doline",
     "street": "Бубањска долина",
     "source": "form",
-    "confidence": 1
+    "confidence": 1,
+    "reviewed": true,
+    "reviewed_at": "2026-10-22"
   },
   {
     "raw": "Чегарске",
     "raw_norm": "cegarske",
     "street": "Чегарска",
     "source": "form",
-    "confidence": 1
+    "confidence": 1,
+    "reviewed": true,
+    "reviewed_at": "2026-10-22"
   },
   {
     "raw": "Друга Нишавска прилаз два",
     "raw_norm": "druga nisavska prilaz dva",
     "street": "Друга Нишавска прилаз 2",
     "source": "heuristic",
-    "confidence": 0.8
+    "confidence": 0.8,
+    "reviewed": true,
+    "reviewed_at": "2026-10-22"
   },
   {
     "raw": "Горњоматејевачке",
     "raw_norm": "gornjomatejevacke",
     "street": "Горњоматејевачка",
     "source": "form",
-    "confidence": 1
+    "confidence": 1,
+    "reviewed": true,
+    "reviewed_at": "2026-10-22"
   },
   {
     "raw": "Космајске",
     "raw_norm": "kosmajske",
     "street": "Космајска",
     "source": "form",
-    "confidence": 1
+    "confidence": 1,
+    "reviewed": true,
+    "reviewed_at": "2026-10-22"
   },
   {
     "raw": "Матејевачког пута",
     "raw_norm": "matejevackog puta",
     "street": "Матејевачки пут",
     "source": "form",
-    "confidence": 1
+    "confidence": 1,
+    "reviewed": true,
+    "reviewed_at": "2026-10-22"
   },
   {
     "raw": "Студеничке",
     "raw_norm": "studenicke",
     "street": "Студеничка",
     "source": "form",
-    "confidence": 1
+    "confidence": 1,
+    "reviewed": true,
+    "reviewed_at": "2026-10-22"
   },
   {
     "raw": "Требињске",
     "raw_norm": "trebinjske",
     "street": "Требињска",
     "source": "form",
-    "confidence": 1
+    "confidence": 1,
+    "reviewed": true,
+    "reviewed_at": "2026-10-22"
   }
 ]

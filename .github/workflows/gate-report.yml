@@ -1,0 +1,50 @@
+name: Phase 1 gate report
+
+# Weekly measurement of the Phase 1 gate on in-scope Niš rows, with the sample size. It reads the
+# collected fixtures (fixtures-collect branch) and the reviewed labels in main, rebuilds the label
+# sheet (new segments appear as pending review), prints the verdict and uploads the sheet.
+# It makes no requests to EDS or Overpass and commits nothing.
+on:
+  schedule:
+    - cron: '30 6 * * 1'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  report:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Add the collected EDS snapshots
+        run: |
+          git fetch --depth=1 origin fixtures-collect
+          mkdir -p "$RUNNER_TEMP/collected"
+          git archive FETCH_HEAD eds | tar -x -C "$RUNNER_TEMP/collected"
+          cp -R "$RUNNER_TEMP/collected/eds/." fixtures/eds/
+
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile --filter "@struja/scripts..."
+
+      - name: Rebuild the label sheet (keeps every review)
+        run: pnpm --filter @struja/scripts label-sample
+
+      - name: Gate measurement
+        run: |
+          pnpm --filter @struja/scripts gate-report | tee gate-report.txt
+          { echo '## Phase 1 gate (in-scope rows only)'; echo '```'; cat gate-report.txt; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: gate-report
+          path: |
+            gate-report.txt
+            fixtures/labels.csv
+            packages/parser/data/aliases.json

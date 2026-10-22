@@ -1,7 +1,7 @@
 // Builds fixtures/labels.csv (every distinct segment on the collected Niš pages, with the
 // ladder's proposed answer for the reviewer to confirm) and packages/parser/data/aliases.json
 // (the alias seed). Reads only saved fixtures; makes no network requests.
-import { readdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import {
@@ -66,12 +66,16 @@ for (const slot of readdirSync(eds)
 }
 
 const rows = buildLabels(pages, gazetteer, addressNumbers);
-writeFileSync(join(fixtures, 'labels.csv'), toCsv(rows));
-const aliases = aliasSeed(rows);
+
+// Regenerating never loses a review: previous `confirmed`/`notes` and reviewed aliases carry over.
+const labelsPath = join(fixtures, 'labels.csv');
+const aliasesPath = join(root, 'packages', 'parser', 'data', 'aliases.json');
 writeFileSync(
-  join(root, 'packages', 'parser', 'data', 'aliases.json'),
-  JSON.stringify(aliases, null, 2) + '\n',
+  labelsPath,
+  toCsv(rows, existsSync(labelsPath) ? readFileSync(labelsPath, 'utf8') : ''),
 );
+const aliases = aliasSeed(rows, existsSync(aliasesPath) ? readJson(aliasesPath) : []);
+writeFileSync(aliasesPath, JSON.stringify(aliases, null, 2) + '\n');
 console.log(
   JSON.stringify(
     {

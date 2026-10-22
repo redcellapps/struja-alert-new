@@ -8,7 +8,10 @@
     "typecheck": "tsc -p tsconfig.json",
     "test": "vitest run --passWithNoTests --coverage --reporter=default --reporter=junit --outputFile.junit=../test-results/scripts/junit.xml --coverage.reportsDirectory=../test-results/scripts/coverage --coverage.reporter=text-summary --coverage.reporter=lcov",
     "seed-gazetteer": "node --env-file-if-exists=../.env src/seed-gazetteer.ts",
-    "label-sample": "node --env-file-if-exists=../.env src/label-sample.ts"
+    "label-sample": "node --env-file-if-exists=../.env src/label-sample.ts",
+    "gate-report": "node src/gate-report.ts",
+    "confirm-labels": "node src/confirm-labels.ts",
+    "synthetic-eval": "node src/synthetic-eval.ts"
   },
   "dependencies": {
     "@struja/parser": "workspace:*"

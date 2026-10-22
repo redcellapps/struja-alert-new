@@ -1,6 +1,8 @@
 // Hand-tuned starting values for the step-5 candidate scoring (BRIEF §3). Once about 200
 // confirmed examples exist, a nightly job refits `weights` and the thresholds from them.
 // These numbers have NOT been tuned on real EDS labels yet (too few in-scope segments so far).
+// PROVISIONAL by decision (22 Oct 2026): freeze them only after the Phase 1 gate passes
+// (`pnpm --filter @struja/scripts gate-report`) and before the Phase 5 live run.
 export const SCORING = {
   weights: {
     similarity: 0.5, // trigram / Jaro-Winkler on the whole name

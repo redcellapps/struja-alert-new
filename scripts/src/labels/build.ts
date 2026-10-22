@@ -10,6 +10,7 @@ import {
   type PageRow,
   type ParsedPage,
 } from '@struja/parser';
+import { csvCell, labelKey, parseCsv, readReviewed } from './csv.ts';
 
 export interface PageInput {
   slot: string;
@@ -182,17 +183,41 @@ const COLUMNS = [
   'seen_in_snapshots',
 ] as const;
 
-function cell(v: string | number | boolean): string {
-  const s = String(v);
-  return /[",\n]/.test(s) ? `"${s.replaceAll('"', '""')}"` : s;
-}
+const CSV_HEAD = [...COLUMNS, 'confirmed', 'notes'];
 
-// `confirmed` and `notes` are left empty for the reviewer: put the correct street (or "ok" when
-// the proposal is right, "none" when the segment names no street) in `confirmed`.
-export function toCsv(rows: readonly LabelRow[]): string {
-  const head = [...COLUMNS, 'confirmed', 'notes'].join(',');
-  const lines = rows.map((r) => [...COLUMNS.map((c) => cell(r[c])), '', ''].join(','));
-  return [head, ...lines].join('\n') + '\n';
+// `confirmed` and `notes` are for the reviewer: put the correct street (or "ok" when the
+// proposal is right, "none" when the segment names no street) in `confirmed`.
+//
+// Regenerating must never lose a review: pass the previous file as `priorCsv` and every
+// `confirmed`/`notes` is carried over by (municipality, raw segment), and a reviewed row that is
+// no longer in the collected pages is kept as it was.
+export function toCsv(rows: readonly LabelRow[], priorCsv = ''): string {
+  const reviewed = readReviewed(priorCsv);
+  const lines: string[] = [];
+  const written = new Set<string>();
+  for (const r of rows) {
+    const key = labelKey(r.opstina, r.raw_segment);
+    written.add(key);
+    const rev = reviewed.get(key);
+    lines.push(
+      [
+        ...COLUMNS.map((c) => csvCell(r[c])),
+        csvCell(rev?.confirmed ?? ''),
+        csvCell(rev?.notes ?? ''),
+      ].join(','),
+    );
+  }
+  const [head, ...prior] = parseCsv(priorCsv);
+  if (head) {
+    const iOp = head.indexOf('opstina');
+    const iRaw = head.indexOf('raw_segment');
+    for (const p of prior) {
+      const key = labelKey(p[iOp] ?? '', p[iRaw] ?? '');
+      if (written.has(key) || !reviewed.has(key)) continue;
+      lines.push(CSV_HEAD.map((c) => csvCell(p[head.indexOf(c)] ?? '')).join(','));
+    }
+  }
+  return [CSV_HEAD.join(','), ...lines].join('\n') + '\n';
 }
 
 export interface AliasSeedEntry {
@@ -201,11 +226,18 @@ export interface AliasSeedEntry {
   street: string;
   source: string;
   confidence: number;
+  // Set by a human review. A reviewed entry is never changed or dropped by regeneration.
+  reviewed?: boolean;
+  reviewed_at?: string;
 }
 
 // Aliases worth reviewing: matches that were not a plain exact name. Keyed by the street's OSM
-// name, because gazetteer ids are not stable between builds.
-export function aliasSeed(rows: readonly LabelRow[]): AliasSeedEntry[] {
+// name, because gazetteer ids are not stable between builds. Entries already in `existing` are
+// kept as they are (reviewed or not); only new proposals are added, unreviewed.
+export function aliasSeed(
+  rows: readonly LabelRow[],
+  existing: readonly AliasSeedEntry[] = [],
+): AliasSeedEntry[] {
   const out = new Map<string, AliasSeedEntry>();
   for (const r of rows) {
     if (!r.in_scope || r.kind !== 'street' || !r.proposed) continue;
@@ -219,6 +251,7 @@ export function aliasSeed(rows: readonly LabelRow[]): AliasSeedEntry[] {
       confidence: r.resolved_by === 'form' ? 1 : r.resolved_by === 'scored' ? Number(r.score) : 0.8,
     });
   }
+  for (const e of existing) out.set(e.raw_norm, e);
   return [...out.values()].sort((a, b) => a.raw_norm.localeCompare(b.raw_norm));
 }
 

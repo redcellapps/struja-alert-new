@@ -21,6 +21,8 @@ Decisions taken during planning:
 7. `pnpm-workspace.yaml` has a `minimumReleaseAgeExclude` list (brand-new Expo packages). **Remove the exemptions once those versions pass the age threshold.**
 8. Before the first Play build, block unneeded permissions in `app.json` (`android.blockedPermissions`): `READ_EXTERNAL_STORAGE`, `WRITE_EXTERNAL_STORAGE`, `SYSTEM_ALERT_WINDOW`. This is a Phase 5 item, not applied yet: `SYSTEM_ALERT_WINDOW` comes in for the dev-client overlay, and blocking it in the shared manifest could break debug builds, so apply it for the release profile (or verify debug still works). Also confirm the release manifest has no `ACCESS_LOCAL_NETWORK`.
 9. Every test run writes JUnit and coverage reports to `test-results/` (git-ignored).
+10. **The Phase 1 gate is measured on in-scope rows only** (Niš page + one of the five city municipalities), always with the sample size beside every number, and re-run weekly (`.github/workflows/gate-report.yml`, `pnpm --filter @struja/scripts gate-report`). **The scoring weights and thresholds (`packages/parser/data/scoring.ts`) stay provisional until the gate passes: they are frozen only after it passes and before the Phase 5 live run.** Phase 2 builds on them without treating them as final.
+11. Failure classes for other areas (exclusion lists "осим насељених места", "Доња и Горња X", dot-joined names) are logged in `docs/failure-classes.md` with real fixtures; not handled now (scope is Niš only).
 
 **Dev environment, re-verified 2026-10-22 (this session):**
 - Present: Node 24.15.0, pnpm 12.14.0, eas-cli 25.3.0, Docker 29.8.2 + Compose v5.6.0, gh, OpenSSH, Git.
