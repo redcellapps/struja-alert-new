@@ -6,12 +6,24 @@
   "scripts": {
     "dev": "node --watch --experimental-strip-types src/main.ts",
     "typecheck": "tsc -p tsconfig.json",
-    "test": "vitest run --passWithNoTests --coverage --reporter=default --reporter=junit --outputFile.junit=../../test-results/server/junit.xml --coverage.reportsDirectory=../../test-results/server/coverage --coverage.reporter=text-summary --coverage.reporter=lcov"
+    "test": "vitest run --passWithNoTests --coverage --reporter=default --reporter=junit --outputFile.junit=../../test-results/server/junit.xml --coverage.reportsDirectory=../../test-results/server/coverage --coverage.reporter=text-summary --coverage.reporter=lcov",
+    "db:generate": "drizzle-kit generate",
+    "db:migrate": "node --env-file-if-exists=../../.env src/db/migrate-cli.ts"
   },
   "dependencies": {
-    "fastify": "5.12.7"
+    "@struja/parser": "workspace:*",
+    "@struja/shared": "workspace:*",
+    "drizzle-orm": "0.45.4",
+    "fastify": "5.12.7",
+    "pg": "8.23.1",
+    "pino": "10.4.0",
+    "zod": "4.6.7"
   },
   "devDependencies": {
-    "@types/node": "^24.19.2"
+    "@testcontainers/postgresql": "12.2.1",
+    "@types/node": "^24.19.2",
+    "@types/pg": "^8.23.1",
+    "drizzle-kit": "0.31.11",
+    "testcontainers": "12.2.1"
   }
 }
