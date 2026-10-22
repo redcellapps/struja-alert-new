@@ -9,7 +9,15 @@ This plan was finished in the previous session (2026-10-22, ~11:53), which ended
 
 Decisions taken during planning:
 - **Server isn't ready yet.** The Phase 1 collector runs on **GitHub Actions cron**. Phase 2 runs on the local Docker stack, reached from the phone via LAN or a Cloudflare quick tunnel. Existing proxy vs Caddy is decided once the server exists, before the Phase 2 deploy.
-- Scraper User-Agent: `StrujaAlert/<version> (+mailto:lanche1990@gmail.com)`.
+- Scraper User-Agent: `StrujaAlert/<version> (+mailto:${SCRAPER_CONTACT_EMAIL})`. The contact address is read from the `SCRAPER_CONTACT_EMAIL` env var (documented in `.env.example`, set as a GitHub Actions secret for the collector). The scraper refuses to run without it. No personal address is committed.
+
+**Approved additions (user, after plan review):**
+1. Phase 2 includes a minimal server-rendered admin page (admin token + IP allowlist): unresolved queue, one-click confirm/reject of candidates, spot-check list of auto-accepted matches.
+2. Contact email comes from `SCRAPER_CONTACT_EMAIL` (above).
+3. Collector accepts a one-hour window per slot and dedupes per slot (GitHub cron can be delayed). DST ends 25 Oct 2026.
+4. Phase 3: before building the map, present Android map options (Google Maps key vs MapLibre + tile provider; cost and setup) and wait for the user's choice.
+5. Phase 3 iOS smoke build needs a paid Apple Developer account. If it isn't ready, move that check to Phase 6 and tell the user.
+6. Ask before installing Maestro.
 
 **Dev environment, re-verified 2026-10-22 (this session):**
 - Present: Node 24.15.0, pnpm 12.14.0, eas-cli 25.3.0, Docker 29.8.2 + Compose v5.6.0, gh, OpenSSH, Git.
@@ -112,7 +120,7 @@ expo-router ~58.0.24 (native tabs stable) · expo-symbols ~58.0.4 (Material Symb
 ✅ `pnpm lint && pnpm typecheck && pnpm test` green on a clean clone. The shell launches on the emulator.
 
 **Phase 1 — Data spike (no app code)**
-1. **First:** `scripts/collect-fixtures.ts` + `.github/workflows/collect.yml`. It checks robots.txt, discovers city slugs from the EDS index and probes `Dan_N` for the max N, then saves raw bytes + meta to `fixtures/`, committing to branch `fixtures-collect`. Cron entries at 05,06,11,12,17,18 UTC; the script runs only when the Europe/Belgrade hour is 7, 13 or 19, which handles DST. The same script later runs from server cron. Before enabling the workflow I show it to the user, since it pushes on a schedule.
+1. **First:** `scripts/collect-fixtures.ts` + `.github/workflows/collect.yml`. It checks robots.txt, discovers city slugs from the EDS index and probes `Dan_N` for the max N, then saves raw bytes + meta to `fixtures/`, committing to branch `fixtures-collect`. Cron entries at 05,06,11,12,17,18 UTC. Each of the three slots (07:00, 13:00, 19:00 Europe/Belgrade) has a **one-hour window**: a run whose Belgrade local time falls in `[slot, slot+1h)` collects, which tolerates delayed GitHub cron. Dedupe is per slot (`YYYY-MM-DD-slot` marker in `fixtures/`), so a late or doubled run never collects twice, and the script still handles DST (ends 25 Oct 2026). The same script later runs from server cron. Before enabling the workflow I show it to the user, since it pushes on a schedule.
 2. `scripts/seed-gazetteer.ts`: one Overpass query (Niš admin area, named highways + address points, polite UA, `[timeout:180]`), saved under `fixtures/osm/` and loaded into local Postgres.
 3. Parser, normalizer, range parser, ladder steps 1–5 prototype (scoring with hand weights), fixture-driven Vitest.
 4. `packages/parser/data/aliases.json`, `fixtures/labels.csv` (~200 segments with proposed answers), `docs/phase1-report.md`, answers to the §10 open questions.
