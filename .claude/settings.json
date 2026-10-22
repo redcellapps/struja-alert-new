@@ -1,0 +1,46 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(pnpm:*)",
+      "Bash(node:*)",
+      "Bash(npx expo:*)",
+      "Bash(adb:*)",
+      "Bash(maestro test:*)",
+      "Bash(git status:*)",
+      "Bash(git diff:*)",
+      "Bash(git log:*)",
+      "Bash(git show:*)",
+      "Bash(git branch:*)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(docker compose:*)",
+      "PowerShell(pnpm:*)",
+      "PowerShell(node:*)",
+      "PowerShell(npx expo:*)",
+      "PowerShell(adb:*)",
+      "PowerShell(maestro test:*)",
+      "PowerShell(git status:*)",
+      "PowerShell(git diff:*)",
+      "PowerShell(git log:*)",
+      "PowerShell(git show:*)",
+      "PowerShell(git branch:*)",
+      "PowerShell(git add:*)",
+      "PowerShell(git commit:*)",
+      "PowerShell(docker compose:*)"
+    ],
+    "ask": [
+      "Bash(git push:*)",
+      "Bash(ssh:*)",
+      "Bash(scp:*)",
+      "Bash(eas build:*)",
+      "Bash(eas submit:*)",
+      "Bash(eas workflow:run:*)",
+      "PowerShell(git push:*)",
+      "PowerShell(ssh:*)",
+      "PowerShell(scp:*)",
+      "PowerShell(eas build:*)",
+      "PowerShell(eas submit:*)",
+      "PowerShell(eas workflow:run:*)"
+    ]
+  }
+}

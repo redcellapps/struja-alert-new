@@ -1,0 +1,14 @@
+name: struja-alert-local
+services:
+  db:
+    image: postgis/postgis:18-3.6
+    environment:
+      POSTGRES_USER: struja
+      POSTGRES_PASSWORD: struja
+      POSTGRES_DB: struja
+    ports:
+      - '5432:5432'
+    volumes:
+      - dbdata:/var/lib/postgresql
+volumes:
+  dbdata:
