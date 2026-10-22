@@ -8,5 +8,11 @@
   "scripts": {
     "typecheck": "tsc -p tsconfig.json",
     "test": "vitest run --passWithNoTests --coverage --reporter=default --reporter=junit --outputFile.junit=../../test-results/parser/junit.xml --coverage.reportsDirectory=../../test-results/parser/coverage --coverage.reporter=text-summary --coverage.reporter=lcov"
+  },
+  "dependencies": {
+    "htmlparser2": "12.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^24.19.2"
   }
 }
