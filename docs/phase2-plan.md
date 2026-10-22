@@ -33,6 +33,24 @@ Vitest + Testcontainers against `postgis/postgis:18-3.6` (same image as `docker/
 - **A new address gets no push for outages already published:** the app shows them on screen (the `/v1` subscription response returns them) and they are recorded in `notification_log` with status `in_app` ("told in the app"), so later changes ("Izmena"/"Otkazano") and the 19:15 reminder still reach the person.
 - **Broken page guard:** a page fetched with HTTP 200 that is truncated, has no outage table, or has fewer than half the rows of the previous healthy fetch for the same date does not count towards "missing"; it is treated as a failed fetch for cancellation purposes and raises an alert.
 
+- **Mass cancellations (22 Oct, review of step 7):** the "fewer than half" rule applies only when the previous good fetch had at least 5 rows (a page going from 1 outage to none is an ordinary cancellation, as with Belgrade's Dan_2 on 22 Oct). A second fetch that is again below half is taken as real (`confirmed_reduced`), whatever its row count. The admin page has "Confirm as real", which pairs changes and runs the missing pass exactly like a normal fetch.
+- **Device secret** is the only credential for v1. `POST /v1/devices` with a push token already on file takes it over (old device and addresses dropped); the app (Phase 3) keeps its own address list and re-registers and re-adds when the secret is missing.
+- **Evening-before** is skipped for a person whose "new" went out less than 2 hours earlier.
+- **Admin (22 Oct, close-out):** reached over an SSH tunnel only; never through a public proxy. Village segments reach the unresolved queue and confirming one pins a `settlement_alias`.
+- **Off-site backups:** Backblaze B2 through an rclone crypt remote, configured but off until the server exists.
+
+## Deviations from the plan and the brief (all approved)
+
+| Item                       | Brief / plan                            | What was built                                                                                                                                            |
+| -------------------------- | --------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Resolution ladder location | `pg_trgm` and PostGIS inside SQL        | The Phase 1 TypeScript `Resolver` is loaded from Postgres into memory; Postgres stays the system of record (PostGIS geometry, `pg_trgm` for admin search) |
+| Dedupe constraint          | `UNIQUE(subscription, outage, kind)`    | `UNIQUE(subscription, outage, kind, revision)` so every real flip is told; BRIEF and CLAUDE.md updated                                                    |
+| Notification kinds         | new, evening_before, changed, cancelled | plus `reinstated`; notification status `in_app` for outages shown on screen when an address is added                                                      |
+| Sending real push          | Phase 2 end to end with curl            | A push provider interface with a fake and a log provider; real Expo delivery is Phase 4                                                                   |
+| Admin auth                 | token + IP allowlist                    | token + IP allowlist + same-site check on posts; SSH tunnel only in production; helmet on the admin scope only                                            |
+| Alerts                     | email + admin push                      | email (SMTP), admin push (through the provider, arrives with Phase 4), and the log                                                                        |
+| Scoring thresholds         | tuned in Phase 1                        | still provisional: the Phase 1 gate has not passed                                                                                                        |
+
 ## Known limitations of step 5
 
 - **Settlement names in notifications** use a transliterated Latin name (OSM has no Latin name stored for them yet).
