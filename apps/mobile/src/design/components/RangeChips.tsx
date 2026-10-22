@@ -15,14 +15,13 @@ export interface RangeChipsProps {
   note?: string;
 }
 
-/** The house ranges of the user's street, with the range containing their number highlighted. */
+/** The house ranges of the user's street; the range holding their number is filled lime. */
 export function RangeChips({ ranges, note }: RangeChipsProps) {
-  const { colors, radius, spacing } = useTheme();
+  const { colors, radius } = useTheme();
   const c = colors.chrome;
-  const hit = colors.status.imminent;
   return (
-    <View style={{ gap: spacing.sm }}>
-      <View style={[styles.wrap, { gap: spacing.sm }]}>
+    <View style={{ gap: 12 }}>
+      <View style={styles.wrap}>
         {ranges.map((r) => (
           <View
             key={r.label}
@@ -30,23 +29,17 @@ export function RangeChips({ ranges, note }: RangeChipsProps) {
             accessibilityLabel={r.contains ? `${r.label}, vaš broj` : r.label}
             style={[
               styles.chip,
-              {
-                borderRadius: radius.full,
-                paddingHorizontal: spacing.lg,
-                backgroundColor: r.contains ? hit.container : c.surfaceContainer,
-                borderColor: r.contains ? hit.accent : c.outline,
-                borderWidth: r.contains ? 2 : 1,
-              },
+              { borderRadius: radius.md, backgroundColor: r.contains ? c.accent : c.raised },
             ]}
           >
-            <AppText variant="label" color={r.contains ? hit.onContainer : c.onSurface} tabular>
+            <AppText variant="label" color={r.contains ? c.onAccent : c.text} tabular>
               {r.label}
             </AppText>
           </View>
         ))}
       </View>
       {note ? (
-        <AppText variant="body" color="onSurfaceVariant">
+        <AppText variant="body" color="textSecondary">
           {note}
         </AppText>
       ) : null}
@@ -55,6 +48,6 @@ export function RangeChips({ ranges, note }: RangeChipsProps) {
 }
 
 const styles = StyleSheet.create({
-  wrap: { flexDirection: 'row', flexWrap: 'wrap' },
-  chip: { minHeight: 36, alignItems: 'center', justifyContent: 'center' },
+  wrap: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  chip: { minHeight: 40, paddingHorizontal: 16, alignItems: 'center', justifyContent: 'center' },
 });

@@ -12,7 +12,7 @@ import { fileURLToPath } from 'node:url';
 
 const APP_ID = 'rs.example.strujaalert';
 const root = fileURLToPath(new URL('../../', import.meta.url));
-const outDir = process.argv[2] ?? join(root, 'docs', 'screens', 'android', 'design-review');
+const outDir = process.argv[2] ?? join(root, 'docs', 'screens', 'android', 'design-review-v2');
 
 const adb = (...args: string[]): Buffer =>
   execFileSync('adb', args, { maxBuffer: 64 * 1024 * 1024, stdio: ['ignore', 'pipe', 'inherit'] });
@@ -21,21 +21,21 @@ const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 interface Shot {
   name: string;
   link: string;
-  // How many screens to capture; the page is scrolled between them.
+  // The most screens to capture; the page is scrolled between them and capture stops at the end.
   pages: number;
 }
 
 const STATUSES = ['clear', 'upcoming', 'imminent', 'active', 'past'] as const;
 const SHOTS: Shot[] = [
+  { name: 'specimen', link: 'gallery?section=specimen', pages: 6 },
+  { name: 'home', link: 'gallery?section=home', pages: 5 },
+  { name: 'controls', link: 'gallery?section=controls', pages: 6 },
+  { name: 'components', link: 'gallery?section=components', pages: 8 },
   ...STATUSES.map((s) => ({
     name: `hero-${s}`,
-    link: `gallery?section=hero&status=${s}`,
+    link: `gallery?section=components&status=${s}`,
     pages: 1,
   })),
-  { name: 'hero-all', link: 'gallery?section=hero', pages: 3 },
-  { name: 'cards', link: 'gallery?section=cards', pages: 2 },
-  { name: 'controls', link: 'gallery?section=controls', pages: 2 },
-  { name: 'feedback', link: 'gallery?section=feedback', pages: 3 },
 ];
 
 function size(): { w: number; h: number } {
@@ -63,12 +63,31 @@ async function main() {
       // deep link navigates it. One string: the device shell would split the link at the &.
       openLink(shot.link);
       await sleep(4000);
+      // The same route keeps its scroll position between links: go back to the top first.
+      for (let i = 0; i < 6; i++) {
+        adb(
+          'shell',
+          'input',
+          'swipe',
+          String(w / 2),
+          String(h * 0.2),
+          String(w / 2),
+          String(h * 0.85),
+          '120',
+        );
+      }
+      await sleep(1200);
+      let previous: Buffer | null = null;
       for (let page = 0; page < shot.pages; page++) {
+        const png = adb('exec-out', 'screencap', '-p');
+        // The page did not move: the end of the scroll was already captured.
+        if (previous && png.equals(previous)) break;
+        previous = png;
         const file = `${shot.name}-${mode}${shot.pages > 1 ? `-${page + 1}` : ''}.png`;
-        writeFileSync(join(outDir, file), adb('exec-out', 'screencap', '-p'));
+        writeFileSync(join(outDir, file), png);
         files.push(file);
         if (page < shot.pages - 1) {
-          // scroll by about 80 % of the screen
+          // scroll by about 65 % of the screen
           adb(
             'shell',
             'input',

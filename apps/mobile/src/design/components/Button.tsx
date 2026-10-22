@@ -1,30 +1,32 @@
-import { Pressable, StyleSheet, View } from 'react-native';
+import { Pressable, StyleSheet } from 'react-native';
 import { haptics } from '../haptics';
 import { useTheme } from '../theme';
-import { MIN_TOUCH } from '../tokens';
+import { BUTTON_HEIGHT, MIN_TOUCH } from '../tokens';
 import { AppText } from './AppText';
 
 export interface ButtonProps {
   label: string;
   onPress?: () => void;
-  variant?: 'filled' | 'tonal' | 'text';
+  // primary: lime with dark text; secondary: the raised fill; text: lime text on dark, primary text on light.
+  variant?: 'primary' | 'secondary' | 'text';
   disabled?: boolean;
+  // Full width (the default for primary) or as wide as its label.
+  fullWidth?: boolean;
   accessibilityHint?: string;
 }
 
 export function Button({
   label,
   onPress,
-  variant = 'filled',
+  variant = 'primary',
   disabled,
+  fullWidth,
   accessibilityHint,
 }: ButtonProps) {
-  const { colors, radius, spacing } = useTheme();
+  const { colors, radius } = useTheme();
   const c = colors.chrome;
-  const bg =
-    variant === 'filled' ? c.primary : variant === 'tonal' ? c.primaryContainer : 'transparent';
-  const fg =
-    variant === 'filled' ? c.onPrimary : variant === 'tonal' ? c.onPrimaryContainer : c.primary;
+  const bg = variant === 'primary' ? c.accent : variant === 'secondary' ? c.raised : 'transparent';
+  const fg = variant === 'primary' ? c.onAccent : variant === 'secondary' ? c.text : c.link;
   return (
     <Pressable
       accessibilityRole="button"
@@ -39,21 +41,23 @@ export function Button({
       style={({ pressed }) => [
         styles.base,
         {
-          minHeight: MIN_TOUCH,
-          paddingHorizontal: spacing.xl,
-          borderRadius: radius.full,
+          minHeight: variant === 'text' ? MIN_TOUCH : BUTTON_HEIGHT,
+          paddingHorizontal: variant === 'text' ? 12 : 24,
+          borderRadius: radius.md,
           backgroundColor: bg,
-          opacity: disabled ? 0.4 : pressed ? 0.85 : 1,
+          opacity: disabled ? 0.4 : pressed ? 0.8 : 1,
         },
+        (fullWidth ?? variant === 'primary') && styles.full,
       ]}
     >
-      <View>
-        <AppText variant="label" color={fg}>
-          {label}
-        </AppText>
-      </View>
+      <AppText variant="button" color={fg}>
+        {label}
+      </AppText>
     </Pressable>
   );
 }
 
-const styles = StyleSheet.create({ base: { alignItems: 'center', justifyContent: 'center' } });
+const styles = StyleSheet.create({
+  base: { alignItems: 'center', justifyContent: 'center' },
+  full: { alignSelf: 'stretch' },
+});

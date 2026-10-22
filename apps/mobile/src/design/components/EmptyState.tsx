@@ -1,40 +1,42 @@
 import { StyleSheet, View } from 'react-native';
 import { useTheme } from '../theme';
+import { CARD_PADDING, type IconName } from '../tokens';
 import { AppText } from './AppText';
 import { Button } from './Button';
-import { Icon } from './Icon';
+import { IconTile } from './IconTile';
 
 export interface EmptyStateProps {
-  icon: { ios: string; android: string };
+  icon: IconName;
   title: string;
   body?: string;
   actionLabel?: string;
   onAction?: () => void;
 }
 
-/** An empty list, a first run, or an error with a retry: calm, centred, one action at most. */
+/** An empty list, a first run, or an error with a retry: a card with an icon tile, a title, one action. */
 export function EmptyState({ icon, title, body, actionLabel, onAction }: EmptyStateProps) {
-  const { colors, spacing } = useTheme();
+  const { colors, radius } = useTheme();
   return (
-    <View style={[styles.box, { padding: spacing.xxxl, gap: spacing.md }]}>
-      <View style={[styles.disc, { backgroundColor: colors.chrome.surfaceContainerHigh }]}>
-        <Icon name={icon} size={32} color={colors.chrome.onSurfaceVariant} />
+    <View
+      style={[
+        styles.card,
+        { backgroundColor: colors.chrome.card, borderRadius: radius.xl, padding: CARD_PADDING },
+      ]}
+    >
+      <IconTile icon={icon} size={56} />
+      <View style={{ gap: 6 }}>
+        <AppText variant="title">{title}</AppText>
+        {body ? (
+          <AppText variant="body" color="textSecondary">
+            {body}
+          </AppText>
+        ) : null}
       </View>
-      <AppText variant="title" style={styles.centre}>
-        {title}
-      </AppText>
-      {body ? (
-        <AppText variant="body" color="onSurfaceVariant" style={styles.centre}>
-          {body}
-        </AppText>
+      {actionLabel ? (
+        <Button label={actionLabel} variant="secondary" fullWidth onPress={onAction} />
       ) : null}
-      {actionLabel ? <Button label={actionLabel} variant="tonal" onPress={onAction} /> : null}
     </View>
   );
 }
 
-const styles = StyleSheet.create({
-  box: { alignItems: 'center', justifyContent: 'center' },
-  disc: { width: 72, height: 72, borderRadius: 36, alignItems: 'center', justifyContent: 'center' },
-  centre: { textAlign: 'center' },
-});
+const styles = StyleSheet.create({ card: { gap: 16 } });

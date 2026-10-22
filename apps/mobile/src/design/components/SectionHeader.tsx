@@ -1,5 +1,4 @@
 import { StyleSheet, View } from 'react-native';
-import { useTheme } from '../theme';
 import { AppText } from './AppText';
 import { Button } from './Button';
 
@@ -12,16 +11,15 @@ export interface SectionHeaderProps {
 }
 
 export function SectionHeader({ title, trailing, actionLabel, onAction }: SectionHeaderProps) {
-  const { spacing } = useTheme();
   return (
-    <View style={[styles.row, { paddingVertical: spacing.sm }]}>
+    <View style={styles.row}>
       <AppText variant="title" accessibilityRole="header">
         {title}
       </AppText>
       {actionLabel ? (
         <Button label={actionLabel} variant="text" onPress={onAction} />
       ) : trailing ? (
-        <AppText variant="label" color="onSurfaceVariant">
+        <AppText variant="label" color="textSecondary">
           {trailing}
         </AppText>
       ) : null}
@@ -30,5 +28,10 @@ export function SectionHeader({ title, trailing, actionLabel, onAction }: Sectio
 }
 
 const styles = StyleSheet.create({
-  row: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  row: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    minHeight: 32,
+  },
 });

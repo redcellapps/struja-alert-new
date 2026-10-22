@@ -10,11 +10,23 @@ import { clock } from '../../format/duration';
 import { useTheme } from '../theme';
 import { AppText } from './AppText';
 
-function RollingChar({ ch, color, animate }: { ch: string; color: string; animate: boolean }) {
+type CountdownVariant = 'displayHuge' | 'display' | 'countdown';
+
+function RollingChar({
+  ch,
+  color,
+  animate,
+  variant,
+}: {
+  ch: string;
+  color: string;
+  animate: boolean;
+  variant: CountdownVariant;
+}) {
   const progress = useSharedValue(1);
   const previous = useRef(ch);
   const { motion, typography } = useTheme();
-  const shift = typography.countdown.lineHeight * 0.45;
+  const shift = typography[variant].lineHeight * 0.45;
   useEffect(() => {
     if (previous.current === ch) return;
     previous.current = ch;
@@ -28,7 +40,7 @@ function RollingChar({ ch, color, animate }: { ch: string; color: string; animat
   }));
   return (
     <Animated.View style={style}>
-      <AppText variant="countdown" color={color}>
+      <AppText variant={variant} color={color}>
         {ch}
       </AppText>
     </Animated.View>
@@ -41,10 +53,17 @@ export interface CountdownTextProps {
   color: string;
   // A spoken version for TalkBack ("1 čas 12 minuta"): the digits are not read one by one.
   accessibilityLabel: string;
+  // The numeral size: 72, 56 or 48 (default).
+  variant?: CountdownVariant;
 }
 
-/** Big tabular countdown (h:mm:ss) whose digits roll when they change. */
-export function CountdownText({ remainingMs, color, accessibilityLabel }: CountdownTextProps) {
+/** Huge tabular countdown (h:mm:ss) whose digits roll when they change. */
+export function CountdownText({
+  remainingMs,
+  color,
+  accessibilityLabel,
+  variant = 'countdown',
+}: CountdownTextProps) {
   const reduced = useReducedMotion();
   const text = clock(remainingMs);
   return (
@@ -56,7 +75,13 @@ export function CountdownText({ remainingMs, color, accessibilityLabel }: Countd
     >
       {text.split('').map((ch, i, all) => (
         // keyed from the right, so the seconds digit keeps its identity as the hours appear
-        <RollingChar key={all.length - i} ch={ch} color={color} animate={!reduced} />
+        <RollingChar
+          key={all.length - i}
+          ch={ch}
+          color={color}
+          animate={!reduced}
+          variant={variant}
+        />
       ))}
     </View>
   );

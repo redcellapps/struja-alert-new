@@ -1,8 +1,8 @@
 import { Platform } from 'react-native';
 
-// Design tokens in one place (BRIEF §7). Status colours are fixed and semantic; the chrome colours
-// are the fallback palette that Material You dynamic colour replaces on Android 12+ (Phase 3,
-// step 2 checks how). Every status has an icon and a text label: colour is never the only signal.
+// Design tokens in one place (BRIEF §7, docs/design/direction.md). Flat fills, no gradients, one
+// lime accent, one embedded font family. Every status has an icon and a text label: colour is never
+// the only signal.
 
 export type StatusKey = 'clear' | 'upcoming' | 'imminent' | 'active' | 'past';
 export const STATUS_KEYS: readonly StatusKey[] = [
@@ -17,24 +17,28 @@ export type ThemeName = 'light' | 'dark';
 export type ContrastLevel = 'standard' | 'high';
 
 export interface StatusColors {
-  // Icons, borders, the pulse: must reach 3:1 on the surface (non-text UI).
-  accent: string;
-  // Hero / card background tinted by the status, and the text drawn on it (4.5:1).
-  container: string;
-  onContainer: string;
+  // The flat fill of the hero card and the status badge, and the text drawn on it (4.5:1).
+  fill: string;
+  onFill: string;
+  // Dots, bars and icons drawn on the page or a card (non-text UI: 3:1 against both).
+  mark: string;
 }
 
 export interface ChromeColors {
-  surface: string;
-  surfaceContainer: string;
-  surfaceContainerHigh: string;
-  onSurface: string;
-  onSurfaceVariant: string;
+  background: string;
+  card: string;
+  // Raised or pressed card, unselected chip, track, secondary button.
+  raised: string;
+  text: string;
+  textSecondary: string;
+  // Electric lime. A fill only (selected chip, primary button, selected day, switch on); the text on
+  // it is always `onAccent`. Never used as text on a light background, see `link`.
+  accent: string;
+  onAccent: string;
+  // Text-button colour: lime on dark, primary text on light.
+  link: string;
+  // Borders of unchecked controls and focus (3:1).
   outline: string;
-  primary: string;
-  onPrimary: string;
-  primaryContainer: string;
-  onPrimaryContainer: string;
   error: string;
   scrim: string;
 }
@@ -44,88 +48,90 @@ export interface Palette {
   status: Record<StatusKey, StatusColors>;
 }
 
+const LIME = '#D4F84A';
+const NEAR_BLACK = '#0B0B0D';
+
+const darkStandard: Palette = {
+  chrome: {
+    background: NEAR_BLACK,
+    card: '#18181B',
+    raised: '#222226',
+    text: '#F5F5F7',
+    textSecondary: '#9A9AA3',
+    accent: LIME,
+    onAccent: NEAR_BLACK,
+    link: LIME,
+    outline: '#6A6A74',
+    error: '#FF6B6E',
+    scrim: '#000000',
+  },
+  status: {
+    clear: { fill: LIME, onFill: NEAR_BLACK, mark: LIME },
+    upcoming: { fill: '#FFC23D', onFill: NEAR_BLACK, mark: '#FFC23D' },
+    imminent: { fill: '#FF8A3D', onFill: NEAR_BLACK, mark: '#FF8A3D' },
+    active: { fill: '#DC2F34', onFill: '#FFFFFF', mark: '#FF5A5C' },
+    past: { fill: '#222226', onFill: '#9A9AA3', mark: '#9A9AA3' },
+  },
+};
+
 const lightStandard: Palette = {
   chrome: {
-    surface: '#FAFAF7',
-    surfaceContainer: '#F0F0EB',
-    surfaceContainerHigh: '#E8E8E2',
-    onSurface: '#1B1C1A',
-    onSurfaceVariant: '#464843',
-    outline: '#6E706A',
-    primary: '#2B5C8C',
-    onPrimary: '#FFFFFF',
-    primaryContainer: '#D3E4FA',
-    onPrimaryContainer: '#0A2744',
+    background: '#F2F2F5',
+    card: '#FFFFFF',
+    raised: '#E9E9EE',
+    text: NEAR_BLACK,
+    textSecondary: '#5C5C66',
+    accent: LIME,
+    onAccent: NEAR_BLACK,
+    link: NEAR_BLACK,
+    outline: '#84848E',
     error: '#B3261E',
     scrim: '#000000',
   },
   status: {
-    clear: { accent: '#1B7A3A', container: '#D5F0DB', onContainer: '#0A3A1A' },
-    upcoming: { accent: '#9A6700', container: '#FFEDB8', onContainer: '#3F2B00' },
-    imminent: { accent: '#B84300', container: '#FFDFCB', onContainer: '#521C00' },
-    active: { accent: '#B3261E', container: '#FFD9D4', onContainer: '#410002' },
-    past: { accent: '#5F6368', container: '#E6E8EA', onContainer: '#1F2022' },
-  },
-};
-
-const darkStandard: Palette = {
-  chrome: {
-    surface: '#121311',
-    surfaceContainer: '#1D1E1B',
-    surfaceContainerHigh: '#272825',
-    onSurface: '#E4E4DF',
-    onSurfaceVariant: '#C5C7C0',
-    outline: '#8F918A',
-    primary: '#A8C8F0',
-    onPrimary: '#0A2744',
-    primaryContainer: '#1F4570',
-    onPrimaryContainer: '#D3E4FA',
-    error: '#FFB4AB',
-    scrim: '#000000',
-  },
-  status: {
-    clear: { accent: '#6FD08A', container: '#0F3D1E', onContainer: '#C2F0CC' },
-    upcoming: { accent: '#F2C14E', container: '#4A3500', onContainer: '#FFE59A' },
-    imminent: { accent: '#FF9A5C', container: '#5C2300', onContainer: '#FFCDAE' },
-    active: { accent: '#FF6B61', container: '#5C0A0A', onContainer: '#FFB9B2' },
-    past: { accent: '#9AA0A6', container: '#2C2F33', onContainer: '#CDD0D4' },
-  },
-};
-
-const lightHigh: Palette = {
-  chrome: {
-    ...lightStandard.chrome,
-    surface: '#FFFFFF',
-    onSurface: '#000000',
-    onSurfaceVariant: '#1F201D',
-    outline: '#3B3D38',
-    primary: '#0B3A66',
-    primaryContainer: '#C2DAF7',
-  },
-  status: {
-    clear: { accent: '#0B5A24', container: '#C6EBCF', onContainer: '#001D09' },
-    upcoming: { accent: '#6E4A00', container: '#FFE49A', onContainer: '#1F1400' },
-    imminent: { accent: '#8A3000', container: '#FFD0B4', onContainer: '#2A0E00' },
-    active: { accent: '#8C1912', container: '#FFC9C2', onContainer: '#1F0001' },
-    past: { accent: '#3F4347', container: '#DADDE0', onContainer: '#000000' },
+    clear: { fill: LIME, onFill: NEAR_BLACK, mark: '#5C8200' },
+    upcoming: { fill: '#FFC23D', onFill: NEAR_BLACK, mark: '#9E6A00' },
+    imminent: { fill: '#FF8A3D', onFill: NEAR_BLACK, mark: '#C44D08' },
+    active: { fill: '#DC2F34', onFill: '#FFFFFF', mark: '#DC2F34' },
+    past: { fill: '#E9E9EE', onFill: '#5C5C66', mark: '#5C5C66' },
   },
 };
 
 const darkHigh: Palette = {
   chrome: {
     ...darkStandard.chrome,
-    surface: '#000000',
-    onSurface: '#FFFFFF',
-    onSurfaceVariant: '#E6E8E1',
-    outline: '#C5C7C0',
-    primary: '#C9DEF8',
+    background: '#000000',
+    card: '#121214',
+    raised: '#26262A',
+    text: '#FFFFFF',
+    textSecondary: '#D0D0D6',
+    outline: '#A0A0AA',
   },
   status: {
-    clear: { accent: '#8FE3A7', container: '#052A12', onContainer: '#DDFBE4' },
-    upcoming: { accent: '#FFD56E', container: '#2E2000', onContainer: '#FFF1C2' },
-    imminent: { accent: '#FFB07F', container: '#3E1500', onContainer: '#FFE6D6' },
-    active: { accent: '#FF9086', container: '#3E0505', onContainer: '#FFE0DC' },
-    past: { accent: '#C0C5CA', container: '#1A1C1E', onContainer: '#F1F2F3' },
+    ...darkStandard.status,
+    active: { fill: '#A50E14', onFill: '#FFFFFF', mark: '#FF8A8C' },
+    past: { fill: '#26262A', onFill: '#D0D0D6', mark: '#D0D0D6' },
+  },
+};
+
+const lightHigh: Palette = {
+  chrome: {
+    ...lightStandard.chrome,
+    background: '#FFFFFF',
+    card: '#FFFFFF',
+    raised: '#E4E4EA',
+    text: '#000000',
+    textSecondary: '#3A3A42',
+    link: '#000000',
+    outline: '#55555F',
+  },
+  status: {
+    ...lightStandard.status,
+    clear: { fill: LIME, onFill: '#000000', mark: '#3F5C00' },
+    upcoming: { fill: '#FFC23D', onFill: '#000000', mark: '#6E4A00' },
+    imminent: { fill: '#FF8A3D', onFill: '#000000', mark: '#8A3000' },
+    active: { fill: '#A50E14', onFill: '#FFFFFF', mark: '#A50E14' },
+    past: { fill: '#E4E4EA', onFill: '#3A3A42', mark: '#3A3A42' },
   },
 };
 
@@ -134,7 +140,7 @@ export const palettes: Record<ContrastLevel, Record<ThemeName, Palette>> = {
   high: { light: lightHigh, dark: darkHigh },
 };
 
-// Spacing on a 4-pt grid, 16-pt side margins.
+// Spacing on a 4-pt grid: 20 side margins and card padding, 12 between cards, 28-32 between sections.
 export const spacing = {
   xxs: 2,
   xs: 4,
@@ -143,15 +149,19 @@ export const spacing = {
   lg: 16,
   xl: 20,
   xxl: 24,
+  section: 28,
   xxxl: 32,
   huge: 48,
 } as const;
-export const SIDE_MARGIN = 16;
+export const SIDE_MARGIN = 20;
+export const CARD_PADDING = 20;
+export const CARD_GAP = 12;
 
-// 20–24 corner radii (continuous curves are an iOS-only refinement, added with the iOS polish).
+// 24 for cards, 16 for inputs, tiles and buttons, 20 for the day tiles; a full pill only for small
+// badges.
 export const radius = {
-  sm: 8,
-  md: 12,
+  xs: 8,
+  md: 16,
   lg: 20,
   xl: 24,
   full: 999,
@@ -159,25 +169,78 @@ export const radius = {
 
 // Minimum touch targets: 48 dp on Android, 44 pt on iOS.
 export const MIN_TOUCH = Platform.select({ ios: 44, default: 48 });
+export const BUTTON_HEIGHT = 56;
+
+// ---- Fonts ------------------------------------------------------------------------------------
+// One family, embedded at build time (the expo-font config plugin in app.json lists the files).
+// Static weight files only; on Android the weight is part of the family name. The font is ONE token:
+// change DEFAULT_FONT to switch the whole app.
+
+export type FontWeight = '400' | '500' | '600' | '700' | '800';
+export type FontRole = 'text' | 'display';
+export type FontSetKey = 'A' | 'B' | 'C';
+
+export interface FontSet {
+  name: string;
+  // Family name per weight for ordinary text, and for the big numerals and headlines.
+  text: Record<FontWeight, string>;
+  display: Record<FontWeight, string>;
+  // Wide display faces (Unbounded) are drawn smaller to take the same width.
+  displayScale: number;
+}
+
+const family = (name: string): Record<FontWeight, string> => ({
+  '400': `${name}_400Regular`,
+  '500': `${name}_500Medium`,
+  '600': `${name}_600SemiBold`,
+  '700': `${name}_700Bold`,
+  '800': `${name}_800ExtraBold`,
+});
+
+const onest = family('Onest');
+const manrope = family('Manrope');
+// Unbounded ships only SemiBold, Bold and ExtraBold here (display use); lighter weights fall back.
+const unbounded: Record<FontWeight, string> = {
+  '400': 'Unbounded_600SemiBold',
+  '500': 'Unbounded_600SemiBold',
+  '600': 'Unbounded_600SemiBold',
+  '700': 'Unbounded_700Bold',
+  '800': 'Unbounded_800ExtraBold',
+};
+
+export const fontSets: Record<FontSetKey, FontSet> = {
+  A: { name: 'Onest', text: onest, display: onest, displayScale: 1 },
+  B: { name: 'Manrope', text: manrope, display: manrope, displayScale: 1 },
+  C: { name: 'Unbounded + Onest', text: onest, display: unbounded, displayScale: 0.78 },
+};
+export const DEFAULT_FONT: FontSetKey = 'A';
 
 export interface TextStyleToken {
   fontSize: number;
   lineHeight: number;
-  fontWeight: '400' | '500' | '600' | '700' | '800';
-  letterSpacing?: number;
+  weight: FontWeight;
+  role: FontRole;
+  // In em (-0.005 = -0.5 %).
+  tracking?: number;
 }
 
-// System font on each platform; sizes scale with the user's font setting (allowFontScaling stays on).
+// Scale from docs/design/direction.md. Sizes follow the user's font setting (allowFontScaling stays on).
 export const typography = {
-  display: { fontSize: 44, lineHeight: 52, fontWeight: '800', letterSpacing: -0.5 },
-  headline: { fontSize: 28, lineHeight: 34, fontWeight: '700' },
-  title: { fontSize: 20, lineHeight: 26, fontWeight: '600' },
-  body: { fontSize: 16, lineHeight: 24, fontWeight: '400' },
-  bodyStrong: { fontSize: 16, lineHeight: 24, fontWeight: '600' },
-  label: { fontSize: 14, lineHeight: 20, fontWeight: '500', letterSpacing: 0.1 },
-  caption: { fontSize: 12, lineHeight: 16, fontWeight: '400', letterSpacing: 0.2 },
-  // Countdown numerals: heavy, with tabular digits so they do not jitter (see tabularNums).
-  countdown: { fontSize: 40, lineHeight: 46, fontWeight: '800', letterSpacing: -0.5 },
+  displayHuge: { fontSize: 72, lineHeight: 80, weight: '800', role: 'display', tracking: -0.01 },
+  display: { fontSize: 56, lineHeight: 64, weight: '800', role: 'display', tracking: -0.01 },
+  // The countdown inside the hero and tiles.
+  countdown: { fontSize: 48, lineHeight: 56, weight: '800', role: 'display', tracking: -0.01 },
+  headline: { fontSize: 30, lineHeight: 36, weight: '700', role: 'display', tracking: -0.005 },
+  // The one big value in a half-width bento tile.
+  tile: { fontSize: 36, lineHeight: 42, weight: '800', role: 'display', tracking: -0.01 },
+  // Big time on an address card ("08:30–12:30").
+  value: { fontSize: 24, lineHeight: 30, weight: '700', role: 'display', tracking: -0.005 },
+  title: { fontSize: 20, lineHeight: 26, weight: '600', role: 'text' },
+  body: { fontSize: 16, lineHeight: 24, weight: '400', role: 'text' },
+  bodyStrong: { fontSize: 16, lineHeight: 24, weight: '600', role: 'text' },
+  label: { fontSize: 14, lineHeight: 20, weight: '500', role: 'text' },
+  button: { fontSize: 17, lineHeight: 22, weight: '700', role: 'text' },
+  caption: { fontSize: 13, lineHeight: 18, weight: '500', role: 'text' },
 } satisfies Record<string, TextStyleToken>;
 export type TypographyKey = keyof typeof typography;
 
@@ -190,11 +253,16 @@ export const motion = {
     snappy: { damping: 18, stiffness: 320, mass: 0.9 },
     soft: { damping: 26, stiffness: 90, mass: 1.1 },
   },
-  duration: { fast: 120, base: 220, slow: 420, hero: 600, pulse: 1600, mesh: 14000 },
+  duration: { fast: 120, base: 220, slow: 420, hero: 600, pulse: 1600 },
   stagger: 40,
 } as const;
 
-export const icons: Record<StatusKey, { ios: string; android: string }> = {
+// Material Symbols Rounded (filled, one weight) on Android; SF Symbols on iOS.
+export interface IconName {
+  ios: string;
+  android: string;
+}
+export const icons: Record<StatusKey, IconName> = {
   clear: { android: 'bolt', ios: 'bolt.fill' },
   upcoming: { android: 'schedule', ios: 'clock.fill' },
   imminent: { android: 'timer', ios: 'timer' },

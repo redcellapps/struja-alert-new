@@ -1,7 +1,7 @@
 import { Pressable, StyleSheet, View } from 'react-native';
 import { haptics } from '../haptics';
 import { useTheme } from '../theme';
-import { MIN_TOUCH } from '../tokens';
+import { CARD_GAP, type StatusKey } from '../tokens';
 import { AppText } from './AppText';
 
 export interface DayItem {
@@ -10,6 +10,8 @@ export interface DayItem {
   weekday: string;
   dayOfMonth: number;
   hasOutage: boolean;
+  // The colour of the dot on a day with an outage (default: upcoming).
+  status?: StatusKey;
   // Spoken: "utorak, 4. novembar, ima isključenja".
   accessibilityLabel: string;
 }
@@ -20,14 +22,16 @@ export interface DayStripProps {
   onSelect: (date: string) => void;
 }
 
-/** Today and the next three days (EDS publishes four), with a dot on days that have an outage. */
+/** Today and the next three days (EDS publishes four): square tiles, the selected one filled lime. */
 export function DayStrip({ days, selected, onSelect }: DayStripProps) {
-  const { colors, radius, spacing } = useTheme();
+  const { colors, radius } = useTheme();
   const c = colors.chrome;
   return (
-    <View style={[styles.row, { gap: spacing.sm }]} accessibilityRole="tablist">
+    <View style={[styles.row, { gap: CARD_GAP }]} accessibilityRole="tablist">
       {days.map((d) => {
         const active = d.date === selected;
+        const fg = active ? c.onAccent : c.text;
+        const dot = active ? c.onAccent : colors.status[d.status ?? 'upcoming'].mark;
         return (
           <Pressable
             key={d.date}
@@ -40,26 +44,16 @@ export function DayStrip({ days, selected, onSelect }: DayStripProps) {
             }}
             style={[
               styles.day,
-              {
-                minHeight: MIN_TOUCH + 24,
-                borderRadius: radius.lg,
-                backgroundColor: active ? c.primaryContainer : c.surfaceContainer,
-                borderColor: active ? c.primary : 'transparent',
-              },
+              { borderRadius: radius.lg, backgroundColor: active ? c.accent : c.card },
             ]}
           >
-            <AppText variant="caption" color={active ? c.onPrimaryContainer : c.onSurfaceVariant}>
+            <AppText variant="caption" color={active ? c.onAccent : c.textSecondary}>
               {d.weekday}
             </AppText>
-            <AppText variant="title" color={active ? c.onPrimaryContainer : c.onSurface} tabular>
+            <AppText variant="value" color={fg}>
               {String(d.dayOfMonth)}
             </AppText>
-            <View
-              style={[
-                styles.dot,
-                { backgroundColor: d.hasOutage ? colors.status.upcoming.accent : 'transparent' },
-              ]}
-            />
+            <View style={[styles.dot, { backgroundColor: d.hasOutage ? dot : 'transparent' }]} />
           </Pressable>
         );
       })}
@@ -69,12 +63,6 @@ export function DayStrip({ days, selected, onSelect }: DayStripProps) {
 
 const styles = StyleSheet.create({
   row: { flexDirection: 'row' },
-  day: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 1.5,
-    paddingVertical: 8,
-  },
-  dot: { width: 8, height: 8, borderRadius: 4, marginTop: 4 },
+  day: { flex: 1, aspectRatio: 1, alignItems: 'center', justifyContent: 'center', gap: 2 },
+  dot: { width: 8, height: 8, borderRadius: 4, marginTop: 2 },
 });

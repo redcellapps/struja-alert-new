@@ -67,8 +67,8 @@ docs/
   - Production target: our own dedicated Linux server, which also runs other internal services (see §4 Deployment)
 - **Mobile, shared:** Expo Router with native tabs, Reanimated, `expo-haptics`, `expo-notifications`, `expo-calendar`, `expo-maps`, `expo-secure-store`, `expo-localization` + i18next. Use TanStack Query with a persisted cache (MMKV) for offline-first data, and Zustand for local settings.
 - **Mobile, Android-specific:**
-  - Material 3 (Expressive) styling with dynamic color for app chrome
-  - Material Symbols. Check whether `expo-symbols` covers Android in the current SDK; otherwise bundle the Material Symbols font.
+  - Our own flat design system (§7): an embedded font, one lime accent, solid fills. No Material You dynamic colour.
+  - Material Symbols Rounded (filled), bundled as an embedded font: `expo-symbols` on Android only ships the regular outlined style.
   - A home screen widget built with Jetpack Glance through an Expo config plugin and a small Expo module, or a maintained library if one fits. Verify the options and propose one in the plan.
   - A **Live Update** (Android 16+ promoted ongoing notification with progress) during an active outage, through a small Expo module. Older Android falls back to an ongoing notification with a countdown chronometer.
 - **Mobile, iOS-specific ([MAC] polish):** `expo-glass-effect`, SF Symbols via `expo-symbols`, and `expo-widgets` for home/lock screen widgets and the Live Activity.
@@ -316,40 +316,47 @@ The app is the same on both platforms. Only the native chrome differs, as descri
 
 ## 7. Design: flagship quality on both platforms
 
-The app should feel calm, trustworthy and quietly premium, closer to Apple Weather or Flighty than to a utility company website. Most of the time the answer is "you're fine". When it isn't, the app should make that clear at a glance.
+The app should feel calm, trustworthy and current, closer to a modern bento dashboard than to a utility company website. Most of the time the answer is "you're fine". When it isn't, the app should make that clear at a glance.
+
+**Direction v2 (22 Oct 2026):** the first gallery (system font, gradient mesh, Material You pastels, outlined chips) was rejected as looking like a 2013 app. The full spec is `docs/design/direction.md`, with the two reference images in `docs/design/references/`; this section summarises it and the file wins on any detail.
 
 ### Principles
+- **Flat, bento, bold.** Solid fills only: no gradients, no mesh, no shadows or outlines to separate surfaces. Large rounded cards in a 1- and 2-column grid, each carrying one big number or one short headline with a small icon and a label.
+- **One brand accent: electric lime** (`#D4F84A`), used as a fill (selected chip, primary button, selected day, switch on, the `clear` status) with near-black text on it. Never lime as text on a light background.
+- **Strong hierarchy:** a big bold headline, huge tabular numerals for times and countdowns, quiet secondary text, sentence-case labels (no letter-spaced capitals).
 - **Platform-adaptive, not identical.**
   - Shared across platforms: layout, content, information hierarchy, motion and the signature elements.
   - Native per platform: the chrome and controls, so the app feels at home on each.
   - Use `.android.tsx` / `.ios.tsx` files only where chrome differs. Logic and data stay shared.
 - **Android:**
-  - Material 3 (Expressive) components and motion
-  - Dynamic color (Material You) for app chrome, while status colors stay fixed and semantic (below)
-  - Edge-to-edge (mandatory on current Android), predictive back, Material Symbols, system font with font scaling
+  - Our own components and motion in the flat style above; no Material You dynamic colour. Status colours stay fixed and semantic (below)
+  - Edge-to-edge (mandatory on current Android), predictive back, Material Symbols Rounded (filled), the embedded font with font scaling
 - **iOS [MAC polish]:**
-  - Native components: large titles, sheets with detents, context menus, SF Symbols
-  - **Liquid Glass (iOS 26+):** `GlassView` / `GlassContainer` from `expo-glass-effect` for floating controls and the hero card, with an `expo-blur` fallback on older iOS. Never glass on glass. Use solid surfaces with Reduce Transparency.
-- **One signature element on both platforms:** the **status hero** on Home. Behind it sits a soft, slowly animating gradient mesh tinted by the current status (calm green when clear, warm amber when an outage is announced, deep red during an active outage), the way Apple Weather's sky follows the conditions. On iOS it sits under glass; on Android it sits on a Material surface with tonal elevation.
+  - The same flat design. Native chrome where it differs: large titles, sheets with detents, context menus, SF Symbols
+  - **Liquid Glass (iOS 26+):** `GlassView` / `GlassContainer` from `expo-glass-effect` for floating controls only (tab bar, sheets), with an `expo-blur` fallback on older iOS. The hero stays a flat card. Never glass on glass. Use solid surfaces with Reduce Transparency.
+- **One signature element on both platforms:** the **status hero** on Home: a solid card in the status colour with a large faint bolt watermark (about 8 % opacity) in one corner, the status badge, a bold headline ("Bez struje", "Sutra bez struje", "Sve u redu"), the address and the huge countdown or time. The active state pulses gently, on the badge only.
 
 ### Visual system
-- **Semantic status tokens.** Each one has light, dark and high-contrast values, mapped to system colors on iOS (`PlatformColor`) and defined as Material color roles on Android:
+- **Semantic status tokens.** Each status is a flat fill with its own text colour, in light, dark and high-contrast values (all WCAG AA, tested):
 
-| Status | When | Color | Android symbol | iOS symbol |
+| Status | When | Fill | Android symbol | iOS symbol |
 |---|---|---|---|---|
-| `clear` | no outage | green | `bolt` | `bolt.fill` |
-| `upcoming` | announced, more than 24 h away | yellow / amber | — | — |
-| `imminent` | less than 24 h | orange | — | — |
-| `active` | in the window now, with a soft pulse | red | `power_off` | `bolt.slash.fill` |
-| `cancelled` / `past` | — | secondary text, struck-through time | — | — |
+| `clear` | no outage | lime, dark text | `bolt` | `bolt.fill` |
+| `upcoming` | announced, more than 24 h away | amber (about `#FFC23D`), dark text | `schedule` | `clock.fill` |
+| `imminent` | less than 24 h | orange (about `#FF8A3D`), dark text | `timer` | `timer` |
+| `active` | in the window now, with a soft pulse on the badge | red (about `#DC2F34`), white text | `power_off` | `bolt.slash.fill` |
+| `cancelled` / `past` | — | the raised card fill, secondary text, struck-through time | `history` | `clock.arrow.circlepath` |
 
 - **Color is never the only signal.** Every status also has an icon and a text label.
-- **Typography:** the system font on each platform, with font scaling / Dynamic Type everywhere. Countdown numerals are heavy and rounded where the platform supports it, with **tabular numbers** so the digits do not jitter.
+- **Surfaces (dark / light):** background `#0B0B0D` / `#F2F2F5`, card `#18181B` / `#FFFFFF`, raised or pressed `#222226` / `#E9E9EE`, text `#F5F5F7` / `#0B0B0D`, secondary text `#9A9AA3` / `#5C5C66`.
+- **Typography:** one open-source (OFL) family, **embedded at build time** with the `expo-font` config plugin (static Regular, Medium, SemiBold, Bold and ExtraBold files; no system font, no runtime download). The family is one token, so a later change is a one-line edit. The candidates (Onest, Manrope, Unbounded for headlines with Onest for text) are compared on a type specimen screen; each was checked in the font files for Serbian Latin, Serbian Cyrillic (and the Serbian `locl` forms where present) and tabular figures (`tnum`). Scale: display numerals 56–72 ExtraBold tabular, headline 28–32 Bold, title 20 SemiBold, body 16, label 13–14 Medium in secondary colour. Font scaling still reflows up to 200 %.
 - **Layout:**
-  - 4-pt grid, 16-pt side margins, 20–24-pt corner radius (continuous curves on iOS), generous whitespace
+  - 4-pt grid, 20-pt side margins and card padding, 12 between cards, 28–32 between sections
+  - Radius 24 for cards; 16 for inputs, tiles and buttons; a full pill only for small badges
   - Minimum touch targets: 48 dp on Android, 44 pt on iOS
-- **Dark mode is first-class.** Design both themes and follow the system setting.
-- Build these as reusable components in `apps/mobile/src/design/`: `StatusHero`, `MeshBackground`, `DayStrip`, `AddressCard`, `TimelineBar`, `RangeChips`, `CountdownText`, `Banner` (offline / notifications off), `EmptyState`, `SkeletonCard`, `SectionHeader`. Put design tokens (color, type, spacing, radius, motion) in one place with per-platform values.
+- **Controls:** chips are filled, never outlined (raised fill, lime when selected); radio choices are full-width rows with a lime check circle; checkboxes are 24 × 24 rounded squares, lime with a dark check; switches are a pill track, lime when on, with a white thumb; segmented controls (script, theme) fill the selected segment. Buttons: primary 56 high, lime with dark text; secondary on the raised fill; text button in lime on dark and primary text on light.
+- **Dark mode is the showcase, light is just as finished.** Design both themes and follow the system setting.
+- Build these as reusable components in `apps/mobile/src/design/`: `StatusHero`, `DayStrip` (four square tiles, the selected day lime, a status-coloured dot on days with an outage), `AddressCard`, `BentoTile`, `TimelineBar` (a 14-high track, the window in the status colour, "now" as a dot with a ring), `RangeChips` (the user's range filled lime), `CountdownText`, `Banner` (offline / notifications off), `EmptyState`, `SkeletonCard`, `SectionHeader`, plus the controls above. Put design tokens (colour, type, spacing, radius, motion) in one place with per-platform values.
 
 ### Motion and haptics
 - Reanimated springs throughout. The hero crossfades when the status changes. Countdown digits roll. The active state pulses gently. List items enter with a short, subtle stagger.

@@ -3,16 +3,22 @@ import type { ReactElement } from 'react';
 import { StyleSheet } from 'react-native';
 import {
   AddressCard,
+  AppText,
   Banner,
+  BentoTile,
   Button,
+  CheckboxRow,
   Chip,
   CountdownText,
   DayStrip,
   EmptyState,
+  RadioRow,
   RangeChips,
   SectionHeader,
+  Segmented,
   SkeletonCard,
   StatusHero,
+  SwitchRow,
   TimelineBar,
 } from '../src/design/components';
 import { buildTheme, ThemeProvider } from '../src/design/theme';
@@ -41,7 +47,7 @@ describe.each(['light', 'dark'] as const)('components (%s)', (mode) => {
         </StatusHero>,
         mode,
       );
-      expect(screen.getByText('U TOKU')).toBeTruthy();
+      expect(screen.getByText('U toku')).toBeTruthy();
       expect(screen.getByText('Bez struje')).toBeTruthy();
       expect(screen.getByLabelText('Bez struje do 12:30, Vojvode Mišića 34')).toBeTruthy();
       expect(screen.getByLabelText('1 čas 12 minuta')).toBeTruthy();
@@ -159,6 +165,87 @@ describe.each(['light', 'dark'] as const)('components (%s)', (mode) => {
     expect(screen.getByRole('alert')).toBeTruthy();
     await fireEvent.press(screen.getByLabelText('Otvori podešavanja'));
     expect(onAction).toHaveBeenCalled();
+  });
+
+  it('AddressCard strikes through the time of a cancelled outage', async () => {
+    await renderThemed(
+      <AddressCard
+        address="Čegarska 3"
+        status="past"
+        statusLabel="Otkazano"
+        time="08:30–12:30"
+        summary="Isključenje je otkazano"
+        accessibilityLabel="Čegarska 3"
+      />,
+      mode,
+    );
+    const time = StyleSheet.flatten(screen.getByText('08:30–12:30').props.style);
+    expect(time.textDecorationLine).toBe('line-through');
+  });
+
+  it('AppText uses the static weight file of the font token, tabular for big numbers', async () => {
+    await renderThemed(
+      <>
+        <AppText variant="headline">Naslov</AppText>
+        <AppText variant="display">12:30</AppText>
+      </>,
+      mode,
+    );
+    const headline = StyleSheet.flatten(screen.getByText('Naslov').props.style);
+    const display = StyleSheet.flatten(screen.getByText('12:30').props.style);
+    expect(headline.fontFamily).toBe('Onest_700Bold');
+    expect(display.fontFamily).toBe('Onest_800ExtraBold');
+    expect(display.fontVariant).toEqual(['tabular-nums']);
+  });
+
+  it('BentoTile reads as one spoken sentence', async () => {
+    await renderThemed(
+      <BentoTile
+        icon={{ ios: 'timer', android: 'timer' }}
+        label="Trajanje"
+        value="4 h"
+        accessibilityLabel="Trajanje isključenja 4 časa"
+      />,
+      mode,
+    );
+    expect(screen.getByLabelText('Trajanje isključenja 4 časa')).toBeTruthy();
+    expect(screen.getByText('4 h')).toBeTruthy();
+  });
+
+  it('RadioRow, CheckboxRow, SwitchRow and Segmented report changes with their state', async () => {
+    const onSelect = jest.fn();
+    const onCheck = jest.fn();
+    const onSwitch = jest.fn();
+    const onSeg = jest.fn();
+    await renderThemed(
+      <>
+        <RadioRow label="Uveče" selected onSelect={onSelect} />
+        <CheckboxRow label="Izmene" checked={false} onChange={onCheck} />
+        <SwitchRow label="Tihi sati" value onChange={onSwitch} />
+        <Segmented
+          accessibilityLabel="Pismo"
+          value="latin"
+          onChange={onSeg}
+          options={[
+            { value: 'latin', label: 'Latinica' },
+            { value: 'cyrillic', label: 'Ћирилица' },
+          ]}
+        />
+      </>,
+      mode,
+    );
+    expect(screen.getByLabelText('Uveče').props.accessibilityState.checked).toBe(true);
+    expect(screen.getByLabelText('Izmene').props.accessibilityState.checked).toBe(false);
+    expect(screen.getByLabelText('Tihi sati').props.accessibilityState.checked).toBe(true);
+    await fireEvent.press(screen.getByLabelText('Uveče'));
+    await fireEvent.press(screen.getByLabelText('Izmene'));
+    await fireEvent.press(screen.getByLabelText('Tihi sati'));
+    await fireEvent.press(screen.getByLabelText('Ћирилица'));
+    expect(onSelect).toHaveBeenCalled();
+    expect(onCheck).toHaveBeenCalledWith(true);
+    expect(onSwitch).toHaveBeenCalledWith(false);
+    expect(onSeg).toHaveBeenCalledWith('cyrillic');
+    expect(screen.getByLabelText('Latinica').props.accessibilityState.checked).toBe(true);
   });
 
   it('EmptyState, SkeletonCard and SectionHeader render their text and labels', async () => {

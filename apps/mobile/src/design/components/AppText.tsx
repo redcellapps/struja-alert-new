@@ -1,29 +1,39 @@
 import { Text, type TextProps, type TextStyle } from 'react-native';
 import { useTheme } from '../theme';
-import { tabularNums, type ChromeColors, type TypographyKey } from '../tokens';
+import { tabularNums, type ChromeColors, type TextStyleToken, type TypographyKey } from '../tokens';
 
 export interface AppTextProps extends TextProps {
   variant?: TypographyKey;
-  // A chrome colour role, or an explicit colour (status text on a container).
+  // A chrome colour role, or an explicit colour (status text on a fill).
   color?: keyof ChromeColors | (string & {});
   tabular?: boolean;
 }
 
-/** The one text component: tokens for size and colour, font scaling always on. */
+// Big numerals and times keep their digits the same width so a countdown does not jitter.
+const TABULAR: readonly TypographyKey[] = ['displayHuge', 'display', 'countdown', 'tile', 'value'];
+
+/** The one text component: tokens for font, size and colour; font scaling always on. */
 export function AppText({
   variant = 'body',
-  color = 'onSurface',
+  color = 'text',
   tabular,
   style,
   ...rest
 }: AppTextProps) {
   const theme = useTheme();
+  const token: TextStyleToken = theme.typography[variant];
   const resolved =
     color in theme.colors.chrome ? theme.colors.chrome[color as keyof ChromeColors] : color;
+  const scale = token.role === 'display' ? theme.fonts.displayScale : 1;
   const base: TextStyle = {
-    ...theme.typography[variant],
+    // The weight is part of the family name (static font files); fontWeight stays normal.
+    fontFamily: theme.fonts[token.role][token.weight],
+    fontWeight: 'normal',
+    fontSize: Math.round(token.fontSize * scale),
+    lineHeight: Math.round(token.lineHeight * scale),
+    letterSpacing: token.tracking ? token.tracking * token.fontSize * scale : undefined,
     color: resolved,
-    ...(tabular || variant === 'countdown' ? { fontVariant: [...tabularNums] } : null),
+    ...(tabular || TABULAR.includes(variant) ? { fontVariant: [...tabularNums] } : null),
   };
   return <Text allowFontScaling maxFontSizeMultiplier={2} style={[base, style]} {...rest} />;
 }

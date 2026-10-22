@@ -12,7 +12,28 @@
       "expo-status-bar",
       "./plugins/with-short-cxx-dir.js",
       "expo-secure-store",
-      "expo-localization"
+      "expo-localization",
+      [
+        "expo-font",
+        {
+          "fonts": [
+            "./assets/fonts/Manrope_400Regular.ttf",
+            "./assets/fonts/Manrope_500Medium.ttf",
+            "./assets/fonts/Manrope_600SemiBold.ttf",
+            "./assets/fonts/Manrope_700Bold.ttf",
+            "./assets/fonts/Manrope_800ExtraBold.ttf",
+            "./assets/fonts/MaterialSymbolsRounded_400Regular_Filled.ttf",
+            "./assets/fonts/Onest_400Regular.ttf",
+            "./assets/fonts/Onest_500Medium.ttf",
+            "./assets/fonts/Onest_600SemiBold.ttf",
+            "./assets/fonts/Onest_700Bold.ttf",
+            "./assets/fonts/Onest_800ExtraBold.ttf",
+            "./assets/fonts/Unbounded_600SemiBold.ttf",
+            "./assets/fonts/Unbounded_700Bold.ttf",
+            "./assets/fonts/Unbounded_800ExtraBold.ttf"
+          ]
+        }
+      ]
     ],
     "ios": {
       "supportsTablet": false,

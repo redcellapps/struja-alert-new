@@ -15,7 +15,7 @@ export interface TimelineBarProps {
 
 const TICKS = [0, 6, 12, 18, 24];
 
-/** A 24-hour bar with the outage window and a "now" marker. */
+/** A 24-hour bar: a 14-high track, the outage window in the status colour, "now" as a dot with a ring. */
 export function TimelineBar({
   startHour,
   endHour,
@@ -23,8 +23,7 @@ export function TimelineBar({
   status,
   accessibilityLabel,
 }: TimelineBarProps) {
-  const { colors, radius, spacing } = useTheme();
-  const s = colors.status[status];
+  const { colors, radius } = useTheme();
   const c = colors.chrome;
   const left = Math.min(Math.max(startHour, 0), 24) / 24;
   const width = Math.max(Math.min(endHour, 24) - Math.max(startHour, 0), 0.25) / 24;
@@ -33,14 +32,9 @@ export function TimelineBar({
       accessible
       accessibilityRole="image"
       accessibilityLabel={accessibilityLabel}
-      style={{ gap: spacing.xs }}
+      style={{ gap: 8 }}
     >
-      <View
-        style={[
-          styles.track,
-          { backgroundColor: c.surfaceContainerHigh, borderRadius: radius.full },
-        ]}
-      >
+      <View style={[styles.track, { backgroundColor: c.raised, borderRadius: radius.full }]}>
         <View
           testID="timeline-window"
           style={[
@@ -48,7 +42,7 @@ export function TimelineBar({
             {
               left: `${left * 100}%`,
               width: `${width * 100}%`,
-              backgroundColor: s.accent,
+              backgroundColor: colors.status[status].mark,
               borderRadius: radius.full,
             },
           ]}
@@ -60,8 +54,8 @@ export function TimelineBar({
               styles.now,
               {
                 left: `${(Math.min(Math.max(nowHour, 0), 24) / 24) * 100}%`,
-                backgroundColor: c.onSurface,
-                borderColor: c.surface,
+                backgroundColor: c.text,
+                borderColor: c.card,
               },
             ]}
           />
@@ -73,7 +67,7 @@ export function TimelineBar({
         importantForAccessibility="no-hide-descendants"
       >
         {TICKS.map((h) => (
-          <AppText key={h} variant="caption" color="onSurfaceVariant" tabular>
+          <AppText key={h} variant="caption" color="textSecondary" tabular>
             {String(h).padStart(2, '0')}
           </AppText>
         ))}
@@ -87,12 +81,12 @@ const styles = StyleSheet.create({
   window: { position: 'absolute', top: 0, bottom: 0 },
   now: {
     position: 'absolute',
-    top: -4,
-    width: 4,
-    height: 22,
-    marginLeft: -2,
-    borderRadius: 2,
-    borderWidth: 1,
+    top: -5,
+    width: 24,
+    height: 24,
+    marginLeft: -12,
+    borderRadius: 12,
+    borderWidth: 5,
   },
   ticks: { flexDirection: 'row', justifyContent: 'space-between' },
 });

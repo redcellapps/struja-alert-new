@@ -2,12 +2,16 @@ import { createContext, useContext, useMemo, type ReactNode } from 'react';
 import { useColorScheme } from 'react-native';
 import { useSettings } from '../store/settings';
 import {
+  DEFAULT_FONT,
+  fontSets,
   motion,
   palettes,
   radius,
   spacing,
   typography,
   type ContrastLevel,
+  type FontSet,
+  type FontSetKey,
   type Palette,
   type ThemeName,
 } from './tokens';
@@ -16,17 +20,25 @@ export interface Theme {
   name: ThemeName;
   contrast: ContrastLevel;
   colors: Palette;
+  fontKey: FontSetKey;
+  fonts: FontSet;
   spacing: typeof spacing;
   radius: typeof radius;
   typography: typeof typography;
   motion: typeof motion;
 }
 
-export function buildTheme(name: ThemeName, contrast: ContrastLevel = 'standard'): Theme {
+export function buildTheme(
+  name: ThemeName,
+  contrast: ContrastLevel = 'standard',
+  fontKey: FontSetKey = DEFAULT_FONT,
+): Theme {
   return {
     name,
     contrast,
     colors: palettes[contrast][name],
+    fontKey,
+    fonts: fontSets[fontKey],
     spacing,
     radius,
     typography,
