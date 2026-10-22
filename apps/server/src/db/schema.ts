@@ -253,6 +253,10 @@ export const outage = pgTable(
     // street list, a revert): a replacing row has its predecessor's count + 1. More than two raises
     // the flip-flop alert.
     flips: integer('flips').notNull().default(0),
+    // The start/end signals (the "outage active" surface on affected devices, BRIEF §4 Jobs) are
+    // sent once each: these mark them done, so a repeated or retried tick does nothing.
+    startSignalledAt: tstz('start_signalled_at'),
+    endSignalledAt: tstz('end_signalled_at'),
   },
   (t) => [
     unique('outage_content_hash_unique').on(t.contentHash),

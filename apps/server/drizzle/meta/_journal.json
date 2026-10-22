@@ -50,6 +50,13 @@
       "when": 1792689355525,
       "tag": "0006_page_health_alerts",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1792689753143,
+      "tag": "0007_outage_signals",
+      "breakpoints": true
     }
   ]
 }

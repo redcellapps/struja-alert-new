@@ -47,8 +47,10 @@ interface OutageInfo {
   revision: number;
 }
 
-interface Sub extends SubscriptionTarget {
+export interface Sub extends SubscriptionTarget {
   id: number;
+  deviceId: string;
+  platform: 'android' | 'ios';
   houseSuffix: string | null;
   pushToken: string;
   locale: string;
@@ -145,6 +147,8 @@ async function candidateSubs(
       settlementId: subscription.settlementId,
       houseNumber: subscription.houseNumber,
       houseSuffix: subscription.houseSuffix,
+      deviceId: subscription.deviceId,
+      platform: device.platform,
       pushToken: device.pushToken,
       locale: device.locale,
       script: device.script,
@@ -166,6 +170,8 @@ async function subById(db: Db, ids: number[]): Promise<Sub[]> {
       settlementId: subscription.settlementId,
       houseNumber: subscription.houseNumber,
       houseSuffix: subscription.houseSuffix,
+      deviceId: subscription.deviceId,
+      platform: device.platform,
       pushToken: device.pushToken,
       locale: device.locale,
       script: device.script,
@@ -750,4 +756,19 @@ export async function planSafetyNet(db: Db, now: Date): Promise<PlanResult> {
     }
   }
   return total;
+}
+
+/** Everyone an outage affects (or may affect), for the start/end signals and the app. */
+export async function matchedSubscribers(
+  db: Db,
+  outageId: number,
+): Promise<{ sub: Sub; match: NonNullable<MatchResult> }[]> {
+  const rows = await segmentRows(db, outageId);
+  const subs = await candidateSubs(db, rows);
+  const out: { sub: Sub; match: NonNullable<MatchResult> }[] = [];
+  for (const sub of subs) {
+    const match = matchSubscription(sub, rows);
+    if (match) out.push({ sub, match });
+  }
+  return out;
 }
