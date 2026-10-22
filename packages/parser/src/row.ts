@@ -11,6 +11,8 @@ export interface RowDeps {
   municipality: NisMunicipality | null;
   // raw_norm -> street id from confirmed aliases.
   aliases?: ReadonlyMap<string, string | number>;
+  // raw_norm -> settlement from confirmed village aliases.
+  settlementAliases?: ReadonlyMap<string, NisSettlement>;
   // normalized street name -> house numbers known in OSM.
   addressNumbers?: ReadonlyMap<string, ReadonlySet<number>>;
 }
@@ -81,7 +83,15 @@ export function resolveRow(segments: readonly Segment[], deps: RowDeps): Segment
   // Villages and settlement parts resolve against the settlement list.
   out.forEach((res) => {
     if (res.kind !== 'village') return;
-    const r = deps.settlements.resolve(normalizeName(res.segment.name));
+    const norm = normalizeName(res.segment.name);
+    const pinned = deps.settlementAliases?.get(norm);
+    if (pinned) {
+      res.by = 'alias';
+      res.settlement = pinned;
+      res.score = 1;
+      return;
+    }
+    const r = deps.settlements.resolve(norm);
     if (r.street) {
       res.by = r.by === 'form' ? 'form' : r.by === 'heuristic' ? 'heuristic' : 'exact';
       res.settlement = r.street as NisSettlement;

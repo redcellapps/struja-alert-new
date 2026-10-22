@@ -17,6 +17,8 @@ export interface LoadedGazetteer {
   // raw_norm -> street id (human-confirmed aliases, not rejected).
   aliases: Map<string, number>;
   resolver: Resolver;
+  // raw_norm -> settlement, from confirmed village aliases.
+  settlementAliases: Map<string, NisSettlement>;
   // Villages and other settlements, for segments such as "Део села X".
   settlementIndex: StreetIndex;
   // Streets that count as address points per normalized name, for the scoring's house-number feature.
@@ -117,6 +119,12 @@ export async function loadGazetteer(db: Db, city: string): Promise<LoadedGazette
   ).rows as unknown as { raw_norm: string; street_id: number }[];
   const aliases = new Map(aliasRows.map((r) => [r.raw_norm, r.street_id]));
 
+  const settlementAliasRows = (
+    await db.execute(sql`
+      SELECT a.raw_norm, a.settlement_id FROM settlement_alias a
+      JOIN settlement p ON p.id = a.settlement_id WHERE p.city = ${city}`)
+  ).rows as unknown as { raw_norm: string; settlement_id: number }[];
+
   const numberRows = (
     await db.execute(sql`
       SELECT s.name_norm, a.housenumber FROM address_point a
@@ -144,6 +152,12 @@ export async function loadGazetteer(db: Db, city: string): Promise<LoadedGazette
     aliases,
     resolver: new Resolver(streets),
     settlementIndex: new StreetIndex(settlements),
+    settlementAliases: new Map(
+      settlementAliasRows.flatMap((r) => {
+        const p = settlements.find((x) => Number(x.id) === Number(r.settlement_id));
+        return p ? [[r.raw_norm, p] as const] : [];
+      }),
+    ),
     addressNumbers,
   };
 }

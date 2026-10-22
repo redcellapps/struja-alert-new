@@ -81,14 +81,24 @@ services:
           memory: 512m
     logging: *logging
 
-  # Copies the nightly dumps off the machine (docs/ops.md, "Off-site copy"). Off unless you start
-  # the `offsite` profile and set the rclone remote in docker/.env.prod.
+  # Copies the nightly dumps off the machine, encrypted, to a private Backblaze B2 bucket (docs/ops.md,
+  # "Off-site copy"). Configured but OFF: it only runs with `--profile offsite`, once the B2_* and
+  # CRYPT_* values are in docker/.env.prod. Two rclone remotes are built from the environment: "b2"
+  # (the bucket, an application key limited to it) and "offsite" (a crypt remote on top of it).
   offsite:
     profiles: [offsite]
     image: rclone/rclone:1.75
     restart: unless-stopped
     entrypoint: ['/bin/sh', '/offsite-backup.sh']
     env_file: [.env.prod]
+    environment:
+      RCLONE_CONFIG_B2_TYPE: b2
+      RCLONE_CONFIG_B2_ACCOUNT: ${B2_KEY_ID:-}
+      RCLONE_CONFIG_B2_KEY: ${B2_APP_KEY:-}
+      RCLONE_CONFIG_B2_HARD_DELETE: 'true'
+      RCLONE_CONFIG_OFFSITE_TYPE: crypt
+      RCLONE_CONFIG_OFFSITE_REMOTE: b2:${B2_BUCKET:-}
+      RCLONE_CONFIG_OFFSITE_FILENAME_ENCRYPTION: standard
     volumes:
       - backups:/backups:ro
       - ./offsite-backup.sh:/offsite-backup.sh:ro
@@ -101,7 +111,7 @@ services:
     logging: *logging
 
   # Only if the machine has no reverse proxy of its own (decided once the server exists). Start it
-  # with `--profile caddy`; set SITE_ADDRESS and ADMIN_ALLOWED_IPS in docker/.env.prod.
+  # with `--profile caddy`; set SITE_ADDRESSin docker/.env.prod.
   caddy:
     profiles: [caddy]
     image: caddy:2.11

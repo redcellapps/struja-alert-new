@@ -11,6 +11,8 @@ export interface Candidate {
 
 export interface UnresolvedItem {
   segNorm: string;
+  // 'village': candidates are settlements and confirming pins a settlement alias.
+  kind: 'street' | 'village';
   name: string;
   samples: string[];
   outages: number;
@@ -39,12 +41,27 @@ export interface ReducedRun {
   fetchedAt: string;
 }
 
-// The name part of a stored segment (the alias key), or null for villages and non-names.
-export function segmentKey(rawSegment: string): { name: string; norm: string } | null {
+// The key of a stored segment: its normalized name for a street, "village:" + the name for a
+// village or settlement part. The alias is stored under `norm` in the street or settlement table.
+export interface SegmentKey {
+  name: string;
+  norm: string;
+  village: boolean;
+  key: string;
+}
+export const VILLAGE_PREFIX = 'village:';
+
+export function segmentKey(rawSegment: string): SegmentKey | null {
   const seg = splitUlice(rawSegment)[0];
-  if (!seg || seg.village) return null;
+  if (!seg) return null;
   const norm = normalizeName(seg.name);
-  return /[a-z]/.test(norm) ? { name: seg.name, norm } : null;
+  if (!/[a-z]/.test(norm)) return null;
+  return {
+    name: seg.name,
+    norm,
+    village: seg.village,
+    key: seg.village ? VILLAGE_PREFIX + norm : norm,
+  };
 }
 
 type Row = Record<string, unknown>;
@@ -75,11 +92,12 @@ export async function unresolvedQueue(db: Db, now: Date): Promise<UnresolvedItem
   const groups = new Map<string, UnresolvedItem & { outageIds: Set<number> }>();
   for (const r of rows) {
     const key = segmentKey(String(r.raw_segment));
-    if (!key || dismissed.has(key.norm)) continue;
-    let g = groups.get(key.norm);
+    if (!key || dismissed.has(key.key)) continue;
+    let g = groups.get(key.key);
     if (!g) {
       g = {
-        segNorm: key.norm,
+        segNorm: key.key,
+        kind: key.village ? 'village' : 'street',
         name: key.name,
         samples: [],
         outages: 0,
@@ -88,7 +106,7 @@ export async function unresolvedQueue(db: Db, now: Date): Promise<UnresolvedItem
         candidates: [],
         outageIds: new Set(),
       };
-      groups.set(key.norm, g);
+      groups.set(key.key, g);
     }
     g.outageIds.add(Number(r.outage_id));
     g.outages = g.outageIds.size;
@@ -116,7 +134,7 @@ export async function spotCheckList(db: Db, now: Date, limit = 50): Promise<Spot
   const groups = new Map<string, SpotCheckItem & { outageIds: Set<number> }>();
   for (const r of rows) {
     const key = segmentKey(String(r.raw_segment));
-    if (!key) continue;
+    if (!key || key.village) continue;
     const k = `${key.norm}|${r.street_id}`;
     let g = groups.get(k);
     if (!g) {
@@ -146,40 +164,62 @@ export async function spotCheckList(db: Db, now: Date, limit = 50): Promise<Spot
 export async function confirmAlias(
   db: Db,
   gazetteers: GazetteerService,
-  input: { segNorm: string; streetId: number; raw?: string },
+  input: { segNorm: string; streetId?: number; settlementId?: number; raw?: string },
 ): Promise<{ resolved: number } | null> {
-  const st = (await db.execute(sql`SELECT city FROM street WHERE id = ${input.streetId}`))
-    .rows[0] as Row | undefined;
-  if (!st) return null;
+  const village = input.segNorm.startsWith(VILLAGE_PREFIX);
+  const aliasNorm = village ? input.segNorm.slice(VILLAGE_PREFIX.length) : input.segNorm;
+  const targetId = village ? input.settlementId : input.streetId;
+  if (targetId === undefined) return null;
+  const target = (
+    await db.execute(
+      village
+        ? sql`SELECT city FROM settlement WHERE id = ${targetId}`
+        : sql`SELECT city FROM street WHERE id = ${targetId}`,
+    )
+  ).rows[0] as Row | undefined;
+  if (!target) return null;
+  const raw = input.raw ?? aliasNorm;
   const resolved = await db.transaction(async (tx) => {
-    await tx.execute(sql`
-      INSERT INTO street_alias (street_id, raw, raw_norm, confidence, source, reviewed_at, rejected)
-      VALUES (${input.streetId}, ${input.raw ?? input.segNorm}, ${input.segNorm}, 1, 'manual', now(), false)
-      ON CONFLICT (raw_norm) DO UPDATE
-        SET street_id = EXCLUDED.street_id, confidence = 1, source = 'manual',
-            reviewed_at = now(), rejected = false`);
+    if (village) {
+      await tx.execute(sql`
+        INSERT INTO settlement_alias (settlement_id, raw, raw_norm, reviewed_at)
+        VALUES (${targetId}, ${raw}, ${aliasNorm}, now())
+        ON CONFLICT (raw_norm) DO UPDATE SET settlement_id = EXCLUDED.settlement_id, reviewed_at = now()`);
+    } else {
+      await tx.execute(sql`
+        INSERT INTO street_alias (street_id, raw, raw_norm, confidence, source, reviewed_at, rejected)
+        VALUES (${targetId}, ${raw}, ${aliasNorm}, 1, 'manual', now(), false)
+        ON CONFLICT (raw_norm) DO UPDATE
+          SET street_id = EXCLUDED.street_id, confidence = 1, source = 'manual',
+              reviewed_at = now(), rejected = false`);
+    }
     const open = (
       await tx.execute(sql`
         SELECT id, raw_segment FROM outage_street
         WHERE resolved_by = 'unresolved' AND street_id IS NULL AND settlement_id IS NULL`)
     ).rows as Row[];
     const ids = open
-      .filter((r) => segmentKey(String(r.raw_segment))?.norm === input.segNorm)
+      .filter((r) => segmentKey(String(r.raw_segment))?.key === input.segNorm)
       .map((r) => Number(r.id));
     if (ids.length) {
       const json = JSON.stringify(ids);
-      await tx.execute(sql`
-        UPDATE outage_street SET street_id = ${input.streetId}, resolved_by = 'manual', score = 1,
-               candidates = NULL
-        WHERE id IN (SELECT jsonb_array_elements_text(${json}::jsonb)::int)`);
+      await tx.execute(
+        village
+          ? sql`UPDATE outage_street SET settlement_id = ${targetId}, resolved_by = 'manual', score = 1,
+                   candidates = NULL
+                 WHERE id IN (SELECT jsonb_array_elements_text(${json}::jsonb)::int)`
+          : sql`UPDATE outage_street SET street_id = ${targetId}, resolved_by = 'manual', score = 1,
+                   candidates = NULL
+                 WHERE id IN (SELECT jsonb_array_elements_text(${json}::jsonb)::int)`,
+      );
       await tx.execute(sql`
         INSERT INTO segment_review (outage_street_id, seg_norm, kind, decision, street_id)
         SELECT jsonb_array_elements_text(${json}::jsonb)::int, ${input.segNorm},
-               'unresolved', 'confirmed', ${input.streetId}`);
+               'unresolved', 'confirmed', ${village ? null : targetId}`);
     }
     return ids.length;
   });
-  gazetteers.invalidate(String(st.city));
+  gazetteers.invalidate(String(target.city));
   return { resolved };
 }
 
@@ -208,7 +248,7 @@ export async function reviewSpotCheck(
     for (const r of rows) {
       await tx.execute(sql`
         INSERT INTO segment_review (outage_street_id, seg_norm, kind, decision, street_id)
-        VALUES (${Number(r.id)}, ${segmentKey(String(r.raw_segment))?.norm ?? ''}, 'spot_check',
+        VALUES (${Number(r.id)}, ${segmentKey(String(r.raw_segment))?.key ?? ''}, 'spot_check',
                 ${input.decision}, ${Number(r.street_id)})`);
     }
     if (input.decision === 'rejected') {
@@ -325,4 +365,33 @@ export async function healthSummary(db: Db, now: Date) {
     devices: await one(sql`SELECT count(*)::int AS n FROM device`),
     subscriptions: await one(sql`SELECT count(*)::int AS n FROM subscription`),
   };
+}
+
+export interface SearchHit {
+  id: number;
+  name: string;
+  municipality: string | null;
+}
+
+// Name search for the queue items the ladder offered no (or no right) candidate for: streets or
+// settlements by trigram similarity or substring of the normalized name.
+export async function searchTargets(
+  db: Db,
+  kind: 'street' | 'village',
+  q: string,
+): Promise<SearchHit[]> {
+  const norm = normalizeName(q);
+  if (norm.length < 2) return [];
+  const table = kind === 'village' ? sql`settlement` : sql`street`;
+  const rows = (
+    await db.execute(sql`
+      SELECT id, name_cyrillic, municipality FROM ${table}
+      WHERE name_norm ILIKE ${'%' + norm.replace(/[^a-z0-9 ]/g, '') + '%'} OR similarity(name_norm, ${norm}) > 0.3
+      ORDER BY similarity(name_norm, ${norm}) DESC, name_norm LIMIT 10`)
+  ).rows as Row[];
+  return rows.map((r) => ({
+    id: Number(r.id),
+    name: String(r.name_cyrillic),
+    municipality: r.municipality === null ? null : String(r.municipality),
+  }));
 }

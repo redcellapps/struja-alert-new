@@ -64,6 +64,13 @@
       "when": 1792696906051,
       "tag": "0008_admin_reviews",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1792700690096,
+      "tag": "0009_settlement_alias",
+      "breakpoints": true
     }
   ]
 }

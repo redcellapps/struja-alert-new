@@ -2,8 +2,10 @@ import { sql } from 'drizzle-orm';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { ipAllowed } from '../src/admin/auth.ts';
 import { buildApp } from '../src/app.ts';
+import { runChecks } from '../src/monitor/checks.ts';
 import { GazetteerService } from '../src/gazetteer/service.ts';
-import { createWorld, type World } from './helpers/world.ts';
+import { ingestPage } from '../src/ingest/ingest.ts';
+import { createWorld, edsPage, type World } from './helpers/world.ts';
 
 let w: World;
 let app: ReturnType<typeof buildApp>;
@@ -267,6 +269,40 @@ describe('reduced pages', () => {
   });
 });
 
+describe('confirming a reduced page pairs changes like a normal fetch', () => {
+  it('a changed time on the reduced page is an "Izmena", not "Otkazano" plus "new"', async () => {
+    const date = '29.11.2026.';
+    const streets = [
+      'Космајске',
+      'Требињске',
+      'Чегарске',
+      'Студеничке',
+      'Бубањске долине',
+      'Војводе Путника',
+    ];
+    const rows = (first: string): [string, string, string][] =>
+      streets.map((st, i) => ['Медијана', i === 0 ? first : `1${i}:00 - 1${i}:30`, st]);
+    const a = await w.addSub({ norm: 'kosmajska' });
+    await w.page(date, rows('08:00 - 09:00'));
+    await w.plan();
+    await w.deliver();
+    // the page loses five rows and the first one moves by an hour
+    const r = await w.page(date, [['Медијана', '09:00 - 10:00', 'Космајске']]);
+    expect(r.health).toBe('reduced');
+    expect(await post(`/admin/runs/${r.runId}/confirm-reduced`, {})).toMatchObject({
+      statusCode: 200,
+    });
+    await w.plan();
+    await w.deliver();
+    expect(await w.kinds(a.subId, '2026-11-29')).toEqual(['new:sent:0', 'changed:sent:0']);
+    expect(
+      await count(
+        sql`SELECT count(*)::int AS n FROM outage WHERE outage_date = '2026-11-29' AND status = 'changed'`,
+      ),
+    ).toBe(1);
+  });
+});
+
 describe('health and reports', () => {
   it('health shows the latest fetch per page, open alerts and the resolution rate', async () => {
     const h = (await get('/admin/health')).json() as {
@@ -288,5 +324,86 @@ describe('health and reports', () => {
     const page = (await get('/admin')).body;
     expect(page).toContain('Ulica je pogrešna &lt;b&gt;');
     expect(page).not.toContain('pogrešna <b>');
+  });
+});
+
+describe('village segments', () => {
+  it('reach the queue, raise an alert, and confirming pins a settlement alias that reaches subscribers', async () => {
+    const vil = (
+      await w.t.db.execute(sql`SELECT id, name_cyrillic FROM settlement ORDER BY id LIMIT 1`)
+    ).rows[0];
+    const settlementId = Number(vil?.id);
+    const vilName = String(vil?.name_cyrillic);
+    const sub = await w.addSub({ norm: 'kosmajska' });
+    await w.t.db.execute(
+      sql`UPDATE subscription SET street_id = NULL, settlement_id = ${settlementId} WHERE id = ${sub.subId}`,
+    );
+    await w.page('27.11.2026.', [['Нишка бања', '08:00 - 10:00', 'Део села Зџќах']]);
+    const seg = (
+      await w.t.db.execute(
+        sql`SELECT resolved_by, settlement_id FROM outage_street WHERE raw_segment LIKE '%Зџќах%'`,
+      )
+    ).rows[0];
+    expect(seg).toMatchObject({ resolved_by: 'unresolved', settlement_id: null });
+
+    const queue = (await get('/admin/unresolved')).json() as {
+      items: { segNorm: string; kind: string }[];
+    };
+    const item = queue.items.find((i) => i.kind === 'village');
+    expect(item?.segNorm.startsWith('village:')).toBe(true);
+
+    await runChecks(w.t.db, w.now, { cities: ['Nis'], adminUrl: 'https://struja.example' });
+    const alerts = await count(
+      sql`SELECT count(*)::int AS n FROM alert WHERE kind = 'unresolved_segment' AND dedupe_key = ${item?.segNorm}`,
+    );
+    expect(alerts).toBe(1);
+
+    // no candidates: the page offers a name search, which lists settlements to pick from
+    expect((await get('/admin')).body).toContain('/admin/search');
+    const found = (
+      await get(
+        `/admin/search?segNorm=${encodeURIComponent(item?.segNorm ?? '')}&q=${encodeURIComponent(vilName)}`,
+      )
+    ).json() as { items: { id: number }[] };
+    expect(found.items.map((i) => i.id)).toContain(settlementId);
+    const htmlPage = await app.inject({
+      method: 'GET',
+      url: `/admin/search?segNorm=${encodeURIComponent(item?.segNorm ?? '')}&q=${encodeURIComponent(vilName)}`,
+      headers: { ...auth, accept: 'text/html' },
+    });
+    expect(htmlPage.body).toContain('settlementId');
+    const res = await post('/admin/unresolved/confirm', {
+      segNorm: item?.segNorm,
+      settlementId,
+      raw: 'Зџќах',
+    });
+    expect(res.json()).toEqual({ resolved: 1 });
+    expect(
+      await count(
+        sql`SELECT count(*)::int AS n FROM settlement_alias WHERE raw_norm = 'zdzkah' OR settlement_id = ${settlementId}`,
+      ),
+    ).toBeGreaterThan(0);
+
+    // the people who live there are told, nobody was before
+    expect(w.titles(sub.token, '2026-11-27')).toHaveLength(0);
+    await w.plan();
+    await w.deliver();
+    expect(w.titles(sub.token, '2026-11-27')).toHaveLength(1);
+
+    // the same spelling on a later page now resolves by alias
+    // (a gazetteer loaded after the confirmation, as the service does)
+    await ingestPage(w.t.db, await gazetteers.get('Nis'), {
+      city: 'Nis',
+      url: 'https://example.test/28',
+      bytes: edsPage('28.11.2026.', [['Нишка бања', '08:00 - 10:00', 'Део села Зџќах']]),
+      now: w.now,
+    });
+    const again = (
+      await w.t.db.execute(
+        sql`SELECT resolved_by, settlement_id FROM outage_street os JOIN outage o ON o.id = os.outage_id
+            WHERE o.outage_date = '2026-11-28'`,
+      )
+    ).rows[0];
+    expect(again).toMatchObject({ resolved_by: 'alias', settlement_id: settlementId });
   });
 });

@@ -49,15 +49,20 @@ function unresolvedSection(items: UnresolvedItem[]): string {
         .map((c) =>
           form(
             '/admin/unresolved/confirm',
-            { segNorm: u.segNorm, streetId: c.id, raw: u.name },
+            {
+              segNorm: u.segNorm,
+              [u.kind === 'village' ? 'settlementId' : 'streetId']: c.id,
+              raw: u.name,
+            },
             `${c.name} (${c.score.toFixed(2)})`,
           ),
         )
         .join('');
-      return `<div class="card"><div><b>${esc(u.name)}</b>
+      return `<div class="card"><div><b>${esc(u.name)}</b>${u.kind === 'village' ? ' <span class="muted">(village)</span>' : ''}
         <span class="muted">${esc(u.municipality)}, ${u.outages} outage(s), first ${when(u.firstStart)}</span></div>
         <div class="muted">${u.samples.map(esc).join(' | ')}</div>
         <div class="row">${buttons || '<span class="muted">no candidates</span>'}
+        ${searchForm(u.segNorm, u.name)}
         ${form('/admin/unresolved/dismiss', { segNorm: u.segNorm }, 'Not a street', 'ghost')}</div></div>`;
     })
     .join('');
@@ -74,6 +79,40 @@ function spotSection(items: SpotCheckItem[]): string {
         ${form('/admin/spot-checks/review', { rowIds: ids, decision: 'rejected' }, 'Wrong', 'danger')}</div></div>`;
     })
     .join('');
+}
+
+const STYLE = '';
+
+export function renderSearchPage(d: {
+  segNorm: string;
+  raw: string;
+  query: string;
+  kind: 'street' | 'village';
+  hits: { id: number; name: string; municipality: string | null }[];
+}): string {
+  const buttons = d.hits
+    .map((h) =>
+      form(
+        '/admin/unresolved/confirm',
+        {
+          segNorm: d.segNorm,
+          [d.kind === 'village' ? 'settlementId' : 'streetId']: h.id,
+          raw: d.raw,
+        },
+        `${h.name}${h.municipality ? ` (${h.municipality})` : ''}`,
+      ),
+    )
+    .join('');
+  return `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Search</title>
+<style>${STYLE}body{font:15px system-ui,sans-serif;margin:0 auto;max-width:700px;padding:16px}form{margin:6px 0}</style></head><body>
+<p><a href="/admin">Back</a></p><h1>${esc(d.raw || d.segNorm)}</h1>
+${searchForm(d.segNorm, d.raw)}
+<p>${d.hits.length ? 'Pick the right one:' : 'Nothing found.'}</p>${buttons}</body></html>`;
+}
+
+function searchForm(segNorm: string, raw: string): string {
+  return `<form method="get" action="/admin/search"><input type="hidden" name="segNorm" value="${esc(segNorm)}">
+<input type="hidden" name="raw" value="${esc(raw)}"><input name="q" placeholder="search by name" size="24"> <button class="ghost">Search</button></form>`;
 }
 
 export function renderAdminPage(d: AdminPageData): string {

@@ -6,16 +6,16 @@ How the server runs in production, how to deploy it, and what to do when somethi
 
 `docker/compose.prod.yaml` is one stack with its own network, database volume, limits, restart policies and log rotation:
 
-| Service   | What                                                                             | Limits          | Exposed                         |
-| --------- | -------------------------------------------------------------------------------- | --------------- | ------------------------------- |
-| `db`      | `postgis/postgis:18-3.6`, volume `dbdata`                                        | 1 CPU, 1 GB     | nothing (internal network only) |
-| `server`  | Fastify API, the scheduler (pg-boss jobs) and the admin page, one process        | 1 CPU, 512 MB   | `127.0.0.1:3000` only           |
-| `offsite` | optional profile: copies dumps off the machine (rclone)                          | 0.5 CPU, 256 MB | nothing                         |
-| `caddy`   | optional profile: TLS reverse proxy, only if the machine has no proxy of its own | 0.5 CPU, 128 MB | 80, 443                         |
+| Service   | What                                                                                                      | Limits          | Exposed                         |
+| --------- | --------------------------------------------------------------------------------------------------------- | --------------- | ------------------------------- |
+| `db`      | `postgis/postgis:18-3.6`, volume `dbdata`                                                                 | 1 CPU, 1 GB     | nothing (internal network only) |
+| `server`  | Fastify API, the scheduler (pg-boss jobs) and the admin page, one process                                 | 1 CPU, 512 MB   | `127.0.0.1:3000` only           |
+| `offsite` | optional profile: copies dumps off the machine (rclone)                                                   | 0.5 CPU, 256 MB | nothing                         |
+| `caddy`   | optional profile: TLS reverse proxy for `/v1` and `/healthz`, only if the machine has no proxy of its own | 0.5 CPU, 128 MB | 80, 443                         |
 
 Logs are JSON files rotated at 3 × 10 MB per container. The server restarts on failure (`unless-stopped`); its healthcheck is `GET /healthz`, which also checks the database.
 
-**Reverse proxy: not decided yet.** The brief says to use the machine's existing proxy if there is one and add Caddy only if not. That is checked on the server before the first deploy. Either way the server is published on the loopback only.
+**Reverse proxy: decided with the server (about 30 days from now).** Both options stay documented, see "Reverse proxy" below. Either way the server is published on the loopback only and `/admin` is never exposed through a public proxy.
 
 ## First-time setup
 
@@ -24,7 +24,7 @@ Logs are JSON files rotated at 3 × 10 MB per container. The server restarts on 
    - `POSTGRES_PASSWORD`: a long random password.
    - `SCRAPER_CONTACT_EMAIL`: a real project mailbox, **not** a personal address. It goes into the User-Agent sent to elektrodistribucija.rs, and the server refuses to scrape without it.
    - `ADMIN_TOKEN`: 16+ characters, e.g. `node -e "console.log(require('crypto').randomBytes(24).toString('base64url'))"`. Without it `/admin` is not served at all.
-   - `ADMIN_IP_ALLOWLIST`, `TRUST_PROXY`: see "Admin access".
+   - `ADMIN_IP_ALLOWLIST` (keep the default), `TRUST_PROXY`: see "Admin access" and "Reverse proxy".
    - Alerts: `SMTP_URL` + `ALERT_EMAIL_FROM` + `ALERT_EMAIL_TO` for email, `ADMIN_PUSH_TOKENS` for push to your own phone (Phase 4). With neither, alerts go to the log only.
 3. `make deploy` (or the commands it runs, below). On the first start the server applies the migrations and, because the database has no streets yet, loads the Niš gazetteer from the OSM snapshot bundled in the image (`IMPORT_GAZETTEER=true`: it only imports into an empty `street` table).
 4. Check: `make ps` shows `healthy`; `curl http://127.0.0.1:3000/healthz`; `make logs`.
@@ -46,12 +46,35 @@ Profiles: `make up PROFILES='--profile caddy --profile offsite'`.
 
 ## Admin access
 
-`/admin` needs the token **and** a client address on `ADMIN_IP_ALLOWLIST` (exact addresses or IPv4 CIDR). Pick one:
+**SSH tunnel only.** `/admin` is never reachable from the internet: no public proxy serves it (the Caddyfile answers 404 for it, and the existing proxy, if that is the choice, must do the same), and the server itself is published on the machine's loopback only.
 
-- **Behind a reverse proxy (recommended).** Set `TRUST_PROXY=true` and make the proxy _overwrite_ `X-Forwarded-For` with the real client address (nginx: `proxy_set_header X-Forwarded-For $remote_addr;`, not `$proxy_add_x_forwarded_for`; Caddy does this by default). `ADMIN_IP_ALLOWLIST` is then your own address. The Caddyfile also blocks `/admin` for everybody else (`ADMIN_ALLOWED_IPS`).
-- **SSH tunnel, no proxy:** `ssh -L 3000:127.0.0.1:3000 server`, then open `http://127.0.0.1:3000/admin`. Docker shows the tunnel's source as the bridge gateway (172.x), so set `ADMIN_IP_ALLOWLIST=172.16.0.0/12` (only the loopback is published, so nothing else can reach it).
+```sh
+ssh -L 3000:127.0.0.1:3000 <server>     # keep it open, then browse to
+# http://127.0.0.1:3000/admin
+```
 
-A browser asks for a login: any user name, the token as the password. Scripts send `Authorization: Bearer <token>`. API: `docs/api.md`.
+A browser asks for a login: any user name, the `ADMIN_TOKEN` as the password. Scripts send `Authorization: Bearer <token>`. API: `docs/api.md`.
+
+Two further checks stay on as defence in depth: the token (16+ characters, otherwise `/admin` is not served at all) and `ADMIN_IP_ALLOWLIST`. Through a tunnel Docker shows the source as the bridge gateway (172.x), so the default is `127.0.0.1,::1,172.16.0.0/12`; only the loopback is published, so nothing else can reach the container from outside. A request that arrives through a proxy carries the real client address (with `TRUST_PROXY=true`), which is not in that range, so it is refused even if a proxy were misconfigured to pass `/admin`.
+
+## Reverse proxy (to be decided with the server)
+
+Public routes are `/v1/*` and `/healthz`. Pick one when the server is set up:
+
+- **The machine already has a reverse proxy:** add a site for the API that forwards to `127.0.0.1:3000`. It must (1) return 404 for `/admin`, (2) overwrite `X-Forwarded-For` with the real client address, and the stack then runs with `TRUST_PROXY=true` so the registration rate limit works per client. nginx sketch:
+
+  ```nginx
+  location /admin { return 404; }
+  location / {
+    proxy_pass http://127.0.0.1:3000;
+    proxy_set_header Host $host;
+    proxy_set_header X-Forwarded-For $remote_addr;   # not $proxy_add_x_forwarded_for
+  }
+  ```
+
+- **No proxy on the machine:** use the `caddy` profile (`make up PROFILES='--profile caddy'`, `SITE_ADDRESS` in `docker/.env.prod`). It terminates TLS automatically, answers 404 for `/admin` and sets `X-Forwarded-For` itself; set `TRUST_PROXY=true`.
+
+Until this is decided nothing is exposed publicly.
 
 ## Alerts
 
@@ -77,7 +100,16 @@ New alerts are sent as one batch (email and/or admin push, and always the log). 
 
 - **Nightly dump** at 03:30 Europe/Belgrade by the server (`pg_dump --format=custom`, the client matches PostgreSQL 18), into the `backups` volume, **14 days of retention**. `make backup-now` takes one on demand.
 - Today the dump lives **on the same machine** as the database. That is acceptable for now; it does not protect against losing the machine. **Step 10 adds the off-site copy below**, which should be switched on before real users.
-- **Off-site copy:** the `offsite` profile runs rclone every six hours, copies new dumps to a remote and deletes remote dumps older than `OFFSITE_KEEP_DAYS` (30). The remote is configured entirely through `docker/.env.prod`, for example SFTP to another machine or an S3/Backblaze bucket (rclone documents each backend; `RCLONE_CONFIG_OFFSITE_*`). Dumps contain device push tokens, so use an encrypted remote (an rclone `crypt` layer, or encryption at the storage side). Which destination to use is a decision for the owner; the default `OFFSITE_REMOTE=offsite:struja-backups` is only a placeholder.
+- **Off-site copy: Backblaze B2 through an rclone crypt remote.** The `offsite` profile runs rclone every six hours: it encrypts each new dump (content and file name) **before upload** to a **private** B2 bucket, and deletes remote dumps older than **30 days** (B2 hard delete is on, so they really go). It is configured but **off**: it starts only with `--profile offsite` once the values below are in `docker/.env.prod`. To switch it on when the server is set up:
+  1. Create a private bucket in B2 (no public access).
+  2. Create an **application key restricted to that bucket** only (read, write and delete files; no access to other buckets).
+  3. Generate a long random crypt password and a second one for the salt. **Put both in the password manager, together with the bucket name and the application key. Without the crypt password and salt the backups cannot be read, by anyone, ever.** Do not keep them only on the server.
+  4. Fill `B2_BUCKET`, `B2_KEY_ID`, `B2_APP_KEY`, `CRYPT_PASSWORD`, `CRYPT_SALT` (and `OFFSITE_KEEP_DAYS`, default 30), then `make up PROFILES='--profile offsite'`.
+  5. Check `docker compose … logs offsite` for `off-site copy ok`, and see an object in the bucket (its name is encrypted, that is expected).
+
+  The crypt wrapper and the script were exercised locally (rclone crypt over a local directory: names encrypted, content read back with the same password and salt); the real B2 bucket is created later.
+  **Reading a backup back:** configure rclone with the same bucket, key, password and salt (the `RCLONE_CONFIG_*` variables in compose.prod.yaml show the shape), `rclone copy offsite:struja-<timestamp>.dump .`, then restore as below.
+
 - **Restore test** (do it once after the first deploy, then after changing the schema substantially): `make restore-test` restores the newest dump into a scratch database next to the real one and prints row counts of both. It was exercised locally against a throwaway stack (backup → restore → counts equal → off-site copy of the dump) while writing this.
 
 **Restoring for real** (after data loss): stop the server (`docker compose … stop server`), then
@@ -102,7 +134,7 @@ Fetch the dump from the off-site remote into the `backups` volume first if the m
 
 ## Not done yet
 
-- The real deploy, and the choice between the machine's reverse proxy and the Caddy profile.
-- Off-site destination and its credentials (owner's decision), then switching the `offsite` profile on.
+- The real deploy, and the choice between the machine's reverse proxy and the Caddy profile (with the server, about 30 days out).
+- Creating the B2 bucket and key, filling the values and switching the `offsite` profile on (when the server is set up); until then dumps stay on the machine.
 - Real push delivery (`LogPushProvider` only logs until Phase 4), so alerts by push to the admin phone arrive in Phase 4 too.
 - The collector workflow (GitHub Actions) keeps running independently of this stack; it only saves fixtures.

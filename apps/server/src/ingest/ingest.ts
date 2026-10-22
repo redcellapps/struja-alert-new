@@ -291,6 +291,7 @@ export async function ingestPage(
         settlements: gaz.settlementIndex,
         municipality: nisMunicipality(row.opstina),
         aliases: gaz.aliases,
+        settlementAliases: gaz.settlementAliases,
         addressNumbers: gaz.addressNumbers,
       });
       const values = resolutions.flatMap((res, i) => segmentRows(id, i, res));
@@ -300,71 +301,10 @@ export async function ingestPage(
     }
 
     // Pair the new rows with the stored rows of this date that left the page.
-    if (trusted && created.length > 0) {
-      const newIds = new Set(created.map((c) => c.id));
-      const candidates = (
-        await tx.execute(sql`
-          SELECT id, identity_key, municipality, outage_date::text AS d, starts_at, ends_at,
-                 raw_streets, content_hash
-          FROM outage
-          WHERE city = ${input.city} AND outage_date = ${date}
-            AND status IN ('active', 'changed')
-            AND superseded_by_outage_id IS NULL AND change_group_id IS NULL`)
-      ).rows as {
-        id: number;
-        identity_key: string;
-        municipality: string;
-        d: string;
-        starts_at: string;
-        ends_at: string;
-        raw_streets: string;
-        content_hash: string;
-      }[];
-      const olds: PairRow[] = candidates
-        .filter((o) => !newIds.has(o.id) && !present.has(o.content_hash))
-        .map((o) => ({
-          id: o.id,
-          identityKey: o.identity_key,
-          municipality: normalizeName(o.municipality),
-          date: o.d,
-          startsAt: new Date(o.starts_at),
-          endsAt: new Date(o.ends_at),
-          streets: streetSet(o.raw_streets),
-        }));
-
-      const { pairs, groups } = pairChanges(created, olds);
-      for (const p of pairs) {
-        const before = await flipsOf(tx, [p.oldId]);
-        await tx
-          .update(outage)
-          .set({ status: 'changed', flips: before + 1 })
-          .where(eq(outage.id, p.newId));
-        await flagFlips(tx, p.newId, before + 1);
-        await tx
-          .update(outage)
-          .set({ status: 'cancelled', supersededByOutageId: p.newId })
-          .where(eq(outage.id, p.oldId));
-        result.changed++;
-      }
-      for (const g of groups) {
-        const groupId = Math.min(...g.newIds);
-        const before = await flipsOf(tx, g.oldIds);
-        for (const id of g.newIds) {
-          await tx
-            .update(outage)
-            .set({ status: 'changed', changeGroupId: groupId, flips: before + 1 })
-            .where(eq(outage.id, id));
-          await flagFlips(tx, id, before + 1);
-        }
-        for (const id of g.oldIds) {
-          await tx
-            .update(outage)
-            .set({ status: 'cancelled', changeGroupId: groupId })
-            .where(eq(outage.id, id));
-        }
-        result.changed += g.newIds.length;
-        result.groups++;
-      }
+    if (trusted) {
+      const p = await pairDate(tx, input.city, date, created, present);
+      result.changed += p.changed;
+      result.groups += p.groups;
     }
 
     if (trusted) {
@@ -399,6 +339,84 @@ export async function ingestPage(
 }
 
 type Tx = Parameters<Parameters<Db['transaction']>[0]>[0];
+
+// Pairs the new rows of a date with the stored rows of that date that left the page: a changed
+// time or an edited street list becomes "changed" (old row superseded), not cancelled + new.
+async function pairDate(
+  tx: Tx,
+  city: string,
+  date: string,
+  created: PairRow[],
+  present: ReadonlySet<string>,
+): Promise<{ changed: number; groups: number }> {
+  const out = { changed: 0, groups: 0 };
+  if (created.length === 0) return out;
+  const newIds = new Set(created.map((c) => c.id));
+  const candidates = (
+    await tx.execute(sql`
+          SELECT id, identity_key, municipality, outage_date::text AS d, starts_at, ends_at,
+                 raw_streets, content_hash
+          FROM outage
+          WHERE city = ${city} AND outage_date = ${date}
+            AND status IN ('active', 'changed')
+            AND superseded_by_outage_id IS NULL AND change_group_id IS NULL`)
+  ).rows as {
+    id: number;
+    identity_key: string;
+    municipality: string;
+    d: string;
+    starts_at: string;
+    ends_at: string;
+    raw_streets: string;
+    content_hash: string;
+  }[];
+  const olds: PairRow[] = candidates
+    .filter((o) => !newIds.has(o.id) && !present.has(o.content_hash))
+    .map((o) => ({
+      id: o.id,
+      identityKey: o.identity_key,
+      municipality: normalizeName(o.municipality),
+      date: o.d,
+      startsAt: new Date(o.starts_at),
+      endsAt: new Date(o.ends_at),
+      streets: streetSet(o.raw_streets),
+    }));
+
+  const { pairs, groups } = pairChanges(created, olds);
+  for (const p of pairs) {
+    const before = await flipsOf(tx, [p.oldId]);
+    await tx
+      .update(outage)
+      .set({ status: 'changed', flips: before + 1 })
+      .where(eq(outage.id, p.newId));
+    await flagFlips(tx, p.newId, before + 1);
+    await tx
+      .update(outage)
+      .set({ status: 'cancelled', supersededByOutageId: p.newId })
+      .where(eq(outage.id, p.oldId));
+    out.changed++;
+  }
+  for (const g of groups) {
+    const groupId = Math.min(...g.newIds);
+    const before = await flipsOf(tx, g.oldIds);
+    for (const id of g.newIds) {
+      await tx
+        .update(outage)
+        .set({ status: 'changed', changeGroupId: groupId, flips: before + 1 })
+        .where(eq(outage.id, id));
+      await flagFlips(tx, id, before + 1);
+    }
+    for (const id of g.oldIds) {
+      await tx
+        .update(outage)
+        .set({ status: 'cancelled', changeGroupId: groupId })
+        .where(eq(outage.id, id));
+    }
+    out.changed += g.newIds.length;
+    out.groups++;
+  }
+  return out;
+}
 
 // Rows of a date that were not on the page this time. Only a successful fetch of the page gets
 // here, so an unreachable page never counts as "missing". Two misses cancel a not-yet-started outage.
@@ -457,6 +475,40 @@ export async function confirmReducedRun(
       sql`SELECT 1 FROM scrape_run WHERE city = ${run.city} AND page_date = ${run.d} AND id > ${runId} AND health IN ('ok','confirmed_reduced','reduced') LIMIT 1`,
     );
     if (later.rows.length) return 'superseded';
+    // The same steps as a normal fetch: pair the rows this page added with the rows it dropped
+    // (a changed time is "changed", not cancelled + new), then count the rest as missing.
+    const added = (
+      await tx.execute(sql`
+        SELECT id, identity_key, municipality, starts_at, ends_at, raw_streets FROM outage
+        WHERE city = ${run.city} AND outage_date = ${run.d} AND first_seen_run = ${runId}`)
+    ).rows as {
+      id: number;
+      identity_key: string;
+      municipality: string;
+      starts_at: string;
+      ends_at: string;
+      raw_streets: string;
+    }[];
+    const onPage = (
+      await tx.execute(
+        sql`SELECT content_hash FROM outage WHERE city = ${run.city} AND last_seen_run = ${runId}`,
+      )
+    ).rows.map((r) => String(r.content_hash));
+    await pairDate(
+      tx,
+      run.city,
+      run.d,
+      added.map((o) => ({
+        id: o.id,
+        identityKey: o.identity_key,
+        municipality: normalizeName(o.municipality),
+        date: run.d,
+        startsAt: new Date(o.starts_at),
+        endsAt: new Date(o.ends_at),
+        streets: streetSet(o.raw_streets),
+      })),
+      new Set(onPage),
+    );
     await countMissing(tx, run.city, run.d, runId, now);
     await tx.execute(sql`UPDATE scrape_run SET health = 'confirmed_reduced' WHERE id = ${runId}`);
     await tx.execute(

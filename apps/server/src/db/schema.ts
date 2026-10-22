@@ -122,6 +122,21 @@ export const settlement = pgTable(
   ],
 );
 
+// Human-confirmed names for villages and other settlements (the counterpart of street_alias).
+export const settlementAlias = pgTable(
+  'settlement_alias',
+  {
+    id: serial('id').primaryKey(),
+    settlementId: integer('settlement_id')
+      .notNull()
+      .references(() => settlement.id, { onDelete: 'cascade' }),
+    raw: text('raw').notNull(),
+    rawNorm: text('raw_norm').notNull(),
+    reviewedAt: tstz('reviewed_at'),
+  },
+  (t) => [uniqueIndex('settlement_alias_raw_norm_unique').on(t.rawNorm)],
+);
+
 // OSM address points; optional data that feeds the house-number feature of the scoring.
 export const addressPoint = pgTable(
   'address_point',

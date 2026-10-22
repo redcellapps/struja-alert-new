@@ -2,12 +2,13 @@ import helmet from '@fastify/helmet';
 import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
 import { z } from 'zod';
 import { adminGuard } from '../admin/auth.ts';
-import { renderAdminPage } from '../admin/page.ts';
+import { renderAdminPage, renderSearchPage } from '../admin/page.ts';
 import {
   confirmAlias,
   dismissSegment,
   healthSummary,
   recentReports,
+  searchTargets,
   reducedRuns,
   reviewSpotCheck,
   spotCheckList,
@@ -19,7 +20,8 @@ import { confirmReducedRun } from '../ingest/ingest.ts';
 
 const confirmBody = z.object({
   segNorm: z.string().min(1),
-  streetId: z.coerce.number().int().positive(),
+  streetId: z.coerce.number().int().positive().optional(),
+  settlementId: z.coerce.number().int().positive().optional(),
   raw: z.string().optional(),
 });
 const dismissBody = z.object({ segNorm: z.string().min(1) });
@@ -94,6 +96,26 @@ export async function adminRoutes(app: FastifyInstance, deps: AppDeps): Promise<
   app.get('/admin/reduced', async () => ({ runs: await reducedRuns(deps.db) }));
   app.get('/admin/unresolved', async () => ({ items: await unresolvedQueue(deps.db, now()) }));
   app.get('/admin/spot-checks', async () => ({ items: await spotCheckList(deps.db, now()) }));
+
+  // Find the right street or settlement by name for a queue item.
+  app.get('/admin/search', async (req, reply) => {
+    const q = parse(
+      z.object({
+        segNorm: z.string().min(1),
+        raw: z.string().optional(),
+        q: z.string().default(''),
+      }),
+      req.query,
+    );
+    const kind = q.segNorm.startsWith('village:') ? 'village' : 'street';
+    const hits = await searchTargets(deps.db, kind, q.q);
+    if (wantsHtml(req)) {
+      return reply
+        .type('text/html; charset=utf-8')
+        .send(renderSearchPage({ segNorm: q.segNorm, raw: q.raw ?? '', query: q.q, kind, hits }));
+    }
+    return { items: hits };
+  });
 
   app.post('/admin/unresolved/confirm', async (req, reply) => {
     const b = parse(confirmBody, req.body);
