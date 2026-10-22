@@ -5,6 +5,9 @@ const bool = z.enum(['true', 'false']).transform((v) => v === 'true');
 
 export const configSchema = z.object({
   DATABASE_URL: z.string().min(1, 'DATABASE_URL is required'),
+  // Only `development` accepts the app's development push tokens. Anything else, or nothing, is
+  // treated as production.
+  NODE_ENV: z.enum(['development', 'production', 'test']).default('production'),
   PORT: z.coerce.number().int().min(1).max(65535).default(3000),
   // Run the scheduled jobs in this process.
   RUN_JOBS: bool.default(true),

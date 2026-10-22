@@ -32,6 +32,10 @@ on every other request. The server stores only a scrypt hash. Missing, malformed
 | `GET /v1/outages/:id`                          | optional                | Window, parsed streets and ranges, the raw EDS text, GeoJSON for the map, the source; `mine` when signed in.                   |
 | `POST /v1/reports`                             | device                  | "Prijavi grešku" about an outage.                                                                                              |
 
+## Development push tokens
+
+Dev builds of the app (no FCM credentials yet) register with `dev-token:<uuid>` instead of an Expo token. Only a server running with `NODE_ENV=development` accepts it; any other server answers `400 dev_token_not_allowed` on `POST /v1/devices` and `PATCH /v1/devices/me`.
+
 ## Lost secret
 
 The device secret is acceptable as the only credential for v1. If the app loses it (reinstall, cleared storage), it calls `POST /v1/devices` again with the same push token: the server drops the old device and its addresses and issues a new secret. The app keeps its own list of addresses and re-adds them; because an added address records the already published outages as told in the app (below), nothing is pushed twice.

@@ -2,6 +2,7 @@ import { eq, inArray } from 'drizzle-orm';
 import type { FastifyInstance } from 'fastify';
 import {
   deviceSchema,
+  isDevPushToken,
   NOTIFICATION_KINDS,
   patchDeviceRequestSchema,
   registerDeviceRequestSchema,
@@ -50,6 +51,17 @@ async function eraseDevice(tx: Tx, where: ReturnType<typeof eq>): Promise<void> 
   await tx.delete(device).where(where);
 }
 
+// A development token is for development servers; a production server says so instead of storing it.
+function checkToken(token: string | undefined, opts: AppOptions): void {
+  if (token !== undefined && isDevPushToken(token) && !opts.allowDevTokens) {
+    throw new ApiError(
+      400,
+      'dev_token_not_allowed',
+      'Development push tokens are accepted only by a development server',
+    );
+  }
+}
+
 export function deviceRoutes(app: FastifyInstance, deps: AppDeps, opts: AppOptions): void {
   const auth = deviceAuth(deps.db);
 
@@ -59,6 +71,7 @@ export function deviceRoutes(app: FastifyInstance, deps: AppDeps, opts: AppOptio
     { config: { rateLimit: { max: opts.devicesPerHour ?? 30, timeWindow: '1 hour' } } },
     async (req, reply) => {
       const body = parse(registerDeviceRequestSchema, req.body);
+      checkToken(body.pushToken, opts);
       const secret = newDeviceSecret();
       // A push token belongs to one installation. If it is already on file (the app lost its secret:
       // reinstall, cleared storage), this registration takes it over: the old device and its
@@ -100,6 +113,7 @@ export function deviceRoutes(app: FastifyInstance, deps: AppDeps, opts: AppOptio
   // Token refresh, language, script, quiet hours, notification kinds.
   app.patch('/v1/devices/me', { preHandler: auth }, async (req) => {
     const body = parse(patchDeviceRequestSchema, req.body);
+    checkToken(body.pushToken, opts);
     const id = req.device?.id as string;
     try {
       const [d] = await deps.db

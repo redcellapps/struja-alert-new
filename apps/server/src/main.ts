@@ -55,7 +55,13 @@ const admin = config.ADMIN_TOKEN
         .filter(Boolean),
     }
   : undefined;
-const app = buildApp({ db, gazetteers, admin }, { trustProxy: config.TRUST_PROXY });
+const app = buildApp(
+  { db, gazetteers, admin },
+  {
+    trustProxy: config.TRUST_PROXY,
+    allowDevTokens: config.NODE_ENV === 'development',
+  },
+);
 
 let stopJobs: (() => Promise<void>) | null = null;
 if (config.RUN_JOBS) {

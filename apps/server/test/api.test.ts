@@ -2,6 +2,7 @@ import { sql } from 'drizzle-orm';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import {
   addressOutageSchema,
+  DEV_PUSH_TOKEN_PREFIX,
   cityOutagesResponseSchema,
   errorSchema,
   myOutagesResponseSchema,
@@ -16,6 +17,7 @@ import { planEveningBefore } from '../src/notify/plan.ts';
 import { createWorld, type World } from './helpers/world.ts';
 
 let w: World;
+const count = async (q: ReturnType<typeof sql>) => Number((await w.t.db.execute(q)).rows[0]?.n);
 let app: ReturnType<typeof buildApp>;
 let seq = 0;
 
@@ -206,6 +208,52 @@ describe('devices and authentication', () => {
     expect(
       (await call(c, 'PATCH', '/v1/devices/me', { enabledKinds: ['nonsense'] })).statusCode,
     ).toBe(400);
+  });
+
+  it('rejects a development push token on a production server, with a clear error', async () => {
+    const token = `${DEV_PUSH_TOKEN_PREFIX}${crypto.randomUUID()}`;
+    const res = await app.inject({
+      method: 'POST',
+      url: '/v1/devices',
+      payload: { pushToken: token, platform: 'android' },
+    });
+    expect(res.statusCode).toBe(400);
+    const e = errorSchema.parse(res.json()).error;
+    expect(e.code).toBe('dev_token_not_allowed');
+    expect(e.message).toContain('development server');
+    // nor can a registered device switch to one
+    const c = await register();
+    const patch = await call(c, 'PATCH', '/v1/devices/me', { pushToken: token });
+    expect(patch.statusCode).toBe(400);
+    expect(errorSchema.parse(patch.json()).error.code).toBe('dev_token_not_allowed');
+    expect(
+      await count(sql`SELECT count(*)::int AS n FROM device WHERE push_token = ${token}`),
+    ).toBe(0);
+  });
+
+  it('a development server accepts it (and still takes real tokens)', async () => {
+    const dev = buildApp(
+      { db: w.t.db, gazetteers: new GazetteerService(w.t.db) },
+      { allowDevTokens: true, logger: false },
+    );
+    await dev.ready();
+    const token = `${DEV_PUSH_TOKEN_PREFIX}${crypto.randomUUID()}`;
+    const res = await dev.inject({
+      method: 'POST',
+      url: '/v1/devices',
+      payload: { pushToken: token, platform: 'android' },
+    });
+    expect(res.statusCode).toBe(201);
+    expect(
+      await count(sql`SELECT count(*)::int AS n FROM device WHERE push_token = ${token}`),
+    ).toBe(1);
+    const real = await dev.inject({
+      method: 'POST',
+      url: '/v1/devices',
+      payload: { pushToken: `ExponentPushToken[dev${seq}]`, platform: 'android' },
+    });
+    expect(real.statusCode).toBe(201);
+    await dev.close();
   });
 
   it('rate limits registrations per IP', async () => {

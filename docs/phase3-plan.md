@@ -4,13 +4,16 @@ Scope: BRIEF §6 (all screens), §7 (design system, motion, states, accessibilit
 
 Starting point: the Expo SDK 58 shell in `apps/mobile` (native tabs `Početna · Najave · Istorija · Podešavanja` as placeholders, runs on the emulator), the `/v1` API (`docs/api.md`) with zod contracts in `packages/shared`, and the parser's transliteration and normalizer for search and sr-Cyrl.
 
-## Decisions I need before or during the phase
+## Decisions (22 Oct, resolved)
 
-1. **Map (before the map is built, as agreed).** I will present Android options with cost and setup and wait for your choice: (a) Google Maps through `expo-maps` (needs a Google Cloud API key, billing account; free monthly allowance, restrict the key to the app); (b) MapLibre with a tile provider (no Google account; a provider such as a free-tier vector tile service or self-hosted tiles; more setup, a native module outside Expo's managed set, and attribution requirements). The mini map on the outage detail is built **last**, after your choice; everything else does not depend on it.
-2. **Push token in development.** Real Expo push tokens need FCM credentials, which arrive in Phase 4. In Phase 3 dev builds register with a development token (`ExponentPushToken[dev-…]`, generated once and kept in secure storage) against the local or mocked API, so the whole add-address and see-outage flow works end to end. The notification pre-permission screen and the permission-denied banner are built now; the system dialog is wired but no push is delivered until Phase 4. Confirm this is acceptable.
-3. **iOS smoke build.** One EAS iOS development build for your iPhone needs a paid Apple Developer account. If it is not ready, that check moves to Phase 6 and I tell you; I run it only with your approval.
-4. **Maestro.** Installed only now, with your approval (Phase 0 note).
-5. **Test server for the QA runs.** The Maestro flows use a small local mock API (zod-typed fixtures), not the production server. Connecting the screens to the real API is a separate, later step against the local Docker stack.
+1. **Map:** before step 10 I present Google Maps (`expo-maps`) and MapLibre with an OSM tile service side by side: setup, billing account, monthly cost at 1,000 and 10,000 users, what each adds to the Play Data safety form, attribution, and dev-build compatibility. The owner leans MapLibre and decides after the comparison. Everything else is independent of the map.
+2. **Development push token:** dev builds register with a token of a separate format, `dev-token:<uuid>` (never `ExponentPushToken[...]`). The server accepts it **only when `NODE_ENV=development`**; any other environment (and the default when `NODE_ENV` is unset) rejects it with `400 dev_token_not_allowed`. Both paths are tested (`apps/server/test/api.test.ts`). The real Expo provider (Phase 4) must never send to such a token. Real tokens need FCM credentials, which arrive in Phase 4.
+3. **iOS smoke build moves to Phase 6** (the Apple Developer account is not ready). iOS code paths keep compiling through typecheck.
+4. **Maestro:** approved, installed when step 11 starts, not before.
+5. **Calendar export** uses the system "add event" screen (an intent), so the app never requests `READ_CALENDAR` or `WRITE_CALENDAR`. A check on the **merged Android manifest** (after prebuild) fails if any calendar permission appears.
+6. **Design review after step 2:** I stop after the components exist, with emulator screenshots (adb, no Maestro) of the component gallery in light and dark and the status hero in all five states, in `docs/screens/android/design-review/`. No screens are built until the owner approves the look.
+7. **App ID:** the Android application id is still a **placeholder**. The owner picks the final one **before Phase 4**, because Firebase registers it for push (changing it later means re-registering).
+8. **Test server for QA runs:** Maestro flows use a small local mock API (zod-typed fixtures), not production. Connecting the screens to the real API is a separate step against the local Docker stack.
 
 ## Architecture
 
@@ -36,17 +39,17 @@ Starting point: the Expo SDK 58 shell in `apps/mobile` (native tabs `Početna ·
 ## Build order (each step ends with lint, typecheck, tests green and a commit)
 
 1. **Foundations:** dependencies via `npx expo install` (verified versions, nothing pinned from memory), tokens, theme provider (light/dark/system), i18n scaffold with the three languages, the API client and a typed mock server for development and Maestro.
-2. **Components in isolation:** the eleven components with a small in-app gallery route (development only) showing every state in both themes; component tests (jest-expo + Testing Library).
+2. **Components in isolation:** the eleven components with a small in-app gallery route (development only) showing every state in both themes; component tests (jest-expo + Testing Library). **Then stop for the design review** (decision 6): no screen work before the owner approves the look.
 3. **Onboarding (3 steps)** and **Add address** sheet: city picker (Niš active, others "Uskoro"), instant offline street search, optional house number with suffix, label chips, up to 3 addresses with a primary, confirmation preview. No location permission, ever.
 4. **Početna:** status hero for the primary address, 4-day strip, address cards, pull to refresh, footer with freshness, EDS credit and disclaimer link.
-5. **Outage detail** sheet: date, window, duration, countdown, 24-hour timeline with "now" marker, the user's ranges and number highlighted ("Vaš broj 34 je u opsegu 26–40", "Moguće pogođeno — niste uneli broj"), affected streets, raw EDS text expander, actions (calendar export, share, open source, report an error).
+5. **Outage detail** sheet: date, window, duration, countdown, 24-hour timeline with "now" marker, the user's ranges and number highlighted ("Vaš broj 34 je u opsegu 26–40", "Moguće pogođeno — niste uneli broj"), affected streets, raw EDS text expander, actions (calendar export through the system add-event screen, no calendar permission; share; open source; report an error).
 6. **Najave** (grouped by day, searchable, follow any street) and **Istorija** (offline, grouped by month, yearly summary).
 7. **Podešavanja:** script, language, notification kinds, quiet hours, manage addresses, privacy and "Obriši sve moje podatke", about (attribution, disclaimer, version, feedback).
 8. **All states** on every screen: skeleton loading, empty, error, offline with cached data, permission denied.
 9. **Real API:** point the app at the local Docker stack (seeded fake subscription) and fix contract gaps found.
-10. **Map** on the outage detail, after your choice (decision 1).
-11. **Android design QA:** Maestro (installed with your approval) visits every screen and state against the mock API, with `takeScreenshot`, in light and dark and at font scale 1.0 and 2.0 (switched with `adb`) → `docs/screens/android/`. `docs/qa-checklist.md` with the TalkBack checklist for your phone.
-12. **iOS paths compile** (`expo run:ios` is not possible on Windows; compile checks through typecheck and an EAS development build when approved). iOS-only polish (Liquid Glass, detents, SF Symbols) stubbed and marked **[MAC]**.
+10. **Map** on the outage detail, after the comparison and the owner's choice (decision 1).
+11. **Android design QA:** Maestro (installed at the start of this step, approved) visits every screen and state against the mock API, with `takeScreenshot`, in light and dark and at font scale 1.0 and 2.0 (switched with `adb`) → `docs/screens/android/`. `docs/qa-checklist.md` with the TalkBack checklist for your phone.
+12. **iOS paths compile** (`expo run:ios` is not possible on Windows; typecheck only; the iOS smoke build is Phase 6). iOS-only polish (Liquid Glass, detents, SF Symbols) stubbed and marked **[MAC]**.
 
 ## Accessibility
 
@@ -69,5 +72,6 @@ Font scale up to 200 % with reflowing layouts and no clipping; TalkBack labels a
 
 - Android design QA screenshots in `docs/screens/android/` and the TalkBack checklist in `docs/qa-checklist.md`.
 - The Maestro flow onboarding → add address → see outage → open detail passes on the local emulator.
-- An iOS EAS development build launches on your iPhone (only with your approval; else moved to Phase 6).
+- iOS paths compile (typecheck). The iPhone smoke build is Phase 6.
+- The merged Android manifest has no calendar permission (checked by a test).
 - Lint, typecheck and all tests green; summary, open issues, then a stop for review.

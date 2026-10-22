@@ -29,6 +29,8 @@ export interface AppOptions {
   logger?: boolean;
   // Behind a reverse proxy the client address comes from X-Forwarded-For (the admin allowlist).
   trustProxy?: boolean;
+  // Accept the app's development push tokens (NODE_ENV=development only; see main.ts).
+  allowDevTokens?: boolean;
 }
 
 // `deps` is optional so the health check can run (and be tested) without a database.

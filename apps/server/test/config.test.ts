@@ -13,6 +13,12 @@ describe('loadConfig', () => {
     });
   });
 
+  it('is production unless NODE_ENV says development', () => {
+    expect(loadConfig(base).NODE_ENV).toBe('production');
+    expect(loadConfig({ ...base, NODE_ENV: 'development' }).NODE_ENV).toBe('development');
+    expect(() => loadConfig({ ...base, NODE_ENV: 'staging' })).toThrow(/NODE_ENV/);
+  });
+
   it('requires a database', () => {
     expect(() => loadConfig({})).toThrow(/DATABASE_URL/);
   });

@@ -26,3 +26,9 @@ export const CITIES: readonly CityInfo[] = [
   { id: 'kragujevac', slug: 'Kragujevac', name: 'Kragujevac', active: false },
   { id: 'kraljevo', slug: 'Kraljevo', name: 'Kraljevo', active: false },
 ];
+
+// Development builds of the app have no Expo push token (that needs FCM credentials, Phase 4).
+// They register with a token of this separate format instead. A development server accepts it, a
+// production server rejects it. It is never an ExponentPushToken.
+export const DEV_PUSH_TOKEN_PREFIX = 'dev-token:';
+export const isDevPushToken = (token: string): boolean => token.startsWith(DEV_PUSH_TOKEN_PREFIX);
