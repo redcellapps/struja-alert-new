@@ -23,6 +23,33 @@ export function belgradeLocalToUtc(
   return new Date(belgradeOffsetMinutes(summer) === 120 ? summer : asUtc - 60 * 60_000);
 }
 
+export interface BelgradeLocal {
+  year: number;
+  month: number;
+  day: number;
+  hour: number;
+  minute: number;
+  // 0 = Sunday ... 6 = Saturday
+  weekday: number;
+  // YYYY-MM-DD
+  date: string;
+}
+
+// The Europe/Belgrade wall clock for an instant.
+export function belgradeLocal(at: Date): BelgradeLocal {
+  const local = new Date(at.getTime() + belgradeOffsetMinutes(at.getTime()) * 60_000);
+  const [year, month, day] = [local.getUTCFullYear(), local.getUTCMonth() + 1, local.getUTCDate()];
+  return {
+    year,
+    month,
+    day,
+    hour: local.getUTCHours(),
+    minute: local.getUTCMinutes(),
+    weekday: local.getUTCDay(),
+    date: `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`,
+  };
+}
+
 export interface PageDate {
   year: number;
   month: number;
