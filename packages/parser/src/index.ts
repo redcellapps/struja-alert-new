@@ -32,3 +32,21 @@ export {
   type OsmPlace,
   type OsmStreetWay,
 } from './osm.ts';
+export { addressNumbersByStreet, leadingNumber, type OsmAddressPoint } from './address.ts';
+export {
+  distinctiveToken,
+  haversineMeters,
+  jaroWinkler,
+  levenshtein,
+  trigramSimilarity,
+  trigrams,
+} from './similarity.ts';
+export { canonicalizeNumbers } from './numbers.ts';
+export {
+  Resolver,
+  type LadderResult,
+  type LadderStep,
+  type ResolveContext,
+  type ScoredCandidate,
+} from './resolve.ts';
+export { SCORING } from '../data/scoring.ts';

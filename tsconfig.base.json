@@ -9,6 +9,7 @@
     "noUncheckedIndexedAccess": true,
     "noEmit": true,
     "isolatedModules": true,
+    "erasableSyntaxOnly": true,
     "esModuleInterop": true
   }
 }

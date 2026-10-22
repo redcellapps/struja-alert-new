@@ -1,0 +1,61 @@
+{
+  "fetched_at": "2026-10-22T13:00:03.096Z",
+  "pages": [
+    {
+      "url": "https://elektrodistribucija.rs/planirana-iskljucenja/planirana-bgd",
+      "status": 200,
+      "slugs": [
+        "Kragujevac",
+        "Kraljevo",
+        "Nis",
+        "NoviSad"
+      ]
+    },
+    {
+      "url": "https://elektrodistribucija.rs/planirana-iskljucenja/planirana-ni",
+      "status": 200,
+      "slugs": [
+        "Kragujevac",
+        "Kraljevo",
+        "Nis",
+        "NoviSad"
+      ]
+    },
+    {
+      "url": "https://elektrodistribucija.rs/planirana-iskljucenja/planirana-ns",
+      "status": 200,
+      "slugs": [
+        "Kragujevac",
+        "Kraljevo",
+        "Nis",
+        "NoviSad"
+      ]
+    },
+    {
+      "url": "https://elektrodistribucija.rs/planirana-iskljucenja/planirana-kv",
+      "status": 200,
+      "slugs": [
+        "Kragujevac",
+        "Kraljevo",
+        "Nis",
+        "NoviSad"
+      ]
+    },
+    {
+      "url": "https://elektrodistribucija.rs/planirana-iskljucenja/planirana-kg",
+      "status": 200,
+      "slugs": [
+        "Kragujevac",
+        "Kraljevo",
+        "Nis",
+        "NoviSad"
+      ]
+    }
+  ],
+  "slugs": [
+    "Kragujevac",
+    "Kraljevo",
+    "Nis",
+    "NoviSad"
+  ]
+}
