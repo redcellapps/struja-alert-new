@@ -311,7 +311,7 @@ export async function ingestPage(
     if (missing.length) {
       const cancelled = await tx
         .update(outage)
-        .set({ status: 'cancelled' })
+        .set({ status: 'cancelled', revision: sql`${outage.revision} + 1` })
         .where(
           and(
             eq(outage.city, input.city),
@@ -368,15 +368,27 @@ async function reappear(
   const gone = replacements.filter((r) => !present.has(r.content_hash));
   if (gone.length === 0) {
     // Nothing it was replaced by has left the page (or it was never replaced): simply active.
+    // An undone cancellation: a new revision, so "reinstated" can be told to those who got "Otkazano".
     await tx
       .update(outage)
-      .set({ status: 'active', supersededByOutageId: null, changeGroupId: null })
+      .set({
+        status: 'active',
+        supersededByOutageId: null,
+        changeGroupId: null,
+        revision: sql`${outage.revision} + 1`,
+      })
       .where(eq(outage.id, row.id));
     return false;
   }
+  // A reverted change: a new revision, so this "Izmena" is not swallowed by the earlier one.
   await tx
     .update(outage)
-    .set({ status: 'changed', supersededByOutageId: null, changeGroupId: null })
+    .set({
+      status: 'changed',
+      supersededByOutageId: null,
+      changeGroupId: null,
+      revision: sql`${outage.revision} + 1`,
+    })
     .where(eq(outage.id, row.id));
   for (const g of gone) {
     await tx

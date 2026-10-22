@@ -3,7 +3,7 @@ import { belgradeLocal, latinToCyrillic } from '@struja/parser';
 // Notification copy (BRIEF §5). Serbian ekavica; sr-Latn is the source of truth and sr-Cyrl is
 // generated from it with the parser's transliteration (plus a small override map). Street names
 // are not transliterated: the Cyrillic form comes from the gazetteer.
-export type NotificationKind = 'new' | 'evening_before' | 'changed' | 'cancelled';
+export type NotificationKind = 'new' | 'evening_before' | 'changed' | 'cancelled' | 'reinstated';
 export type Script = 'latn' | 'cyrl';
 export type Locale = 'sr' | 'en';
 
@@ -74,6 +74,7 @@ interface Templates {
   changed: string;
   changedMany: string;
   cancelled: string;
+  reinstated: string;
   newPossible: string;
   eveningPossible: string;
   changedPossible: string;
@@ -89,6 +90,7 @@ const SR: Templates = {
   changed: 'Izmena: {0}, novo vreme {2}',
   changedMany: 'Izmena: {0}, nova vremena {3}',
   cancelled: 'Otkazano: isključenje {1}, {0}',
+  reinstated: 'Isključenje ipak važi: {0}, {1} {2}',
   newPossible: 'Moguće pogođeno: {0}, {1} {2}',
   eveningPossible: 'Sutra moguće bez struje: {0}, {2}',
   changedPossible: 'Izmena (moguće pogođeno): {0}, novo vreme {2}',
@@ -104,6 +106,7 @@ const EN: Templates = {
   changed: 'Update: {0}, new time {2}',
   changedMany: 'Update: {0}, new times {3}',
   cancelled: 'Cancelled: outage {1}, {0}',
+  reinstated: 'Outage reinstated: {0}, {1} {2}',
   newPossible: 'Possibly affected: {0}, {1} {2}',
   eveningPossible: 'Tomorrow possibly without power: {0}, {2}',
   changedPossible: 'Update (possibly affected): {0}, new time {2}',
@@ -153,6 +156,9 @@ export function renderMessage(
       break;
     case 'cancelled':
       tpl = T.cancelled;
+      break;
+    case 'reinstated':
+      tpl = T.reinstated;
       break;
   }
   const title = fill(tr(tpl), [street, day, windows[0] ?? '', windows.join(', ')]);

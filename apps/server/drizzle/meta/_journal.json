@@ -36,6 +36,13 @@
       "when": 1792679580461,
       "tag": "0004_drop_supersedes",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1792689051564,
+      "tag": "0005_revisions",
+      "breakpoints": true
     }
   ]
 }

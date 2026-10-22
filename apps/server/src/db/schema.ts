@@ -55,6 +55,8 @@ export const notificationKindEnum = pgEnum('notification_kind', [
   'evening_before',
   'changed',
   'cancelled',
+  // An undone cancellation: sent only to people who were told "Otkazano".
+  'reinstated',
 ]);
 export const liveActivityKindEnum = pgEnum('live_activity_kind', [
   'push_to_start',
@@ -211,6 +213,11 @@ export const outage = pgTable(
     // Ambiguous changes: several old and new rows that could not be paired one to one share a
     // group, and the notifier sends one "Izmena" listing the new windows.
     changeGroupId: integer('change_group_id'),
+    // What a person was last told must match what EDS shows now, so every real state change after
+    // the first is told again. The revision goes up when an outage really changes state again: a
+    // cancellation (missing for two fetches), an undone cancellation, a reverted change. A repeat
+    // run with nothing new leaves it alone, so it sends nothing.
+    revision: integer('revision').notNull().default(0),
   },
   (t) => [
     unique('outage_content_hash_unique').on(t.contentHash),
@@ -318,9 +325,15 @@ export const notificationLog = pgTable(
       .notNull()
       .references(() => outage.id, { onDelete: 'cascade' }),
     kind: notificationKindEnum('kind').notNull(),
+    // The outage's revision when this was planned. "new" and "evening_before" are once per outage
+    // (revision 0); "changed", "cancelled" and "reinstated" carry the revision of the state they
+    // announce, so every real flip is told while a repeat run with nothing new sends nothing.
+    revision: integer('revision').notNull().default(0),
     // The log doubles as the outbox: the planner inserts a row (claiming the notification through
-    // the unique constraint) and the delivery job sends it. 'pending' | 'sent' | 'failed' |
-    // 'suppressed' (the user turned this kind off, or the device is gone: recorded, never sent).
+    // the unique constraint) and the delivery job sends it. 'pending' | 'sending' | 'sent' |
+    // 'failed' | 'suppressed' (the user turned this kind off, or the device is gone: recorded,
+    // never sent) | 'in_app' (the person saw it on screen when adding the address: recorded as
+    // told, never pushed, so later changes still reach them).
     status: text('status').notNull().default('pending'),
     // Not before this time (quiet hours); an urgent notification is deliverable immediately.
     deliverAt: tstz('deliver_at'),
@@ -336,7 +349,7 @@ export const notificationLog = pgTable(
     receiptCheckedAt: tstz('receipt_checked_at'),
   },
   (t) => [
-    unique('notification_log_dedupe').on(t.subscriptionId, t.outageId, t.kind),
+    unique('notification_log_dedupe').on(t.subscriptionId, t.outageId, t.kind, t.revision),
     index('notification_log_ticket_idx').on(t.ticketId),
     index('notification_log_pending_idx').on(t.status, t.deliverAt),
   ],

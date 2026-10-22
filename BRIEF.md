@@ -183,11 +183,11 @@ A subscription matches if the street matches AND (`house_from IS NULL` OR the us
 - `address_point`: street_id, housenumber, geom (Point), from OSM
 - `street_alias`: street_id, raw, raw_norm, confidence (1.0 = human-confirmed), source (`exact|fuzzy|heuristic|scored|manual`), reviewed_at, rejected. `UNIQUE(raw_norm)`
 - `scrape_run`: id, started_at, finished_at, url, http_status, etag, rows_found, error
-- `outage`: source_url, content_hash, **identity_key**, city, branch, municipality, outage_date, starts_at, ends_at, raw_streets (the untouched Ulice cell, always kept), first_seen_run, last_seen_run, missing_runs, status (`active|changed|cancelled`). `UNIQUE(content_hash)`
+- `outage`: source_url, content_hash, **identity_key**, city, branch, municipality, outage_date, starts_at, ends_at, raw_streets (the untouched Ulice cell, always kept), first_seen_run, last_seen_run, missing_runs, status (`active|changed|cancelled`), **revision** (integer, 0 at first; goes up only when the outage really changes state again: a cancellation, an undone cancellation, a reverted change), superseded_by_outage_id and change_group_id (which old row a new row replaced; ambiguous changes share a group). `UNIQUE(content_hash)`
 - `outage_street`: outage_id, street_id (nullable), raw_segment, house_from, house_to, house_raw, parity, resolved_by (`exact|alias|fuzzy|heuristic|scored|manual|unresolved`), score, candidates (jsonb, top 5 with scores)
 - `device`: push_token (unique), device_secret_hash, platform (`android|ios`), os_version, locale, script (`latn|cyrl`), quiet_hours, enabled_kinds, created_at, last_seen_at
 - `subscription`: device_id, street_id, house_number, house_suffix, label, is_primary
-- `notification_log`: subscription_id, outage_id, kind. **`UNIQUE(subscription_id, outage_id, kind)` is the dedupe guarantee and must never be dropped.**
+- `notification_log`: subscription_id, outage_id, kind, **revision**, status (`pending|sending|sent|failed|suppressed|in_app`). **`UNIQUE(subscription_id, outage_id, kind, revision)` is the dedupe guarantee and must never be dropped.** The revision is the outage's revision at planning time (0 for `new` and `evening_before`), so every real flip is told (A→B→A→B) while a repeat run with nothing new sends nothing. `in_app` = the person saw the outage on screen when they added the address: recorded as told, never pushed.
 - `live_activity_token` (iOS only): device_id, kind (`push_to_start|activity_update`), activity_id, token. When a new token arrives, invalidate the old one.
 - `report`: outage_id, subscription_id, message, created_at ("Prijavi grešku")
 
@@ -241,6 +241,15 @@ Alert me by email and push to an admin device when:
 | `evening_before` | The evening before the outage | `Sutra bez struje: {ulica}, {HH:MM}–{HH:MM}` |
 | `changed` | Time window changed (same identity key) | `Izmena: {ulica}, novo vreme {HH:MM}–{HH:MM}` |
 | `cancelled` | Row missing for **two consecutive** runs, for a future date | `Otkazano: isključenje {dan}, {ulica}` |
+| `reinstated` | A cancelled outage is published again; sent only to people who got "Otkazano" (a still-waiting "Otkazano" is withdrawn instead) | `Isključenje ipak važi: {ulica}, {dan} {HH:MM}–{HH:MM}` (en: `Outage reinstated: ...`) |
+
+What a person was last told must match what EDS shows now, so every real change is told, in this way:
+- A changed outage sends only "Izmena" to people already notified, never also "new".
+- An edited street list notifies only the difference: added streets "new", removed streets "Otkazano", unchanged streets nothing.
+- Ambiguous changes (several old/new rows that cannot be paired without guessing) send one "Izmena" listing the new windows.
+- `reinstated` uses the "Izmena" Android channel and the same quiet-hours and urgent rules.
+- An outage that flips more than twice raises a monitoring alert.
+- A new saved address is not pushed outages that are already published: the app shows them on screen right away, and they are recorded as told (`in_app`) so later changes and the 19:15 reminder still reach the person.
 
 - Write all copy in sr-Latn, sr-Cyrl and en. Use the user's script and language.
 - **Quiet hours:** none between 22:00 and 07:00 (user-editable), unless the outage starts within 2 hours.
@@ -402,7 +411,7 @@ Every screen has a designed **loading** state (skeletons, never a full-screen sp
   - No accounts, no location permission, no tracking SDKs
   - Collect only the push token, subscriptions and settings
   - A privacy policy page. The Google Play **Data safety** form and the App Store **App Privacy** label are both filled in to match.
-- The `notification_log` dedupe constraint stays.
+- The `notification_log` dedupe constraint stays: `UNIQUE(subscription_id, outage_id, kind, revision)`.
 - **No external or paid AI/LLM APIs.** Nothing in the running system calls Claude or any other hosted model, and it never spends tokens. Address recognition stays automatic through rules, spatial scoring and a model trained on our own confirmed data.
 - The raw `Ulice` cell is always stored.
 - Every bug in the parser or matcher gets a fixture-based regression test.

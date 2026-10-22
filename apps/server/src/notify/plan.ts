@@ -44,6 +44,7 @@ interface OutageInfo {
   endsAt: Date;
   supersededBy: number | null;
   changeGroupId: number | null;
+  revision: number;
 }
 
 interface Sub extends SubscriptionTarget {
@@ -70,11 +71,17 @@ const add = (a: PlanResult, b: PlanResult) => {
   a.duplicates += b.duplicates;
 };
 
+// A notification the person has (or will, once delivered) been told about: pushed, queued, or seen
+// on screen when they added the address.
+const TOLD_STATUSES = ['pending', 'sending', 'sent', 'in_app'];
+
 const CHANNEL: Record<NotificationKind, string> = {
   new: 'new',
   evening_before: 'evening_before',
   changed: 'changed',
   cancelled: 'cancelled',
+  // Shares the "Izmena" channel.
+  reinstated: 'changed',
 };
 
 // ---------------------------------------------------------------- loading
@@ -89,6 +96,7 @@ async function outageInfo(db: Db, id: number): Promise<OutageInfo | null> {
         endsAt: outage.endsAt,
         supersededBy: outage.supersededByOutageId,
         changeGroupId: outage.changeGroupId,
+        revision: outage.revision,
       })
       .from(outage)
       .where(eq(outage.id, id))
@@ -235,7 +243,7 @@ async function wasNotified(
         eq(notificationLog.subscriptionId, subId),
         inArray(notificationLog.outageId, [...outageIds]),
         inArray(notificationLog.kind, ['new', 'changed', 'evening_before']),
-        inArray(notificationLog.status, ['pending', 'sending', 'sent']),
+        inArray(notificationLog.status, TOLD_STATUSES),
       ),
     )
     .limit(1);
@@ -278,6 +286,8 @@ interface Emit {
   window: { startsAt: Date; endsAt: Date };
   moreWindows?: { startsAt: Date; endsAt: Date }[];
   possible?: PossibleReason | null;
+  // The outage revision this announces; "new" and "evening_before" are always 0.
+  revision?: number;
 }
 
 async function emit(
@@ -311,13 +321,16 @@ async function emit(
     },
     { script: e.sub.script, locale },
   );
-  const suppressed = !e.sub.enabledKinds.includes(e.kind);
+  // "Reinstated" follows the "Izmena" toggle.
+  const toggle = e.kind === 'reinstated' ? 'changed' : e.kind;
+  const suppressed = !e.sub.enabledKinds.includes(toggle);
   const inserted = await db
     .insert(notificationLog)
     .values({
       subscriptionId: e.sub.id,
       outageId: e.outageId,
       kind: e.kind,
+      revision: e.revision ?? 0,
       status: suppressed ? 'suppressed' : 'pending',
       deliverAt: delivery.deliverAt,
       payload: {
@@ -338,7 +351,12 @@ async function emit(
       },
     })
     .onConflictDoNothing({
-      target: [notificationLog.subscriptionId, notificationLog.outageId, notificationLog.kind],
+      target: [
+        notificationLog.subscriptionId,
+        notificationLog.outageId,
+        notificationLog.kind,
+        notificationLog.revision,
+      ],
     })
     .returning({ id: notificationLog.id });
   if (inserted.length === 0) r.duplicates++;
@@ -382,6 +400,7 @@ export async function planNotifications(db: Db, now: Date): Promise<PlanResult> 
     } else add(total, await planChangedPair(db, now, o));
   }
   add(total, await planCancelled(db, now));
+  add(total, await planReinstated(db, now));
   return total;
 }
 
@@ -454,6 +473,8 @@ async function planChangedPair(db: Db, now: Date, o: OutageInfo): Promise<PlanRe
         outageId,
         window,
         possible: kind === 'cancelled' ? null : possibleOf(inNew),
+        // "Izmena" announces this row's revision; a removed street's "Otkazano" is the old row's.
+        revision: kind === 'changed' ? o.revision : kind === 'cancelled' ? (old?.revision ?? 0) : 0,
       }),
     );
   }
@@ -504,6 +525,7 @@ async function planChangedGroup(db: Db, now: Date, groupId: number): Promise<Pla
           sub,
           kind: 'changed',
           outageId: anchor.id,
+          revision: anchor.revision,
           window: first,
           moreWindows: rest,
           possible: possibleOf(matchSubscription(sub, newRowsBy.get(first.id) ?? [])),
@@ -523,7 +545,16 @@ async function planChangedGroup(db: Db, now: Date, groupId: number): Promise<Pla
       );
     } else if (inOld && notified) {
       const o = olds[0] as OutageInfo;
-      add(total, await emit(db, now, names, { sub, kind: 'cancelled', outageId: o.id, window: o }));
+      add(
+        total,
+        await emit(db, now, names, {
+          sub,
+          kind: 'cancelled',
+          outageId: o.id,
+          window: o,
+          revision: o.revision,
+        }),
+      );
     }
   }
   return total;
@@ -553,8 +584,8 @@ async function planCancelled(db: Db, now: Date): Promise<PlanResult> {
       .where(
         and(
           inArray(notificationLog.outageId, [...lineage]),
-          inArray(notificationLog.kind, ['new', 'changed', 'evening_before']),
-          inArray(notificationLog.status, ['pending', 'sending', 'sent']),
+          inArray(notificationLog.kind, ['new', 'changed', 'evening_before', 'reinstated']),
+          inArray(notificationLog.status, TOLD_STATUSES),
         ),
       );
     const subs = await subById(
@@ -563,7 +594,73 @@ async function planCancelled(db: Db, now: Date): Promise<PlanResult> {
     );
     const names = await streetNames(db, subs);
     for (const sub of subs) {
-      add(total, await emit(db, now, names, { sub, kind: 'cancelled', outageId: o.id, window: o }));
+      add(
+        total,
+        await emit(db, now, names, {
+          sub,
+          kind: 'cancelled',
+          outageId: o.id,
+          window: o,
+          revision: o.revision,
+        }),
+      );
+    }
+  }
+  return total;
+}
+
+// An undone cancellation: an `active` outage that was cancelled and is back (its revision went
+// up). Everyone who was told "Otkazano" now hears "Isključenje ipak važi", so what they were last
+// told matches what EDS shows. An "Otkazano" still waiting to be delivered (quiet hours) is
+// withdrawn instead: they never hear of a cancellation that no longer holds.
+async function planReinstated(db: Db, now: Date): Promise<PlanResult> {
+  const total = empty();
+  const back = await db
+    .select({ id: outage.id })
+    .from(outage)
+    .where(
+      and(
+        eq(outage.inScope, true),
+        eq(outage.status, 'active'),
+        sql`${outage.revision} > 0`,
+        sql`${outage.endsAt} > ${now.toISOString()}::timestamptz`,
+      ),
+    );
+  for (const { id } of back) {
+    const o = await outageInfo(db, id);
+    if (!o) continue;
+    const cancelled = await db
+      .select({
+        id: notificationLog.id,
+        subscriptionId: notificationLog.subscriptionId,
+        status: notificationLog.status,
+      })
+      .from(notificationLog)
+      .where(and(eq(notificationLog.outageId, o.id), eq(notificationLog.kind, 'cancelled')));
+    const withdrawn = cancelled.filter((c) => c.status === 'pending');
+    for (const c of withdrawn) {
+      await db
+        .update(notificationLog)
+        .set({ status: 'suppressed', lastError: 'withdrawn: outage reinstated before delivery' })
+        .where(and(eq(notificationLog.id, c.id), eq(notificationLog.status, 'pending')));
+    }
+    const told = cancelled.filter((c) => c.status === 'sent' || c.status === 'sending');
+    const subs = await subById(
+      db,
+      told.map((c) => c.subscriptionId),
+    );
+    const names = await streetNames(db, subs);
+    for (const sub of subs) {
+      add(
+        total,
+        await emit(db, now, names, {
+          sub,
+          kind: 'reinstated',
+          outageId: o.id,
+          window: o,
+          revision: o.revision,
+        }),
+      );
     }
   }
   return total;

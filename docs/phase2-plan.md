@@ -25,11 +25,16 @@ The scoring weights and thresholds are **provisional** until the Phase 1 gate pa
 
 Vitest + Testcontainers against `postgis/postgis:18-3.6` (same image as `docker/compose.yaml`). Replaying `fixtures/eds/**` is the main end-to-end check. Local manual testing with curl and a seeded fake subscription.
 
-## Known limitations of step 5 (to decide before the live run)
+## Decisions of 22 Oct (resolved)
 
-- **One "Izmena" per row per person.** The dedupe constraint is one notification per (subscription, outage, kind). If EDS flips a time back and forth more than once, the later flips of the same row are not sent. This is the constraint doing its job (BRIEF §8); a monitoring alert for flip-flopping outages would be the right follow-up.
-- **A cancellation that is undone** (the row comes back after "Otkazano") is active again, but nobody is told: the "new" notification already exists for that outage. Needs a decision: send an "Izmena"-style "outage is back" notice, or leave it.
-- **A new subscription is told about upcoming outages on its street** immediately (a "new" notification per outage). That is intended, but a user adding an address during an outage gets one message per upcoming outage; consider a digest.
+- **One rule for updates: what a person was last told must match what EDS shows now.** The dedupe key is `UNIQUE(subscription_id, outage_id, kind, revision)`; the outage's revision goes up only when it really changes state again (a cancellation, an undone cancellation, a reverted change), so every flip A→B→A→B is told and a repeat run with nothing new sends nothing. BRIEF §4/§5/§8 and `CLAUDE.md` were updated.
+- **Undone cancellation:** new kind `reinstated` ("Isključenje ipak važi: …"), sent only to people who got "Otkazano" (a still-waiting "Otkazano" is withdrawn instead), on the "Izmena" Android channel, with the usual quiet-hours and urgent rules.
+- **Flip-flop alert:** an outage that flips more than twice raises a monitoring alert (step 9).
+- **A new address gets no push for outages already published:** the app shows them on screen (the `/v1` subscription response returns them) and they are recorded in `notification_log` with status `in_app` ("told in the app"), so later changes ("Izmena"/"Otkazano") and the 19:15 reminder still reach the person.
+- **Broken page guard:** a page fetched with HTTP 200 that is truncated, has no outage table, or has fewer than half the rows of the previous healthy fetch for the same date does not count towards "missing"; it is treated as a failed fetch for cancellation purposes and raises an alert.
+
+## Known limitations of step 5
+
 - **Settlement names in notifications** use a transliterated Latin name (OSM has no Latin name stored for them yet).
 - **Cyrillic overrides** (`CYRL_OVERRIDES`) are empty: the fixed copy contains no word where lj/nj/dž are two letters.
 - Quiet-hour edits by the user are stored as `{start, end}` on the device and applied at planning time; a notification already held does not move if the user edits them afterwards.

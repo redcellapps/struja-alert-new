@@ -26,7 +26,7 @@ Expo (Android first, iOS later) + Fastify/Postgres app that pushes a notificatio
 
 - No webview. App is unofficial and not affiliated with EPS/EDS; credit EDS as the source.
 - No accounts, no location permission, no tracking SDKs.
-- `notification_log` `UNIQUE(subscription_id, outage_id, kind)` is never dropped.
+- `notification_log` `UNIQUE(subscription_id, outage_id, kind, revision)` is never dropped (the revision lets every real flip be told; a repeat run sends nothing).
 - No external or paid AI/LLM APIs in the running system.
 - The raw `Ulice` cell is always stored.
 - Every parser/matcher bug gets a fixture-based regression test.

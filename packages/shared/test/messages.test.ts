@@ -133,6 +133,24 @@ describe('several new windows in one "Izmena"', () => {
   });
 });
 
+describe('reinstated (an undone cancellation)', () => {
+  it('sr-Latn: "Isključenje ipak važi"', () => {
+    expect(
+      renderMessage(base({ kind: 'reinstated' }), { script: 'latn', locale: 'sr' }).title,
+    ).toBe('Isključenje ipak važi: Vojvode Mišića 34, utorak 27.10. 08:30–12:30');
+  });
+  it('sr-Cyrl is generated from it', () => {
+    expect(
+      renderMessage(base({ kind: 'reinstated' }), { script: 'cyrl', locale: 'sr' }).title,
+    ).toBe('Искључење ипак важи: Војводе Мишића 34, уторак 27.10. 08:30–12:30');
+  });
+  it('en: "Outage reinstated"', () => {
+    expect(
+      renderMessage(base({ kind: 'reinstated' }), { script: 'latn', locale: 'en' }).title,
+    ).toBe('Outage reinstated: Vojvode Mišića 34, Tuesday 27.10. 08:30–12:30');
+  });
+});
+
 describe('English', () => {
   const o = { script: 'latn', locale: 'en' } as const;
   it('has all four kinds', () => {
