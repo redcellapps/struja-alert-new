@@ -298,7 +298,11 @@ importers:
 
   packages/shared: {}
 
-  scripts: {}
+  scripts:
+    dependencies:
+      '@struja/parser':
+        specifier: workspace:*
+        version: link:../packages/parser
 
 packages:
 

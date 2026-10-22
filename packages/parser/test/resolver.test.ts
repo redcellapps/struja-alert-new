@@ -122,6 +122,8 @@ describe('Resolver step 5: scoring with spatial context', () => {
   });
   it('uses the other streets in the same row to pick the nearby one', () => {
     const r = resolver.resolve(norm('Мишића'), { anchors: [anchor], municipality: 'medijana' });
+    expect(r.by).toBe('scored');
+    expect(r.street).toBe(near);
     expect(r.candidates[0]?.street).toBe(near);
     expect(r.candidates[0]?.features.proximity).toBeGreaterThan(0.5);
     expect(r.candidates[0]?.score).toBeGreaterThan(r.candidates[1]?.score ?? 1);
@@ -151,6 +153,42 @@ describe('Resolver step 5: scoring with spatial context', () => {
     const byName = new Map(r.candidates.map((c) => [c.street.name, c.features.houseNumber]));
     expect(byName.get('Војводе Мишића')).toBe(1);
     expect(byName.get('Живојина Мишића')).toBe(0);
+  });
+});
+
+// Regressions found by the synthetic stress test (scripts/src/synthetic-eval.ts).
+describe('Resolver: never guess between streets that fit equally', () => {
+  const resolver = new Resolver([
+    street('Прва', { mun: ['medijana'] }),
+    street('Римска 3', { mun: ['medijana'] }),
+    street('Старине Новака', { mun: ['medijana'], at: [43.32, 21.9] }),
+    street('Новака Радуловића', { mun: ['medijana'], at: [43.5, 22.2] }),
+    street('Првог српског устанка', { mun: ['medijana'] }),
+    street('Другог српског устанка', { mun: ['medijana'] }),
+  ]);
+  it('a bare number is not a number word ("3" is not "Трећа")', () => {
+    expect(resolver.resolve('3').street).toBeNull();
+    expect(resolver.resolve('1').street).toBeNull();
+  });
+  it('a bare name that fits two streets is not auto-accepted without row context', () => {
+    const r = resolver.resolve(norm('Новака'), { municipality: 'medijana' });
+    expect(r.by).toBe('unresolved');
+    expect(r.candidates.map((c) => c.street.name).sort()).toEqual([
+      'Новака Радуловића',
+      'Старине Новака',
+    ]);
+  });
+  it('... but the other streets of the same row can decide it', () => {
+    const anchor = street('Неки сусед', { mun: ['medijana'], at: [43.3201, 21.9001] });
+    const r = new Resolver([
+      street('Старине Новака', { mun: ['medijana'], at: [43.32, 21.9] }),
+      street('Новака Радуловића', { mun: ['medijana'], at: [43.5, 22.2] }),
+    ]).resolve(norm('Новака'), { municipality: 'medijana', anchors: [anchor] });
+    expect(r.by).toBe('scored');
+    expect(r.street?.name).toBe('Старине Новака');
+  });
+  it('fuzzy needs a clear lead over the runner-up ("српског устанка")', () => {
+    expect(resolver.resolve(norm('српског устанка')).by).not.toBe('fuzzy');
   });
 });
 

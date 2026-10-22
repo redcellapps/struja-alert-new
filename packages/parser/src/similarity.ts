@@ -10,13 +10,16 @@ export function trigrams(text: string): Set<string> {
   return out;
 }
 
-export function trigramSimilarity(a: string, b: string): number {
-  const ta = trigrams(a);
-  const tb = trigrams(b);
+// Similarity of two precomputed trigram sets (lets callers cache the sets of a fixed gazetteer).
+export function setSimilarity(ta: ReadonlySet<string>, tb: ReadonlySet<string>): number {
   if (ta.size === 0 || tb.size === 0) return 0;
   let common = 0;
   for (const t of ta) if (tb.has(t)) common++;
   return common / (ta.size + tb.size - common);
+}
+
+export function trigramSimilarity(a: string, b: string): number {
+  return setSimilarity(trigrams(a), trigrams(b));
 }
 
 export function levenshtein(a: string, b: string): number {

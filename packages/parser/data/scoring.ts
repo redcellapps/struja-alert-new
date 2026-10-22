@@ -14,6 +14,8 @@ export const SCORING = {
   minMargin: 0.1,
   // Step 3: pg_trgm-style similarity needed for a fuzzy accept.
   fuzzyThreshold: 0.85,
+  // ... and it must lead every other street by at least this much.
+  fuzzyMargin: 0.1,
   // Candidates for scoring: trigram similarity floor and list size.
   candidateMinSimilarity: 0.5,
   candidateLimit: 10,

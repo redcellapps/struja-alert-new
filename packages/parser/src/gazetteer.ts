@@ -66,7 +66,9 @@ export class StreetIndex {
     if (exact) return decide('exact', exact);
     const form = this.formMap.get(nameNorm);
     if (form) return decide('form', form);
-    const numeric = this.numberMap.get(canonicalizeNumbers(nameNorm));
+    // Numbers-as-words, but never for a name that is nothing but numbers ("3" is not "Трећа").
+    const canon = canonicalizeNumbers(nameNorm);
+    const numeric = /[a-z]/.test(canon) ? this.numberMap.get(canon) : undefined;
     if (numeric) return decide('heuristic', numeric);
     return {
       by: 'unresolved',

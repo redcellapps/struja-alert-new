@@ -3,7 +3,14 @@ import { stems } from './forms.ts';
 import { StreetIndex } from './gazetteer.ts';
 import type { NisMunicipality, NisStreet } from './osm.ts';
 import type { HouseRange } from './ranges.ts';
-import { distinctiveToken, haversineMeters, jaroWinkler, trigramSimilarity } from './similarity.ts';
+import {
+  distinctiveToken,
+  haversineMeters,
+  jaroWinkler,
+  setSimilarity,
+  trigramSimilarity,
+  trigrams,
+} from './similarity.ts';
 
 export type LadderStep =
   'exact' | 'alias' | 'form' | 'fuzzy' | 'heuristic' | 'scored' | 'unresolved';
@@ -62,6 +69,8 @@ export class Resolver {
   private readonly stemSets = new Map<NisStreet, Set<string>>();
   private readonly allNorms = new Map<NisStreet, string[]>();
   private readonly vertices = new Map<NisStreet, [number, number][]>();
+  // Trigram sets of every gazetteer name, computed once (the fuzzy step scans all streets).
+  private readonly trigramSets = new Map<string, Set<string>>();
 
   // No constructor parameter properties: Node's type stripping (scripts) cannot run them.
   constructor(streets: readonly NisStreet[]) {
@@ -72,6 +81,7 @@ export class Resolver {
       const norms = [s.nameNorm, ...(s.altNorms ?? [])];
       this.allNorms.set(s, norms);
       this.stemSets.set(s, new Set(norms.flatMap((n) => stems(n))));
+      for (const n of norms) if (!this.trigramSets.has(n)) this.trigramSets.set(n, trigrams(n));
     }
   }
 
@@ -82,6 +92,10 @@ export class Resolver {
       const street = this.byId.get(aliasId);
       if (street) return { by: 'alias', street, score: 1, candidates: [] };
     }
+
+    // A segment without a single letter ("3", "12-14") is a house number, never a street name.
+    if (!/[a-z]/.test(segNorm))
+      return { by: 'unresolved', street: null, score: null, candidates: [] };
 
     // 1, forms, numbers-as-words: exact name, generated case forms, number canonicalization.
     const direct = this.index.resolve(segNorm);
@@ -114,10 +128,11 @@ export class Resolver {
     return this.score(segNorm, [...new Set(pool)], ctx);
   }
 
-  private bestSimilarity(segNorm: string, street: NisStreet): number {
+  private bestSimilarity(segTrigrams: ReadonlySet<string>, street: NisStreet): number {
     let best = 0;
-    for (const n of this.allNorms.get(street) ?? [])
-      best = Math.max(best, trigramSimilarity(segNorm, n));
+    for (const n of this.allNorms.get(street) ?? []) {
+      best = Math.max(best, setSimilarity(segTrigrams, this.trigramSets.get(n) ?? new Set()));
+    }
     return best;
   }
 
@@ -126,10 +141,13 @@ export class Resolver {
     municipality: NisMunicipality | null,
   ): { accepted: { street: NisStreet; sim: number } | null; pool: NisStreet[] } {
     const hits: { street: NisStreet; sim: number }[] = [];
+    const sims: { street: NisStreet; sim: number }[] = [];
     const near: NisStreet[] = [];
     const sortedSeg = segNorm.split(' ').filter(Boolean).sort().join(' ');
+    const segTrigrams = trigrams(segNorm);
     for (const s of this.streets) {
-      const sim = this.bestSimilarity(segNorm, s);
+      const sim = this.bestSimilarity(segTrigrams, s);
+      if (sim >= SCORING.candidateMinSimilarity) sims.push({ street: s, sim });
       // Trigram similarity ignores word order, so a pure word swap scores 1.0. That belongs to
       // the heuristic step (and its audit label), not to fuzzy.
       const swapOnly = (this.allNorms.get(s) ?? []).some(
@@ -142,7 +160,15 @@ export class Resolver {
       ? hits.filter((h) => h.street.municipalities.includes(municipality))
       : [];
     const chosen = local.length > 0 ? local : hits;
-    return { accepted: chosen.length === 1 ? (chosen[0] ?? null) : null, pool: near };
+    const only = chosen.length === 1 ? (chosen[0] ?? null) : null;
+    // A fuzzy accept needs a clear lead: if another street is almost as similar ("Првог" vs
+    // "Другог српског устанка"), a wrong accept would be a false alarm, so go on to scoring.
+    const rival = sims.some(
+      (x) => only !== null && x.street !== only.street && only.sim - x.sim < SCORING.fuzzyMargin,
+    );
+    // Same rule as scoring: a name that fits two or more streets is not a fuzzy accept.
+    const ambiguous = this.containing(segNorm).length >= 2;
+    return { accepted: only && !rival && !ambiguous ? only : null, pool: near };
   }
 
   private heuristic(segNorm: string): NisStreet | null {
@@ -165,15 +191,19 @@ export class Resolver {
       if (found.size === 1) return [...found][0] ?? null;
     }
     // Missing first name or title: every token of the segment is in exactly one street.
-    const segStems = stems(segNorm).filter((t) => t.length >= 3);
-    if (segStems.length > 0 && segStems.some((t) => t.length >= 4)) {
-      const containing = this.streets.filter((s) => {
-        const have = this.stemSets.get(s);
-        return have !== undefined && segStems.every((t) => have.has(t));
-      });
-      if (containing.length === 1) return containing[0] ?? null;
-    }
+    const containing = this.containing(segNorm);
+    if (containing.length === 1) return containing[0] ?? null;
     return null;
+  }
+
+  // Streets whose words include every word of the segment ("мишића" is in "Војводе Мишића").
+  private containing(segNorm: string): NisStreet[] {
+    const segStems = stems(segNorm).filter((t) => t.length >= 3);
+    if (segStems.length === 0 || !segStems.some((t) => t.length >= 4)) return [];
+    return this.streets.filter((s) => {
+      const have = this.stemSets.get(s);
+      return have !== undefined && segStems.every((t) => have.has(t));
+    });
   }
 
   private proximity(street: NisStreet, anchors: readonly NisStreet[]): number {
@@ -210,7 +240,15 @@ export class Resolver {
     const W = SCORING.weights;
     const distinctive = distinctiveToken(segNorm);
     const scored: ScoredCandidate[] = pool.map((street) => {
-      let similarity = 0;
+      // Share of the segment's words that the street contains: "мишића" is fully contained in
+      // "Војводе Мишића" even though the two strings differ a lot.
+      const segStems = stems(segNorm);
+      const have = this.stemSets.get(street);
+      const containment =
+        segStems.length > 0 && have
+          ? segStems.filter((t) => have.has(t)).length / segStems.length
+          : 0;
+      let similarity = containment;
       let distinctiveSim = 0;
       for (const n of this.allNorms.get(street) ?? []) {
         similarity = Math.max(similarity, trigramSimilarity(segNorm, n), jaroWinkler(segNorm, n));
@@ -244,8 +282,12 @@ export class Resolver {
     scored.sort((a, b) => b.score - a.score);
     const top5 = scored.slice(0, 5);
     const [best, second] = top5;
+    // A bare name that fits several streets ("Новака") is only decidable from where the other
+    // streets of the same row are; without that context, leave it for review.
+    const needsContext = this.containing(segNorm).length >= 2 && (ctx.anchors ?? []).length === 0;
     if (
       best &&
+      !needsContext &&
       best.score >= SCORING.acceptScore &&
       (!second || best.score - second.score >= SCORING.minMargin)
     ) {
