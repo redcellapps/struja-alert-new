@@ -1,0 +1,11 @@
+{
+  "name": "@struja/scripts",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "collect": "node src/collect-fixtures.ts",
+    "typecheck": "tsc -p tsconfig.json",
+    "test": "vitest run --passWithNoTests --coverage --reporter=default --reporter=junit --outputFile.junit=../test-results/scripts/junit.xml --coverage.reportsDirectory=../test-results/scripts/coverage --coverage.reporter=text-summary --coverage.reporter=lcov"
+  }
+}
