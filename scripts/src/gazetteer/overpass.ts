@@ -27,6 +27,36 @@ export const NIS_QUERIES: readonly SnapshotQuery[] = [
   },
 ];
 
+export interface Municipality {
+  id: number;
+  name: string;
+}
+
+// The five city municipalities are the admin_level=8 relations of the admin-areas snapshot.
+export function pickMunicipalities(adminAreas: { elements: unknown[] }): Municipality[] {
+  const out: Municipality[] = [];
+  for (const raw of adminAreas.elements) {
+    const e = raw as { type?: string; id?: number; tags?: Record<string, string> };
+    if (e.type !== 'relation' || e.tags?.admin_level !== '8' || typeof e.id !== 'number') continue;
+    out.push({ id: e.id, name: e.tags['name:sr-Latn'] ?? e.tags.name ?? String(e.id) });
+  }
+  return out.sort((a, b) => a.id - b.id);
+}
+
+// Which named street ways and place objects (village, hamlet, suburb, ...) lie inside one
+// municipality. Street ways come back as ids only (their geometry is in nis-streets); places
+// come with tags and a centre point.
+export function municipalityQuery(relationId: number): SnapshotQuery {
+  return {
+    name: `nis-municipality-${relationId}`,
+    query:
+      `[out:json][timeout:180];rel(${relationId});map_to_area->.m;` +
+      `way(area.m)["highway"]["name"];out ids;` +
+      `(node(area.m)["place"~"^(village|hamlet|suburb|neighbourhood|town)$"];` +
+      `way(area.m)["place"~"^(village|hamlet|suburb|neighbourhood|town)$"];);out tags center;`,
+  };
+}
+
 export type FetchFn = (url: string, init?: RequestInit) => Promise<Response>;
 
 export interface OverpassResult {
@@ -35,20 +65,44 @@ export interface OverpassResult {
   [key: string]: unknown;
 }
 
-export async function fetchOverpass(
-  query: string,
-  opts: { userAgent: string; fetchFn: FetchFn; endpoint?: string },
-): Promise<OverpassResult> {
-  const res = await opts.fetchFn(opts.endpoint ?? OVERPASS_ENDPOINT, {
-    method: 'POST',
-    headers: {
-      'User-Agent': opts.userAgent,
-      'Content-Type': 'application/x-www-form-urlencoded',
-    },
-    body: `data=${encodeURIComponent(query)}`,
-  });
-  if (res.status !== 200) {
-    throw new Error(`Overpass returned HTTP ${res.status}: ${(await res.text()).slice(0, 200)}`);
+// Busy server: the public instance answers 429/502/503/504 when its queue is full and asks
+// clients to retry with exponential backoff.
+const RETRYABLE = new Set([429, 502, 503, 504]);
+
+export interface OverpassOptions {
+  userAgent: string;
+  fetchFn: FetchFn;
+  endpoint?: string;
+  attempts?: number;
+  baseDelayMs?: number;
+  sleep?: (ms: number) => Promise<void>;
+  log?: (msg: string) => void;
+}
+
+export async function fetchOverpass(query: string, opts: OverpassOptions): Promise<OverpassResult> {
+  const attempts = opts.attempts ?? 6;
+  const sleep = opts.sleep ?? ((ms: number) => new Promise<void>((r) => setTimeout(r, ms)));
+  let res: Response | undefined;
+  for (let attempt = 1; attempt <= attempts; attempt++) {
+    res = await opts.fetchFn(opts.endpoint ?? OVERPASS_ENDPOINT, {
+      method: 'POST',
+      headers: {
+        'User-Agent': opts.userAgent,
+        'Content-Type': 'application/x-www-form-urlencoded',
+      },
+      body: `data=${encodeURIComponent(query)}`,
+    });
+    if (res.status === 200 || !RETRYABLE.has(res.status) || attempt === attempts) break;
+    const wait = (opts.baseDelayMs ?? 30_000) * 2 ** (attempt - 1);
+    opts.log?.(
+      `Overpass busy (HTTP ${res.status}); retry ${attempt}/${attempts - 1} in ${wait / 1000}s`,
+    );
+    await sleep(wait);
+  }
+  if (!res || res.status !== 200) {
+    throw new Error(
+      `Overpass returned HTTP ${res?.status}: ${((await res?.text()) ?? '').slice(0, 200)}`,
+    );
   }
   const json = (await res.json()) as OverpassResult;
   // Overpass reports timeouts and out-of-memory as a 200 with a `remark`, and a truncated result.
