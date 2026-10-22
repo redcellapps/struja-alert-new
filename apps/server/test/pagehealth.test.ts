@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { sql } from 'drizzle-orm';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { createWorld, edsPage, type World } from './helpers/world.ts';
+import { createWorld, type World } from './helpers/world.ts';
 
 // The broken page guard: a page fetched with HTTP 200 that is truncated, has no outage table, or has
 // fewer than half the rows of the previous fetch for the same date must not count towards
