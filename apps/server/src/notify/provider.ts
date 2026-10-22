@@ -70,3 +70,25 @@ export class FakePushProvider implements PushProvider {
     return this.sent.map((m) => m.title);
   }
 }
+
+// Until real delivery exists (Phase 4: Expo Push through FCM v1 / APNs), the running server logs what
+// it would send instead of pretending to deliver it.
+export class LogPushProvider implements PushProvider {
+  private counter = 0;
+  private readonly log: (message: string) => void;
+
+  constructor(log: (message: string) => void = (m) => console.log(m)) {
+    this.log = log;
+  }
+
+  async send(messages: PushMessage[]): Promise<PushTicket[]> {
+    return messages.map((m) => {
+      this.log(`[push:not-sent] ${m.to} (${m.channelId}) ${m.title}`);
+      return { status: 'ok', id: `log-${++this.counter}` };
+    });
+  }
+
+  async getReceipts(ids: string[]): Promise<Record<string, PushReceipt>> {
+    return Object.fromEntries(ids.map((id) => [id, { status: 'ok' } as PushReceipt]));
+  }
+}
