@@ -1,13 +1,23 @@
 import { createHash } from 'node:crypto';
-import { access, mkdir, writeFile } from 'node:fs/promises';
-import { join } from 'node:path';
+import { access, mkdir, readFile, writeFile } from 'node:fs/promises';
+import { basename, join } from 'node:path';
 import { extractSlugs } from './discover.ts';
 import { isAllowed, parseRobots } from './robots.ts';
 import { currentSlot, manualSlot, type Slot } from './slots.ts';
 
 export const BASE = 'https://elektrodistribucija.rs';
-export const MAX_DAYS = 10;
+// EDS publishes today plus three days ahead (Dan_0..Dan_3); Dan_4 is a 404.
+export const MAX_DAYS = 4;
 export const BELGRADE = 'Beograd';
+
+// One index page per branch; the city slugs are discovered from the links on these pages.
+export const BRANCH_INDEX_URLS: readonly string[] = [
+  `${BASE}/planirana-iskljucenja/planirana-bgd`,
+  `${BASE}/planirana-iskljucenja/planirana-ni`,
+  `${BASE}/planirana-iskljucenja/planirana-ns`,
+  `${BASE}/planirana-iskljucenja/planirana-kv`,
+  `${BASE}/planirana-iskljucenja/planirana-kg`,
+];
 
 export type FetchFn = (url: string, init?: RequestInit) => Promise<Response>;
 
@@ -15,11 +25,12 @@ export interface CollectOptions {
   now: Date;
   force: boolean;
   fixturesDir: string;
+  // Fallback slugs, used in addition to the discovered ones.
   cities: string[];
   userAgent: string;
   fetchFn: FetchFn;
   delayMs: number;
-  indexUrl: string;
+  indexUrls: readonly string[];
   log: (msg: string) => void;
 }
 
@@ -69,6 +80,17 @@ function isUtf8(bytes: Uint8Array): boolean {
   }
 }
 
+async function readStoredSlugs(fixturesDir: string): Promise<string[]> {
+  try {
+    const stored = JSON.parse(await readFile(join(fixturesDir, 'eds', 'slugs.json'), 'utf8'));
+    return Array.isArray(stored.slugs)
+      ? stored.slugs.filter((s: unknown) => typeof s === 'string')
+      : [];
+  } catch {
+    return [];
+  }
+}
+
 // Returns null when this slot is not due or is already collected.
 export async function collectSlot(opts: CollectOptions): Promise<SlotSummary | null> {
   const slot: Slot | null = opts.force ? manualSlot(opts.now) : currentSlot(opts.now);
@@ -96,10 +118,58 @@ export async function collectSlot(opts: CollectOptions): Promise<SlotSummary | n
   if (robotsRes.status >= 500) throw new Error(`robots.txt returned ${robotsRes.status}`);
 
   await mkdir(slotDir, { recursive: true });
+
+  // City slugs: once a day (first slot) or on a manual run, rediscover them from the branch
+  // index pages (raw HTML kept under eds/_index/); otherwise reuse the stored list.
+  let discovered: string[];
+  if (opts.force || slot.hour === 7) {
+    const found = new Set<string>();
+    const indexDir = join(opts.fixturesDir, 'eds', '_index');
+    const pagesInfo: { url: string; status: number | null; slugs: string[] }[] = [];
+    for (const url of opts.indexUrls) {
+      const path = new URL(url).pathname;
+      if (!isAllowed(rules, path)) {
+        errors.push(`robots.txt disallows ${path}`);
+        continue;
+      }
+      try {
+        await sleep(opts.delayMs);
+        const res = await get(url);
+        const html = res.status === 200 ? await res.text() : '';
+        const slugs = extractSlugs(html);
+        slugs.forEach((s) => found.add(s));
+        pagesInfo.push({ url, status: res.status, slugs });
+        if (res.status === 200) {
+          await mkdir(indexDir, { recursive: true });
+          await writeFile(join(indexDir, `${basename(path)}.html`), html);
+        } else {
+          errors.push(`index ${url}: HTTP ${res.status}`);
+        }
+      } catch (e) {
+        pagesInfo.push({ url, status: null, slugs: [] });
+        errors.push(`index ${url}: ${e instanceof Error ? e.message : String(e)}`);
+      }
+    }
+    discovered = [...found].sort();
+    await mkdir(join(opts.fixturesDir, 'eds'), { recursive: true });
+    await writeFile(
+      join(opts.fixturesDir, 'eds', 'slugs.json'),
+      JSON.stringify(
+        { fetched_at: new Date().toISOString(), pages: pagesInfo, slugs: discovered },
+        null,
+        2,
+      ) + '\n',
+    );
+  } else {
+    discovered = await readStoredSlugs(opts.fixturesDir);
+  }
+
   const pages: PageRecord[] = [];
   const maxN: Record<string, number> = {};
-
-  const targets = [BELGRADE, ...opts.cities];
+  const targets = [
+    BELGRADE,
+    ...new Set([...opts.cities, ...discovered].filter((s) => s !== BELGRADE)),
+  ];
   for (const city of targets) {
     for (let n = 0; n < MAX_DAYS; n++) {
       const url = pageUrl(city, n);
@@ -154,31 +224,6 @@ export async function collectSlot(opts: CollectOptions): Promise<SlotSummary | n
     throw new Error(
       `No pages collected for slot ${slot.key}: ${errors.join('; ') || 'all targets returned non-200'}`,
     );
-  }
-
-  // Once a day (first slot) or on a manual run: refresh the city slug list from the index page.
-  if (opts.force || slot.hour === 7) {
-    try {
-      await sleep(opts.delayMs);
-      const res = await get(opts.indexUrl);
-      const html = res.status === 200 ? await res.text() : '';
-      await mkdir(join(opts.fixturesDir, 'eds'), { recursive: true });
-      await writeFile(
-        join(opts.fixturesDir, 'eds', 'slugs.json'),
-        JSON.stringify(
-          {
-            fetched_at: new Date().toISOString(),
-            index_url: opts.indexUrl,
-            status: res.status,
-            slugs: extractSlugs(html),
-          },
-          null,
-          2,
-        ) + '\n',
-      );
-    } catch (e) {
-      errors.push(`slug discovery: ${e instanceof Error ? e.message : String(e)}`);
-    }
   }
 
   const summary: SlotSummary = {

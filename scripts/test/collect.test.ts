@@ -27,8 +27,15 @@ function fakeFetch(days: number, calls: string[] = []): FetchFn {
   return async (url, init) => {
     calls.push(`${url}|${(init?.headers as Record<string, string>)['User-Agent']}`);
     if (url.endsWith('/robots.txt')) return new Response('User-agent: *\nDisallow: /admin/\n');
-    if (url.endsWith('/planirana-iskljucenja-srbija/')) {
-      return new Response('<a href="Nis_Dan_0_Iskljucenja.htm">x</a>');
+    if (url.endsWith('/planirana-ni')) {
+      return new Response(
+        '<a href="/planirana-iskljucenja-srbija/Nis_Dan_0_Iskljucenja.htm">x</a>',
+      );
+    }
+    if (url.endsWith('/planirana-ns')) {
+      return new Response(
+        '<a href="/planirana-iskljucenja-srbija/Novi_Sad_Dan_0_Iskljucenja.htm">x</a>',
+      );
     }
     const m = /Dan_(\d+)_Iskljucenja\.htm$/.exec(url);
     if (m && Number(m[1]) < days) {
@@ -49,7 +56,10 @@ const opts = (over: Partial<CollectOptions> = {}): CollectOptions => ({
   userAgent: UA,
   fetchFn: fakeFetch(3),
   delayMs: 0,
-  indexUrl: 'https://elektrodistribucija.rs/planirana-iskljucenja-srbija/',
+  indexUrls: [
+    'https://elektrodistribucija.rs/planirana-iskljucenja/planirana-ni',
+    'https://elektrodistribucija.rs/planirana-iskljucenja/planirana-ns',
+  ],
   log: () => {},
   ...over,
 });
@@ -88,7 +98,7 @@ describe('collectSlot', () => {
     const calls: string[] = [];
     const summary = await collectSlot(opts({ fetchFn: fakeFetch(3, calls) }));
     expect(summary?.slot_key).toBe('2026-10-24-07');
-    expect(summary?.max_n).toEqual({ Beograd: 2, Nis: 2 });
+    expect(summary?.max_n).toEqual({ Beograd: 2, Nis: 2, Novi_Sad: 2 });
     const slotDir = join(dir, 'eds', '2026-10-24-07');
     const files = await readdir(slotDir);
     expect(files).toContain('Nis_Dan_2.htm');
@@ -119,10 +129,38 @@ describe('collectSlot', () => {
   it('refreshes the slug list on the 07 slot only', async () => {
     await collectSlot(opts());
     const slugs = JSON.parse(await readFile(join(dir, 'eds', 'slugs.json'), 'utf8'));
-    expect(slugs.slugs).toEqual(['Nis']);
+    expect(slugs.slugs).toEqual(['Nis', 'Novi_Sad']);
+    expect(slugs.pages).toHaveLength(2);
     await rm(join(dir, 'eds', 'slugs.json'));
     await collectSlot(opts({ now: new Date('2026-10-24T11:10:00Z') }));
     await expect(readFile(join(dir, 'eds', 'slugs.json'))).rejects.toThrow();
+  });
+
+  it('saves the raw index page HTML under eds/_index', async () => {
+    await collectSlot(opts());
+    const html = await readFile(join(dir, 'eds', '_index', 'planirana-ni.html'), 'utf8');
+    expect(html).toContain('Nis_Dan_0_Iskljucenja.htm');
+  });
+
+  it('collects discovered cities, and later slots reuse the stored slug list', async () => {
+    await collectSlot(opts({ cities: [] }));
+    const later = await collectSlot(opts({ cities: [], now: new Date('2026-10-24T11:10:00Z') }));
+    expect(Object.keys(later?.max_n ?? {}).sort()).toEqual(['Beograd', 'Nis', 'Novi_Sad']);
+  });
+
+  it('collects at most Dan_0..Dan_3', async () => {
+    const s = await collectSlot(opts({ fetchFn: fakeFetch(10) }));
+    expect(s?.max_n.Nis).toBe(3);
+    expect(await readdir(join(dir, 'eds', '2026-10-24-07'))).not.toContain('Nis_Dan_4.htm');
+  });
+
+  it('keeps going when an index page fails, and records the error', async () => {
+    const base = fakeFetch(3);
+    const f: FetchFn = async (url, init) =>
+      url.endsWith('/planirana-ns') ? new Response('err', { status: 500 }) : base(url, init);
+    const s = await collectSlot(opts({ fetchFn: f, cities: [] }));
+    expect(s?.errors.some((e) => e.includes('planirana-ns') && e.includes('500'))).toBe(true);
+    expect(Object.keys(s?.max_n ?? {})).toContain('Nis');
   });
 
   it('manual runs bypass the window and use their own key', async () => {

@@ -1,5 +1,6 @@
-// City slugs appear in links like `Nis_Dan_0_Iskljucenja.htm` on the EDS outage index page.
-const LINK = /([A-Za-z0-9]+)_Dan_\d+_Iskljucenja\.htm/g;
+// City slugs appear in links like `Nis_Dan_0_Iskljucenja.htm` on the EDS branch index pages.
+// The Belgrade links (`Dan_0_Iskljucenja.htm`) have no slug and are not matched here.
+const LINK = /([A-Za-z0-9_]+?)_Dan_\d+_Iskljucenja\.htm/g;
 
 export function extractSlugs(html: string): string[] {
   const found = new Set<string>();

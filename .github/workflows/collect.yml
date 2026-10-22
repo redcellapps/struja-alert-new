@@ -51,7 +51,7 @@ jobs:
         env:
           SCRAPER_CONTACT_EMAIL: ${{ secrets.SCRAPER_CONTACT_EMAIL }}
           FIXTURES_DIR: ${{ github.workspace }}/fixtures-data
-          COLLECT_CITIES: Nis,Kraljevo
+          COLLECT_CITIES: Nis,Kraljevo,NoviSad,Kragujevac
           FORCE: ${{ inputs.force && '1' || '0' }}
 
       - name: Commit and push new fixtures
