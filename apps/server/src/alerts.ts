@@ -1,13 +1,17 @@
 import { sql } from 'drizzle-orm';
 import type { Db } from './db/client.ts';
 
-// Alerts are recorded here and delivered by the monitoring job (step 9: email + admin push).
+// Alerts are recorded here and delivered by the monitor job (email + admin push, src/monitor).
 export type AlertKind =
   | 'broken_page' // a page fetched with HTTP 200 that is truncated, has no table, or lost most rows
   | 'flip_flop' // an outage whose displayed version switched more than twice
   | 'scrape_failed'
   | 'resolution_low'
-  | 'unresolved_segment';
+  | 'unresolved_segment'
+  | 'zero_rows' // every page of a city empty, two fetches in a row
+  | 'spot_check_rejects'
+  | 'push_failures'
+  | 'scrape_stale'; // the scheduler has stopped fetching
 
 export interface AlertInput {
   kind: AlertKind;

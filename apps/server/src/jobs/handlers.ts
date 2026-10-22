@@ -7,6 +7,8 @@ import { ingestPage } from '../ingest/ingest.ts';
 import { deliverPending, processReceipts } from '../notify/deliver.ts';
 import { planEveningBefore, planNotifications, planSafetyNet } from '../notify/plan.ts';
 import type { PushProvider } from '../notify/provider.ts';
+import { runChecks } from '../monitor/checks.ts';
+import { deliverAlerts, type AlertSink } from '../monitor/sinks.ts';
 import type { BackupRunner } from './backup.ts';
 import { boundaryTick, type BoundarySink } from './boundary.ts';
 import { pageUrl, type PageSource } from './sources.ts';
@@ -22,6 +24,7 @@ export const JOBS = {
   boundary: 'boundary', // every minute: outage start / end signals
   safetyNet: 'safety-net', // hourly: the 12-hour safety net
   backup: 'backup', // nightly
+  monitor: 'monitor', // every 10 minutes: health checks, then alerts out by email / admin push
 } as const;
 export type JobName = (typeof JOBS)[keyof typeof JOBS];
 
@@ -32,6 +35,9 @@ export interface JobContext {
   pages: PageSource;
   boundary: BoundarySink;
   backup: BackupRunner;
+  alerts: AlertSink;
+  // Base URL of the admin page, put in alerts that need a decision.
+  adminUrl?: string;
   // The city slugs the app serves ("Nis").
   cities: string[];
   now: () => Date;
@@ -188,4 +194,11 @@ export async function backupJob(ctx: JobContext) {
   const r = await ctx.backup.run(ctx.now());
   ctx.log('backup done', { file: r.file, bytes: r.bytes, pruned: r.pruned.length });
   return r;
+}
+
+export async function monitorJob(ctx: JobContext) {
+  await runChecks(ctx.db, ctx.now(), { cities: ctx.cities, adminUrl: ctx.adminUrl });
+  const sent = await deliverAlerts(ctx.db, ctx.alerts);
+  if (sent) ctx.log('alerts delivered', { count: sent });
+  return { sent };
 }

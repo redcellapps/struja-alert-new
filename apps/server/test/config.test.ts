@@ -32,6 +32,20 @@ describe('loadConfig', () => {
     expect(loadConfig({ ...base, ADMIN_TOKEN: 'x'.repeat(16) }).ADMIN_TOKEN).toHaveLength(16);
   });
 
+  it('email alerts need a sender and a recipient', () => {
+    expect(() => loadConfig({ ...base, SMTP_URL: 'smtp://mail.example:587' })).toThrow(
+      /ALERT_EMAIL/,
+    );
+    expect(
+      loadConfig({
+        ...base,
+        SMTP_URL: 'smtp://mail.example:587',
+        ALERT_EMAIL_FROM: 'a@example.rs',
+        ALERT_EMAIL_TO: 'ops@example.rs',
+      }).SMTP_URL,
+    ).toBe('smtp://mail.example:587');
+  });
+
   it('rejects nonsense values', () => {
     expect(() => loadConfig({ ...base, PORT: 'abc' })).toThrow(/PORT/);
     expect(() => loadConfig({ ...base, PAGE_SOURCE: 'ftp' })).toThrow(/PAGE_SOURCE/);

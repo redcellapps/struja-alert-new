@@ -19,6 +19,13 @@ export const configSchema = z.object({
   ADMIN_IP_ALLOWLIST: z.string().default('127.0.0.1,::1'),
   // Behind a reverse proxy: take the client address from X-Forwarded-For.
   TRUST_PROXY: bool.default(false),
+  // Public base URL of the admin page (for links in alerts), e.g. https://struja.example
+  ADMIN_BASE_URL: z.string().optional(),
+  // Alerts by email (SMTP) and by push to the admin's own device(s). Either, both or neither (log only).
+  SMTP_URL: z.string().optional(),
+  ALERT_EMAIL_FROM: z.string().optional(),
+  ALERT_EMAIL_TO: z.string().optional(),
+  ADMIN_PUSH_TOKENS: z.string().optional(),
   BACKUP_DIR: z.string().default('./backups'),
   // Development convenience: load the saved OSM snapshots when the database has no streets yet.
   IMPORT_GAZETTEER: bool.default(false),
@@ -34,6 +41,9 @@ export function loadConfig(env: Record<string, string | undefined> = process.env
   const c = r.data;
   if (c.PAGE_SOURCE === 'http' && !c.SCRAPER_CONTACT_EMAIL) {
     throw new Error('Invalid configuration: PAGE_SOURCE=http requires SCRAPER_CONTACT_EMAIL');
+  }
+  if (c.SMTP_URL && (!c.ALERT_EMAIL_TO || !c.ALERT_EMAIL_FROM)) {
+    throw new Error('Invalid configuration: SMTP_URL requires ALERT_EMAIL_FROM and ALERT_EMAIL_TO');
   }
   return c;
 }

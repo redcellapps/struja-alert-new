@@ -1,3 +1,4 @@
+import { sql } from 'drizzle-orm';
 import rateLimit from '@fastify/rate-limit';
 import Fastify from 'fastify';
 import type { AdminConfig } from './admin/auth.ts';
@@ -37,7 +38,17 @@ export function buildApp(deps?: AppDeps, opts: AppOptions = {}) {
     trustProxy: opts.trustProxy ?? false,
   });
   installErrorHandler(app);
-  app.get('/healthz', async () => ({ status: 'ok' }));
+  // Liveness, and with a database also readiness: the container healthcheck fails when it is down.
+  app.get('/healthz', async (_req, reply) => {
+    if (deps) {
+      try {
+        await deps.db.execute(sql`SELECT 1`);
+      } catch {
+        return reply.code(503).send({ status: 'db_unavailable' });
+      }
+    }
+    return { status: 'ok' };
+  });
   if (deps) {
     app.register(rateLimit, { global: true, max: opts.perMinute ?? 300, timeWindow: '1 minute' });
     // Routes are registered after the rate limiter has loaded, so per-route limits apply.

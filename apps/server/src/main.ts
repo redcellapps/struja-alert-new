@@ -11,6 +11,13 @@ import { PgDumpBackup } from './jobs/backup.ts';
 import { LogBoundarySink } from './jobs/boundary.ts';
 import { registerJobs, startBoss } from './jobs/register.ts';
 import { FixturePageSource, HttpPageSource, scraperUserAgent } from './jobs/sources.ts';
+import {
+  EmailAlertSink,
+  LogAlertSink,
+  MultiAlertSink,
+  PushAlertSink,
+  type AlertSink,
+} from './monitor/sinks.ts';
 import { LogPushProvider } from './notify/provider.ts';
 
 const repoRoot = fileURLToPath(new URL('../../../', import.meta.url));
@@ -53,12 +60,35 @@ const app = buildApp({ db, gazetteers, admin }, { trustProxy: config.TRUST_PROXY
 let stopJobs: (() => Promise<void>) | null = null;
 if (config.RUN_JOBS) {
   const boss = await startBoss(config.DATABASE_URL);
+  const provider = new LogPushProvider();
+  const log = (message: string, extra?: Record<string, unknown>) =>
+    app.log.info(extra ?? {}, message);
+  const list = (s?: string) =>
+    (s ?? '')
+      .split(',')
+      .map((x) => x.trim())
+      .filter(Boolean);
+  const sinks: AlertSink[] = [new LogAlertSink(log)];
+  if (config.SMTP_URL && config.ALERT_EMAIL_FROM) {
+    sinks.push(
+      EmailAlertSink.fromSmtpUrl(
+        config.SMTP_URL,
+        config.ALERT_EMAIL_FROM,
+        list(config.ALERT_EMAIL_TO),
+      ),
+    );
+  }
+  if (list(config.ADMIN_PUSH_TOKENS).length) {
+    sinks.push(new PushAlertSink(provider, list(config.ADMIN_PUSH_TOKENS)));
+  }
   const edsDir = config.FIXTURES_DIR ?? `${repoRoot}fixtures/eds`;
   await registerJobs(boss, {
     db,
     gazetteers,
     // Real delivery is Phase 4; until then the push provider and the start/end signals only log.
-    provider: new LogPushProvider(),
+    provider,
+    alerts: new MultiAlertSink(sinks),
+    adminUrl: config.ADMIN_BASE_URL,
     boundary: new LogBoundarySink(),
     pages:
       config.PAGE_SOURCE === 'http'
@@ -69,7 +99,7 @@ if (config.RUN_JOBS) {
     backup: new PgDumpBackup(config.DATABASE_URL, config.BACKUP_DIR),
     cities: ['Nis'],
     now: () => new Date(),
-    log: (message, extra) => app.log.info(extra ?? {}, message),
+    log,
   });
   stopJobs = () => boss.stop({ graceful: true, timeout: 20_000 });
 }

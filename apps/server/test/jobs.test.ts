@@ -23,6 +23,7 @@ import {
   scraperUserAgent,
   type PageSource,
 } from '../src/jobs/sources.ts';
+import { FakeAlertSink } from '../src/monitor/sinks.ts';
 import { createWorld, type World } from './helpers/world.ts';
 
 const winPath = (u: URL) => u.pathname.replace(/^\/([A-Za-z]:)/, '$1');
@@ -48,6 +49,7 @@ function makeCtx(over: Partial<JobContext> = {}): JobContext & { queued: JobName
     pages: new FixturePageSource(EDS_DIR),
     boundary: new FakeBoundarySink(),
     backup: noBackup,
+    alerts: new FakeAlertSink(),
     cities: ['Nis'],
     now: () => MORNING,
     enqueue: async (name) => {

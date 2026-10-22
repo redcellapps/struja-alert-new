@@ -55,12 +55,8 @@
           "name": "address_point_street_id_street_id_fk",
           "tableFrom": "address_point",
           "tableTo": "street",
-          "columnsFrom": [
-            "street_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["street_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -242,9 +238,7 @@
         "device_push_token_unique": {
           "name": "device_push_token_unique",
           "nullsNotDistinct": false,
-          "columns": [
-            "push_token"
-          ]
+          "columns": ["push_token"]
         }
       },
       "policies": {},
@@ -367,12 +361,8 @@
           "name": "live_activity_token_device_id_device_id_fk",
           "tableFrom": "live_activity_token",
           "tableTo": "device",
-          "columnsFrom": [
-            "device_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["device_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -526,12 +516,8 @@
           "name": "notification_log_subscription_id_subscription_id_fk",
           "tableFrom": "notification_log",
           "tableTo": "subscription",
-          "columnsFrom": [
-            "subscription_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["subscription_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
@@ -539,12 +525,8 @@
           "name": "notification_log_outage_id_outage_id_fk",
           "tableFrom": "notification_log",
           "tableTo": "outage",
-          "columnsFrom": [
-            "outage_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["outage_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -554,12 +536,7 @@
         "notification_log_dedupe": {
           "name": "notification_log_dedupe",
           "nullsNotDistinct": false,
-          "columns": [
-            "subscription_id",
-            "outage_id",
-            "kind",
-            "revision"
-          ]
+          "columns": ["subscription_id", "outage_id", "kind", "revision"]
         }
       },
       "policies": {},
@@ -752,12 +729,8 @@
           "name": "outage_first_seen_run_scrape_run_id_fk",
           "tableFrom": "outage",
           "tableTo": "scrape_run",
-          "columnsFrom": [
-            "first_seen_run"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["first_seen_run"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         },
@@ -765,12 +738,8 @@
           "name": "outage_last_seen_run_scrape_run_id_fk",
           "tableFrom": "outage",
           "tableTo": "scrape_run",
-          "columnsFrom": [
-            "last_seen_run"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["last_seen_run"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         }
@@ -780,9 +749,7 @@
         "outage_content_hash_unique": {
           "name": "outage_content_hash_unique",
           "nullsNotDistinct": false,
-          "columns": [
-            "content_hash"
-          ]
+          "columns": ["content_hash"]
         }
       },
       "policies": {},
@@ -933,12 +900,8 @@
           "name": "outage_street_outage_id_outage_id_fk",
           "tableFrom": "outage_street",
           "tableTo": "outage",
-          "columnsFrom": [
-            "outage_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["outage_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
@@ -946,12 +909,8 @@
           "name": "outage_street_street_id_street_id_fk",
           "tableFrom": "outage_street",
           "tableTo": "street",
-          "columnsFrom": [
-            "street_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["street_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         },
@@ -959,12 +918,8 @@
           "name": "outage_street_settlement_id_settlement_id_fk",
           "tableFrom": "outage_street",
           "tableTo": "settlement",
-          "columnsFrom": [
-            "settlement_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["settlement_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         }
@@ -1022,12 +977,8 @@
           "name": "report_outage_id_outage_id_fk",
           "tableFrom": "report",
           "tableTo": "outage",
-          "columnsFrom": [
-            "outage_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["outage_id"],
+          "columnsTo": ["id"],
           "onDelete": "set null",
           "onUpdate": "no action"
         },
@@ -1035,12 +986,8 @@
           "name": "report_subscription_id_subscription_id_fk",
           "tableFrom": "report",
           "tableTo": "subscription",
-          "columnsFrom": [
-            "subscription_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["subscription_id"],
+          "columnsTo": ["id"],
           "onDelete": "set null",
           "onUpdate": "no action"
         }
@@ -1362,10 +1309,7 @@
         "settlement_city_osm_id_unique": {
           "name": "settlement_city_osm_id_unique",
           "nullsNotDistinct": false,
-          "columns": [
-            "city",
-            "osm_id"
-          ]
+          "columns": ["city", "osm_id"]
         }
       },
       "policies": {},
@@ -1478,10 +1422,7 @@
         "street_city_name_norm_unique": {
           "name": "street_city_name_norm_unique",
           "nullsNotDistinct": false,
-          "columns": [
-            "city",
-            "name_norm"
-          ]
+          "columns": ["city", "name_norm"]
         }
       },
       "policies": {},
@@ -1565,12 +1506,8 @@
           "name": "street_alias_street_id_street_id_fk",
           "tableFrom": "street_alias",
           "tableTo": "street",
-          "columnsFrom": [
-            "street_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["street_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -1694,12 +1631,8 @@
           "name": "subscription_device_id_device_id_fk",
           "tableFrom": "subscription",
           "tableTo": "device",
-          "columnsFrom": [
-            "device_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["device_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
@@ -1707,12 +1640,8 @@
           "name": "subscription_street_id_street_id_fk",
           "tableFrom": "subscription",
           "tableTo": "street",
-          "columnsFrom": [
-            "street_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["street_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         },
@@ -1720,12 +1649,8 @@
           "name": "subscription_settlement_id_settlement_id_fk",
           "tableFrom": "subscription",
           "tableTo": "settlement",
-          "columnsFrom": [
-            "settlement_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["settlement_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         }
@@ -1746,79 +1671,42 @@
     "public.alias_source": {
       "name": "alias_source",
       "schema": "public",
-      "values": [
-        "exact",
-        "fuzzy",
-        "heuristic",
-        "scored",
-        "manual"
-      ]
+      "values": ["exact", "fuzzy", "heuristic", "scored", "manual"]
     },
     "public.live_activity_kind": {
       "name": "live_activity_kind",
       "schema": "public",
-      "values": [
-        "push_to_start",
-        "activity_update"
-      ]
+      "values": ["push_to_start", "activity_update"]
     },
     "public.notification_kind": {
       "name": "notification_kind",
       "schema": "public",
-      "values": [
-        "new",
-        "evening_before",
-        "changed",
-        "cancelled",
-        "reinstated"
-      ]
+      "values": ["new", "evening_before", "changed", "cancelled", "reinstated"]
     },
     "public.outage_status": {
       "name": "outage_status",
       "schema": "public",
-      "values": [
-        "active",
-        "changed",
-        "cancelled"
-      ]
+      "values": ["active", "changed", "cancelled"]
     },
     "public.parity": {
       "name": "parity",
       "schema": "public",
-      "values": [
-        "odd",
-        "even"
-      ]
+      "values": ["odd", "even"]
     },
     "public.platform": {
       "name": "platform",
       "schema": "public",
-      "values": [
-        "android",
-        "ios"
-      ]
+      "values": ["android", "ios"]
     },
     "public.resolved_by": {
       "name": "resolved_by",
       "schema": "public",
-      "values": [
-        "exact",
-        "alias",
-        "form",
-        "fuzzy",
-        "heuristic",
-        "scored",
-        "manual",
-        "unresolved"
-      ]
+      "values": ["exact", "alias", "form", "fuzzy", "heuristic", "scored", "manual", "unresolved"]
     },
     "public.script": {
       "name": "script",
       "schema": "public",
-      "values": [
-        "latn",
-        "cyrl"
-      ]
+      "values": ["latn", "cyrl"]
     }
   },
   "schemas": {},

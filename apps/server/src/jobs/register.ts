@@ -5,6 +5,7 @@ import {
   deliverJob,
   eveningJob,
   JOBS,
+  monitorJob,
   planJob,
   receiptsJob,
   safetyNetJob,
@@ -26,6 +27,7 @@ export const SCHEDULES: Readonly<Record<JobName, string | null>> = {
   [JOBS.receipts]: '*/5 * * * *',
   [JOBS.safetyNet]: '5 * * * *', // hourly: the 12-hour safety net
   [JOBS.backup]: '30 3 * * *', // nightly pg_dump
+  [JOBS.monitor]: '*/10 * * * *',
 };
 
 const HANDLERS: Record<JobName, (ctx: JobContext) => Promise<unknown>> = {
@@ -37,6 +39,7 @@ const HANDLERS: Record<JobName, (ctx: JobContext) => Promise<unknown>> = {
   [JOBS.boundary]: boundaryJob,
   [JOBS.safetyNet]: safetyNetJob,
   [JOBS.backup]: backupJob,
+  [JOBS.monitor]: monitorJob,
 };
 
 export type JobDeps = Omit<JobContext, 'enqueue'>;
