@@ -26,3 +26,6 @@ jest.mock('react-native-reanimated', () => {
     FadeOut: layout,
   };
 });
+
+// expo-crypto is native; the tests use Node's.
+jest.mock('expo-crypto', () => ({ randomUUID: () => require('node:crypto').randomUUID() }));

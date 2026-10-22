@@ -2,12 +2,37 @@ import { PersistQueryClientProvider } from '@tanstack/react-query-persist-client
 import { Stack } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
-import { ThemeProvider } from '../src/design/theme';
+import { ThemeProvider, useTheme } from '../src/design/theme';
 import { initI18n, setLocale } from '../src/i18n';
 import { createQueryClient, CACHE_MAX_AGE_MS, mmkvPersister } from '../src/query/client';
 import { useSettings } from '../src/store/settings';
 
 const queryClient = createQueryClient();
+
+// Inside the theme provider, so every screen (and the sheet) gets the page background at once.
+function RootStack() {
+  const { colors } = useTheme();
+  return (
+    <Stack
+      screenOptions={{
+        headerShown: false,
+        contentStyle: { backgroundColor: colors.chrome.background },
+      }}
+    >
+      <Stack.Screen name="onboarding" />
+      <Stack.Screen name="(tabs)" />
+      <Stack.Screen
+        name="add-address"
+        options={{
+          presentation: 'formSheet',
+          sheetAllowedDetents: [0.95],
+          sheetGrabberVisible: true,
+        }}
+      />
+      <Stack.Screen name="gallery" />
+    </Stack>
+  );
+}
 
 export default function RootLayout() {
   const language = useSettings((s) => s.language);
@@ -33,10 +58,7 @@ export default function RootLayout() {
         persistOptions={{ persister: mmkvPersister, maxAge: CACHE_MAX_AGE_MS }}
       >
         <ThemeProvider>
-          <Stack screenOptions={{ headerShown: false }}>
-            <Stack.Screen name="(tabs)" />
-            <Stack.Screen name="gallery" />
-          </Stack>
+          <RootStack />
         </ThemeProvider>
       </PersistQueryClientProvider>
     </GestureHandlerRootView>

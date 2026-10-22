@@ -7,20 +7,22 @@ import { AppText } from './AppText';
 export interface ChipProps {
   label: string;
   selected?: boolean;
+  // A choice that exists but cannot be taken yet (a city marked "Uskoro"): dimmed, not pressable.
+  disabled?: boolean;
   onPress?: () => void;
   accessibilityLabel?: string;
 }
 
 /** Filled selection chip (never outlined): raised fill, lime when selected. */
-export function Chip({ label, selected, onPress, accessibilityLabel }: ChipProps) {
+export function Chip({ label, selected, disabled, onPress, accessibilityLabel }: ChipProps) {
   const { colors, radius } = useTheme();
   const c = colors.chrome;
   return (
     <Pressable
-      disabled={!onPress}
+      disabled={!onPress || disabled}
       accessibilityRole={onPress ? 'button' : 'text'}
       accessibilityLabel={accessibilityLabel ?? label}
-      accessibilityState={{ selected: !!selected }}
+      accessibilityState={{ selected: !!selected, disabled: !!disabled }}
       onPress={() => {
         haptics.selection();
         onPress?.();
@@ -31,6 +33,7 @@ export function Chip({ label, selected, onPress, accessibilityLabel }: ChipProps
           minHeight: onPress ? MIN_TOUCH : 36,
           borderRadius: radius.md,
           backgroundColor: selected ? c.accent : c.raised,
+          opacity: disabled ? 0.55 : 1,
         },
       ]}
     >

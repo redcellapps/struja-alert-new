@@ -1,6 +1,11 @@
+import { Redirect } from 'expo-router';
 import { NativeTabs } from 'expo-router/native-tabs';
+import { useSettings } from '../../src/store/settings';
 
 export default function TabsLayout() {
+  // Nothing but onboarding is shown until it is finished.
+  const onboarded = useSettings((s) => s.onboarded);
+  if (!onboarded) return <Redirect href="/onboarding" />;
   return (
     <NativeTabs>
       <NativeTabs.Trigger name="index">

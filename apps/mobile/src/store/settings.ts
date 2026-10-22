@@ -6,6 +6,7 @@ import { zustandStorage } from './storage';
 export type ThemeMode = 'system' | 'light' | 'dark';
 export type Language = 'sr' | 'en';
 export type Script = 'latn' | 'cyrl';
+export type NotificationPermission = 'granted' | 'denied' | 'undetermined';
 export type Kind = (typeof NOTIFICATION_KINDS)[number];
 
 export interface SettingsState {
@@ -16,6 +17,8 @@ export interface SettingsState {
   enabledKinds: Kind[];
   quietHours: QuietHoursDto | null;
   onboarded: boolean;
+  // What the system said the last time we asked (Android 13+ and iOS ask at runtime).
+  notificationPermission: NotificationPermission;
   set: (patch: Partial<Omit<SettingsState, 'set'>>) => void;
 }
 
@@ -29,6 +32,7 @@ export const useSettings = create<SettingsState>()(
       enabledKinds: [...NOTIFICATION_KINDS],
       quietHours: { ...DEFAULT_QUIET_HOURS },
       onboarded: false,
+      notificationPermission: 'undetermined',
       set: (patch) => set(patch),
     }),
     {

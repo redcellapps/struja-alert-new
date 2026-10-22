@@ -11,6 +11,7 @@ import {
 import { endpoints } from './endpoints';
 import { useAddresses } from '../store/addresses';
 import { useSettings } from '../store/settings';
+import { newId } from '../util/uuid';
 
 // 10.0.2.2 is the host machine as seen from the Android emulator. Release builds set
 // EXPO_PUBLIC_API_URL to the https address of the server.
@@ -22,8 +23,6 @@ const secureStore: SecretStore = {
   remove: (key) => SecureStore.deleteItemAsync(key),
 };
 
-const randomId = (): string => globalThis.crypto.randomUUID();
-
 const deps = (): DeviceDeps => ({
   secrets: secureStore,
   // Late-bound: the device endpoints do not need credentials.
@@ -33,7 +32,7 @@ const deps = (): DeviceDeps => ({
     const { language, script } = useSettings.getState();
     return { language, script };
   },
-  randomId,
+  randomId: newId,
   addresses: () => useAddresses.getState().items,
 });
 

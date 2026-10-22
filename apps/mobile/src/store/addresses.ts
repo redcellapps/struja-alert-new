@@ -20,10 +20,14 @@ export const useAddresses = create<AddressesState>()(
       add: (localId, request) => {
         if (get().items.length >= MAX_ADDRESSES) return false;
         const first = get().items.length === 0;
+        const primary = first || request.isPrimary === true;
         set((s) => ({
           items: [
-            ...s.items,
-            { localId, request: { ...request, isPrimary: first || request.isPrimary } },
+            // a new primary address takes the mark from the old one
+            ...(primary
+              ? s.items.map((a) => ({ ...a, request: { ...a.request, isPrimary: false } }))
+              : s.items),
+            { localId, request: { ...request, isPrimary: primary } },
           ],
         }));
         return true;
