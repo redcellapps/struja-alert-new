@@ -178,8 +178,8 @@ export const scrapeRun = pgTable(
     error: text('error'),
     // The date in the page header, and how the page looked (see the broken page guard):
     // 'ok' | 'truncated' | 'no_table' | 'reduced' (fewer than half the rows of the previous healthy
-    // fetch: not counted towards "missing") | 'confirmed_reduced' (the same reduced page twice in
-    // a row: taken as real, e.g. a mass cancellation).
+    // fetch, which had at least 5 rows: not counted towards "missing") | 'confirmed_reduced' (below half
+    // again right after a reduced fetch, or confirmed by the admin: taken as real).
     pageDate: date('page_date'),
     health: text('health'),
   },
@@ -208,6 +208,27 @@ export const alert = pgTable(
     uniqueIndex('alert_open_unique')
       .on(t.kind, t.dedupeKey)
       .where(sql`${t.resolvedAt} IS NULL`),
+  ],
+);
+
+// What the admin decided about a segment: confirmed a match, rejected an auto-accept, or dismissed
+// a segment that is no street. The reject rate of spot-checked auto-accepts feeds monitoring.
+export const segmentReview = pgTable(
+  'segment_review',
+  {
+    id: serial('id').primaryKey(),
+    outageStreetId: integer('outage_street_id'),
+    // The normalized segment name (the alias key).
+    segNorm: text('seg_norm').notNull(),
+    // 'unresolved': from the unresolved queue. 'spot_check': an auto-accepted (scored) match.
+    kind: text('kind').$type<'unresolved' | 'spot_check'>().notNull(),
+    decision: text('decision').$type<'confirmed' | 'rejected' | 'dismissed'>().notNull(),
+    streetId: integer('street_id'),
+    decidedAt: tstz('decided_at').notNull().defaultNow(),
+  },
+  (t) => [
+    index('segment_review_norm_idx').on(t.segNorm),
+    index('segment_review_kind_idx').on(t.kind, t.decidedAt),
   ],
 );
 

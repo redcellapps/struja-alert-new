@@ -11,6 +11,7 @@
     "db:migrate": "node --env-file-if-exists=../../.env src/db/migrate-cli.ts"
   },
   "dependencies": {
+    "@fastify/helmet": "^13.2.0",
     "@fastify/rate-limit": "11.2.1",
     "@struja/parser": "workspace:*",
     "@struja/shared": "workspace:*",

@@ -40,7 +40,15 @@ if (config.IMPORT_GAZETTEER) {
 }
 
 const gazetteers = new GazetteerService(db);
-const app = buildApp({ db, gazetteers });
+const admin = config.ADMIN_TOKEN
+  ? {
+      token: config.ADMIN_TOKEN,
+      ipAllowlist: config.ADMIN_IP_ALLOWLIST.split(',')
+        .map((s) => s.trim())
+        .filter(Boolean),
+    }
+  : undefined;
+const app = buildApp({ db, gazetteers, admin }, { trustProxy: config.TRUST_PROXY });
 
 let stopJobs: (() => Promise<void>) | null = null;
 if (config.RUN_JOBS) {

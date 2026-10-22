@@ -25,6 +25,13 @@ describe('loadConfig', () => {
     ).toBe('http');
   });
 
+  it('serves the admin only with a long enough token, from loopback by default', () => {
+    expect(loadConfig(base).ADMIN_TOKEN).toBeUndefined();
+    expect(loadConfig(base).ADMIN_IP_ALLOWLIST).toBe('127.0.0.1,::1');
+    expect(() => loadConfig({ ...base, ADMIN_TOKEN: 'short' })).toThrow(/ADMIN_TOKEN/);
+    expect(loadConfig({ ...base, ADMIN_TOKEN: 'x'.repeat(16) }).ADMIN_TOKEN).toHaveLength(16);
+  });
+
   it('rejects nonsense values', () => {
     expect(() => loadConfig({ ...base, PORT: 'abc' })).toThrow(/PORT/);
     expect(() => loadConfig({ ...base, PAGE_SOURCE: 'ftp' })).toThrow(/PAGE_SOURCE/);

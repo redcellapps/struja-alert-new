@@ -57,6 +57,13 @@
       "when": 1792689753143,
       "tag": "0007_outage_signals",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1792696906051,
+      "tag": "0008_admin_reviews",
+      "breakpoints": true
     }
   ]
 }

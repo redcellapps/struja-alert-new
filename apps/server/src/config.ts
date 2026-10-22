@@ -13,6 +13,12 @@ export const configSchema = z.object({
   FIXTURES_DIR: z.string().optional(),
   // Required for PAGE_SOURCE=http: goes into the User-Agent.
   SCRAPER_CONTACT_EMAIL: z.string().optional(),
+  // The admin page and API are served only when a token is set (16 characters or more).
+  ADMIN_TOKEN: z.string().min(16, 'ADMIN_TOKEN must be at least 16 characters').optional(),
+  // Comma-separated addresses or IPv4 CIDR ranges that may reach the admin routes.
+  ADMIN_IP_ALLOWLIST: z.string().default('127.0.0.1,::1'),
+  // Behind a reverse proxy: take the client address from X-Forwarded-For.
+  TRUST_PROXY: bool.default(false),
   BACKUP_DIR: z.string().default('./backups'),
   // Development convenience: load the saved OSM snapshots when the database has no streets yet.
   IMPORT_GAZETTEER: bool.default(false),

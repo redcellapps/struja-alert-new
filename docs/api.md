@@ -46,4 +46,23 @@ The device secret is acceptable as the only credential for v1. If the app loses 
 
 ## Not in `/v1` yet
 
-Admin endpoints and page (step 8), live-activity tokens (iOS, Phase 6), real push delivery (Phase 4).
+Live-activity tokens (iOS, Phase 6), real push delivery (Phase 4).
+
+## Admin (`/admin`, not part of `/v1`)
+
+Served only when `ADMIN_TOKEN` (16+ characters) is set. Every request needs the token (`Authorization: Bearer <token>`, or HTTP Basic with the token as password so a browser can open the page) **and** a client address on `ADMIN_IP_ALLOWLIST` (exact addresses or IPv4 CIDR; behind a proxy set `TRUST_PROXY=true`). State-changing requests from another site are refused. `@fastify/helmet` headers (CSP and others) apply to the admin scope only; there is no CORS.
+
+| Method and path                        | What it does                                                                                                              |
+| -------------------------------------- | ------------------------------------------------------------------------------------------------------------------------- |
+| `GET /admin`                           | The page: health, alerts, reduced pages, unresolved queue, spot check, latest fetches, reports.                           |
+| `GET /admin/health`                    | Latest fetch per page, open alerts, resolution rate, spot-check rejects (30 d), delivery counts (24 h).                   |
+| `GET /admin/reports`                   | Reports from the app ("Prijavi grešku").                                                                                  |
+| `GET /admin/reduced`                   | Reduced pages waiting for a decision.                                                                                     |
+| `POST /admin/runs/:id/confirm-reduced` | "Confirm as real": the drop happened; runs the missing/cancel pass that page skipped. `409` if not reduced or superseded. |
+| `GET /admin/unresolved`                | Segments no step could place (upcoming outages), grouped by name, with up to 5 candidates.                                |
+| `POST /admin/unresolved/confirm`       | `{ segNorm, streetId, raw? }`: pins a `manual` alias, re-resolves the open segments, reloads the gazetteer.               |
+| `POST /admin/unresolved/dismiss`       | `{ segNorm }`: "not a street", hidden from the queue.                                                                     |
+| `GET /admin/spot-checks`               | Auto-accepted (`scored`) matches not reviewed yet.                                                                        |
+| `POST /admin/spot-checks/review`       | `{ rowIds, decision: confirmed                                                                                            | rejected }`: a rejected match goes back to unresolved. |
+
+The page's forms post to the same endpoints; a form post (`Accept: text/html`) is answered with a redirect back to `/admin`.
