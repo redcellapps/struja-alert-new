@@ -7,6 +7,6 @@
   "types": "src/index.ts",
   "scripts": {
     "typecheck": "tsc -p tsconfig.json",
-    "test": "vitest run --passWithNoTests"
+    "test": "vitest run --passWithNoTests --coverage --reporter=default --reporter=junit --outputFile.junit=../../test-results/shared/junit.xml --coverage.reportsDirectory=../../test-results/shared/coverage --coverage.reporter=text-summary --coverage.reporter=lcov"
   }
 }

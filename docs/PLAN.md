@@ -17,7 +17,10 @@ Decisions taken during planning:
 3. Collector accepts a one-hour window per slot and dedupes per slot (GitHub cron can be delayed). DST ends 25 Oct 2026.
 4. Phase 3: before building the map, present Android map options (Google Maps key vs MapLibre + tile provider; cost and setup) and wait for the user's choice.
 5. Phase 3 iOS smoke build needs a paid Apple Developer account. If it isn't ready, move that check to Phase 6 and tell the user.
-6. Ask before installing Maestro.
+6. Ask before installing Maestro (user: wait until Phase 3).
+7. `pnpm-workspace.yaml` has a `minimumReleaseAgeExclude` list (brand-new Expo packages). **Remove the exemptions once those versions pass the age threshold.**
+8. Before the first Play build, block unneeded permissions in `app.json` (`android.blockedPermissions`): `READ_EXTERNAL_STORAGE`, `WRITE_EXTERNAL_STORAGE`, `SYSTEM_ALERT_WINDOW`. This is a Phase 5 item, not applied yet: `SYSTEM_ALERT_WINDOW` comes in for the dev-client overlay, and blocking it in the shared manifest could break debug builds, so apply it for the release profile (or verify debug still works). Also confirm the release manifest has no `ACCESS_LOCAL_NETWORK`.
+9. Every test run writes JUnit and coverage reports to `test-results/` (git-ignored).
 
 **Dev environment, re-verified 2026-10-22 (this session):**
 - Present: Node 24.15.0, pnpm 12.14.0, eas-cli 25.3.0, Docker 29.8.2 + Compose v5.6.0, gh, OpenSSH, Git.

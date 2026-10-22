@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "node --watch --experimental-strip-types src/main.ts",
     "typecheck": "tsc -p tsconfig.json",
-    "test": "vitest run --passWithNoTests"
+    "test": "vitest run --passWithNoTests --coverage --reporter=default --reporter=junit --outputFile.junit=../../test-results/server/junit.xml --coverage.reportsDirectory=../../test-results/server/coverage --coverage.reporter=text-summary --coverage.reporter=lcov"
   },
   "dependencies": {
     "fastify": "5.12.7"

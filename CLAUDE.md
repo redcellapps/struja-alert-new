@@ -37,3 +37,11 @@ Expo (Android first, iOS later) + Fastify/Postgres app that pushes a notificatio
 ## Windows note (Android native builds)
 
 Ninja/CMake fail when native build paths exceed 260 characters. Keep the repo at a **short path** (e.g. `C:\sa`, not `C:\Users\<name>\...`); `apps/mobile/plugins/with-short-cxx-dir.js` also moves the CMake staging dir to `C:/b` on Windows (override: `STRUJA_CXX_DIR`). `pnpm-workspace.yaml` uses `nodeLinker: hoisted` for the same reason. Debug builds on Android 17 need the `ACCESS_LOCAL_NETWORK` permission to reach Metro (debug manifest only): `adb shell pm grant rs.example.strujaalert android.permission.ACCESS_LOCAL_NETWORK`, then `adb reverse tcp:8081 tcp:8081`.
+
+## Testing and reports
+
+Every `pnpm test` run writes JUnit and coverage reports to `test-results/<package>/` (git-ignored).
+
+## Fixture collector (Phase 1)
+
+`scripts/` (`@struja/scripts`): `pnpm --filter @struja/scripts collect` needs `SCRAPER_CONTACT_EMAIL`; it refuses to run without it. It collects only inside the 07/13/19 Europe/Belgrade one-hour windows and dedupes per slot. Raw pages go to `$FIXTURES_DIR/eds/<slot>/`. In CI it runs from `.github/workflows/collect.yml` and pushes to the `fixtures-collect` branch, never to main. Do not run it locally against the live site unless asked.

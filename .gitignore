@@ -17,3 +17,4 @@ android/
 ios/
 *.log
 .DS_Store
+test-results/
