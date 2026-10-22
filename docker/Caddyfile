@@ -1,0 +1,18 @@
+# Used only with `--profile caddy` (see compose.prod.yaml and docs/ops.md).
+{$SITE_ADDRESS} {
+	encode zstd gzip
+
+	# The admin page and API: only from the allowed addresses (and still behind the admin token).
+	@admin path /admin /admin/*
+	handle @admin {
+		@allowed remote_ip {$ADMIN_ALLOWED_IPS}
+		handle @allowed {
+			reverse_proxy server:3000
+		}
+		respond "Forbidden" 403
+	}
+
+	handle {
+		reverse_proxy server:3000
+	}
+}
