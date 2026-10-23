@@ -24,7 +24,12 @@ export {
   type SwitchRowProps,
 } from './Selection';
 export { SkeletonCard, type SkeletonCardProps } from './SkeletonCard';
-export { StatusBadge, type StatusBadgeProps } from './StatusBadge';
+export {
+  PossibleBadge,
+  StatusBadge,
+  type PossibleBadgeProps,
+  type StatusBadgeProps,
+} from './StatusBadge';
 export { StatusHero, type StatusHeroProps } from './StatusHero';
 export { TextField, type TextFieldProps } from './TextField';
 export { TimelineBar, type TimelineBarProps } from './TimelineBar';

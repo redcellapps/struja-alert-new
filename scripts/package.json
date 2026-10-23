@@ -12,7 +12,8 @@
     "gate-report": "node src/gate-report.ts",
     "confirm-labels": "node src/confirm-labels.ts",
     "synthetic-eval": "node src/synthetic-eval.ts",
-    "design-review": "node src/design-review.ts"
+    "design-review": "node src/design-review.ts",
+    "home-scenarios": "node src/home-scenarios.ts"
   },
   "dependencies": {
     "@struja/parser": "workspace:*"

@@ -13,7 +13,7 @@ export interface SectionHeaderProps {
 export function SectionHeader({ title, trailing, actionLabel, onAction }: SectionHeaderProps) {
   return (
     <View style={styles.row}>
-      <AppText variant="title" accessibilityRole="header">
+      <AppText variant="title" accessibilityRole="header" style={styles.title}>
         {title}
       </AppText>
       {actionLabel ? (
@@ -28,6 +28,7 @@ export function SectionHeader({ title, trailing, actionLabel, onAction }: Sectio
 }
 
 const styles = StyleSheet.create({
+  title: { flexShrink: 1 },
   row: {
     flexDirection: 'row',
     alignItems: 'center',

@@ -72,6 +72,64 @@ export function outagesFor(subscription: SubscriptionDto, now: Date): AddressOut
   ];
 }
 
+// The streets of the mock outage: a street with an odd-numbered range, a partial street, a street with
+// an even-numbered range and a whole street.
+const SEGMENTS: OutageDetailDto['segments'] = [
+  {
+    raw: 'Војводе Мишића (непарни од 1 до 25, од 26 до 40)',
+    kind: 'street',
+    name: { latin: 'Vojvode Mišića', cyrillic: 'Војводе Мишића' },
+    partial: false,
+    ranges: [
+      { raw: 'непарни од 1 до 25', from: 1, to: 25, parity: 'odd' },
+      { raw: 'од 26 до 40', from: 26, to: 40, parity: null },
+    ],
+  },
+  {
+    raw: 'Булевар Немањића (парни од 2 до 40)',
+    kind: 'street',
+    name: { latin: 'Bulevar Nemanjića', cyrillic: 'Булевар Немањића' },
+    partial: false,
+    ranges: [{ raw: 'парни од 2 до 40', from: 2, to: 40, parity: 'even' }],
+  },
+  {
+    raw: 'делови Студеничке',
+    kind: 'street',
+    name: { latin: 'Studenička', cyrillic: 'Студеничка' },
+    partial: true,
+    ranges: [],
+  },
+  {
+    raw: 'Космајска',
+    kind: 'street',
+    name: { latin: 'Kosmajska', cyrillic: 'Космајска' },
+    partial: false,
+    ranges: [],
+  },
+];
+
+/** The detail of an address outage, with the same times, status and match. */
+export function detailForOutage(outage: AddressOutageDto): OutageDetailDto {
+  return {
+    id: outage.id,
+    city: 'nis',
+    municipality: outage.municipality,
+    outageDate: outage.outageDate,
+    startsAt: outage.startsAt,
+    endsAt: outage.endsAt,
+    status: outage.status,
+    revision: outage.revision,
+    rawStreets: SEGMENTS.map((x) => x.raw).join(', ') + ';',
+    segments: SEGMENTS,
+    geometry: { type: 'FeatureCollection', features: [] },
+    source: {
+      name: 'Elektrodistribucija Srbije',
+      url: 'https://elektrodistribucija.rs/planirana-iskljucenja/planirana-ni',
+    },
+    mine: [{ subscriptionId: outage.subscriptionId, match: outage.match, reason: outage.reason }],
+  };
+}
+
 export function detailFor(id: number, subscriptionId: number, now: Date): OutageDetailDto {
   const start = new Date(now.getTime() + 26 * HOUR);
   start.setUTCMinutes(0, 0, 0);

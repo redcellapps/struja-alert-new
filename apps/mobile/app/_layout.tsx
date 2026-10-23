@@ -37,6 +37,22 @@ function RootStack() {
           sheetGrabberVisible: true,
         }}
       />
+      <Stack.Screen
+        name="edit-address"
+        options={{
+          presentation: 'formSheet',
+          sheetAllowedDetents: [0.6],
+          sheetGrabberVisible: true,
+        }}
+      />
+      <Stack.Screen
+        name="outage/[id]"
+        options={{
+          presentation: 'formSheet',
+          sheetAllowedDetents: [0.95],
+          sheetGrabberVisible: true,
+        }}
+      />
       <Stack.Screen name="gallery" />
     </Stack>
   );

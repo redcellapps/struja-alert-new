@@ -11,6 +11,19 @@ export interface AddressesState {
   add: (localId: string, request: CreateSubscriptionRequest) => boolean;
   remove: (localId: string) => void;
   setPrimary: (localId: string) => void;
+  // Adds a house number to the address that matches a server address (same street or settlement,
+  // label and old number): the device list and the server list mirror each other.
+  setHouseNumber: (
+    match: AddressMatch,
+    next: { houseNumber: number; houseSuffix?: string },
+  ) => void;
+}
+
+export interface AddressMatch {
+  streetId: number | null;
+  settlementId: number | null;
+  houseNumber: number | null;
+  label: string | null;
 }
 
 export const useAddresses = create<AddressesState>()(
@@ -39,6 +52,23 @@ export const useAddresses = create<AddressesState>()(
           if (hadPrimary && rest[0])
             rest[0] = { ...rest[0], request: { ...rest[0].request, isPrimary: true } };
           return { items: rest };
+        }),
+      setHouseNumber: (match, next) =>
+        set((s) => {
+          const i = s.items.findIndex(
+            (a) =>
+              (a.request.streetId ?? null) === match.streetId &&
+              (a.request.settlementId ?? null) === match.settlementId &&
+              (a.request.houseNumber ?? null) === match.houseNumber &&
+              (a.request.label ?? null) === match.label,
+          );
+          if (i < 0) return s;
+          const items = [...s.items];
+          const request = { ...items[i]!.request, houseNumber: next.houseNumber };
+          if (next.houseSuffix === undefined) delete request.houseSuffix;
+          else request.houseSuffix = next.houseSuffix;
+          items[i] = { localId: items[i]!.localId, request };
+          return { items };
         }),
       setPrimary: (localId) =>
         set((s) => ({

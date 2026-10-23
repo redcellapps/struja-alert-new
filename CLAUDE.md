@@ -8,6 +8,8 @@ Expo (Android first, iOS later) + Fastify/Postgres app that pushes a notificatio
 - `docker compose -f docker/compose.yaml up -d` — local Postgres/PostGIS
 - `pnpm --filter @struja/server dev` — API on :3000 (`/healthz`)
 - `cd apps/mobile && npx expo run:android` — dev build on emulator/phone
+- `pnpm --filter @struja/mobile mock` — mock API on :3000 for the app (the emulator reaches it as 10.0.2.2). Development scenarios: `MOCK_SCENARIO=<clear|upcoming|imminent|active|cancelled|possible|three|offline>`, or switch at run time with `curl -X POST localhost:3000/__dev/scenario -d '{"name":"active"}'`; `MOCK_LOG=1` logs requests.
+- `pnpm --filter @struja/scripts home-scenarios` — adb screenshots of Početna and the outage detail in every mock scenario, dark and light, into `docs/screens/android/step4/`. Do not edit app code while it runs (Fast Refresh puts a banner in the shots).
 
 ## Layout
 

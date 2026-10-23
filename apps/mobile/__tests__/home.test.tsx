@@ -2,7 +2,13 @@ import { fireEvent, render, screen } from '@testing-library/react-native';
 import type { AddressOutageDto } from '@struja/shared';
 import { buildTheme, ThemeProvider } from '../src/design/theme';
 import { initI18n, i18next } from '../src/i18n';
-import { agoLabel, dayCaption, durationShort, spokenDuration } from '../src/home/format';
+import {
+  agoLabel,
+  dayCaption,
+  durationShort,
+  hoursUntil,
+  spokenDuration,
+} from '../src/home/format';
 import { HomeView, type HomeAddress, type HomeViewProps } from '../src/home/HomeView';
 
 jest.mock('react-native-safe-area-context', () => ({
@@ -36,6 +42,14 @@ describe('home formatting', () => {
     expect(spokenDuration(5 * 3_600_000, t)).toBe('5 časova');
   });
 
+  it('says how long until something starts, in whole units', () => {
+    expect(hoursUntil(40 * 60_000)).toBe('40 min');
+    expect(hoursUntil(2.5 * 3_600_000)).toBe('2 h');
+    expect(hoursUntil(47 * 3_600_000)).toBe('47 h');
+    expect(hoursUntil(50 * 3_600_000)).toBe('2 d');
+    expect(hoursUntil(-1)).toBe('0 min');
+  });
+
   it('names a day relative to today', () => {
     expect(dayCaption('2026-11-03', '2026-11-03', t)).toBe('Danas');
     expect(dayCaption('2026-11-04', '2026-11-03', t)).toBe('Sutra');
@@ -66,6 +80,7 @@ const home = (outages: AddressOutageDto[], over: Partial<HomeAddress> = {}): Hom
   id: 1,
   label: 'Kuća',
   name: 'Vojvode Mišića 34',
+  houseNumber: 34,
   primary: true,
   outages,
   ...over,
@@ -83,6 +98,8 @@ const props = (over: Partial<HomeViewProps> = {}): HomeViewProps => ({
   refreshing: false,
   onRefresh: jest.fn(),
   onAdd: jest.fn(),
+  onAddNumber: jest.fn(),
+  onOpenOutage: jest.fn(),
   onRetry: jest.fn(),
   onOpenSystemSettings: jest.fn(),
   onOpenAbout: jest.fn(),
@@ -130,14 +147,16 @@ describe('HomeView', () => {
     const o = outage('2026-11-03T07:30:00Z', '2026-11-03T11:30:00Z');
     await show(props({ addresses: [home([o])] }));
     expect(screen.getByText('Uskoro bez struje')).toBeTruthy();
-    expect(screen.getByText('Počinje za')).toBeTruthy();
     expect(
       screen.getByLabelText('Počinje za 2 časa 30 minuta'), // the spoken countdown
     ).toBeTruthy();
-    // tiles: next start and duration
-    expect(screen.getByText('Sledeće')).toBeTruthy();
-    expect(screen.getByText('4 h')).toBeTruthy();
-    expect(screen.getAllByText('08:30–12:30').length).toBeGreaterThan(0);
+    // tiles add to the hero: hours until the start, and the number of outages in four days
+    expect(screen.getAllByText('Počinje za')).toHaveLength(2); // the hero label and the tile
+    expect(screen.getByText('2 h')).toBeTruthy();
+    expect(screen.getByText('Danas 08:30')).toBeTruthy();
+    expect(screen.getByText('Ove nedelje')).toBeTruthy();
+    expect(screen.getByText('1 isključenje · 4 dana')).toBeTruthy();
+    expect(screen.queryByText('Trajanje')).toBeNull();
   });
 
   it('in progress: "Bez struje", a countdown to the return, and the end time in a tile', async () => {
@@ -225,5 +244,104 @@ describe('HomeView', () => {
       screen.getByLabelText('Nezvanična aplikacija, nije povezana sa EPS ili EDS.'),
     );
     expect(p.onOpenAbout).toHaveBeenCalled();
+  });
+
+  it('hides the tiles when there is no outage', async () => {
+    await show(props());
+    expect(screen.queryByText('Ove nedelje')).toBeNull();
+    expect(screen.queryByText('Počinje za')).toBeNull();
+  });
+
+  it('counts each outage once across addresses, within the four days only', async () => {
+    const shared = outage('2026-11-04T07:30:00Z', '2026-11-04T11:30:00Z', { id: 500 });
+    const late = outage('2026-11-12T07:30:00Z', '2026-11-12T11:30:00Z');
+    const cancelled = outage('2026-11-05T07:30:00Z', '2026-11-05T11:30:00Z', {
+      status: 'cancelled',
+    });
+    const second = home([{ ...shared, subscriptionId: 2 }, late, cancelled], {
+      id: 2,
+      label: 'Posao',
+      name: 'Studenička 7',
+      primary: false,
+    });
+    await show(props({ addresses: [home([shared]), second] }));
+    expect(screen.getByText('1 isključenje · 4 dana')).toBeTruthy();
+  });
+
+  it('while an outage runs, the first tile gives the time the power returns', async () => {
+    const o = outage('2026-11-03T04:00:00Z', '2026-11-03T08:00:00Z');
+    await show(props({ addresses: [home([o])] }));
+    expect(screen.getByText('Struja se vraća')).toBeTruthy();
+    expect(screen.getByText('09:00')).toBeTruthy();
+  });
+
+  it('with several addresses the first tile names the address it is about', async () => {
+    const o = outage('2026-11-03T07:30:00Z', '2026-11-03T11:30:00Z');
+    const second = home([], { id: 2, label: 'Posao', name: 'Studenička 7', primary: false });
+    await show(props({ addresses: [home([o]), second] }));
+    expect(screen.getByText('Kuća · Danas 08:30')).toBeTruthy();
+  });
+
+  it('puts the chosen day above the cards, and nothing extra for today', async () => {
+    const friday = outage('2026-11-06T08:00:00Z', '2026-11-06T12:00:00Z');
+    await show(props({ addresses: [home([friday])] }));
+    expect(screen.getByText('Adrese')).toBeTruthy();
+    await fireEvent.press(screen.getByLabelText('pet, 6. ima isključenja'));
+    expect(screen.getByText('Adrese · petak 6.')).toBeTruthy();
+    await fireEvent.press(screen.getByLabelText('uto, 3. nema isključenja'));
+    expect(screen.getByText('Adrese')).toBeTruthy();
+  });
+
+  it('a possible match keeps the status colour, adds a "Moguće" badge and offers "Dodaj broj"', async () => {
+    const o = outage('2026-11-04T07:30:00Z', '2026-11-04T11:30:00Z', {
+      match: 'possible',
+      reason: 'no_number',
+    });
+    const p = props({ addresses: [home([o], { houseNumber: null })] });
+    await show(p);
+    expect(screen.getAllByText('Moguće').length).toBe(2); // the hero and the card
+    expect(screen.getAllByText('Najavljeno').length).toBe(2); // the status badge stays
+    await fireEvent.press(screen.getByLabelText('Dodaj broj'));
+    expect(p.onAddNumber).toHaveBeenCalledWith(1);
+  });
+
+  it('offers "Dodaj broj" only when a number is missing and the reason is the missing number', async () => {
+    const partial = outage('2026-11-04T07:30:00Z', '2026-11-04T11:30:00Z', {
+      match: 'possible',
+      reason: 'partial',
+    });
+    const { unmount } = await show(props({ addresses: [home([partial], { houseNumber: null })] }));
+    expect(screen.getAllByText('Moguće').length).toBeGreaterThan(0);
+    expect(screen.queryByLabelText('Dodaj broj')).toBeNull();
+    await unmount();
+    const noNumber = outage('2026-11-04T07:30:00Z', '2026-11-04T11:30:00Z', {
+      match: 'possible',
+      reason: 'no_number',
+    });
+    await show(props({ addresses: [home([noNumber], { houseNumber: 34 })] }));
+    expect(screen.queryByLabelText('Dodaj broj')).toBeNull();
+  });
+
+  it('a certain match shows no "Moguće" badge', async () => {
+    const o = outage('2026-11-04T07:30:00Z', '2026-11-04T11:30:00Z');
+    await show(props({ addresses: [home([o])] }));
+    expect(screen.queryByText('Moguće')).toBeNull();
+  });
+
+  it('opens the outage from the hero and from an address card', async () => {
+    const o = outage('2026-11-03T07:30:00Z', '2026-11-03T11:30:00Z', { id: 77 });
+    const p = props({ addresses: [home([o])] });
+    await show(p);
+    await fireEvent.press(screen.getByLabelText(/^Uskoro bez struje. Vojvode Mišića 34./));
+    expect(p.onOpenOutage).toHaveBeenCalledWith(77, 1);
+    await fireEvent.press(screen.getByLabelText(/^Kuća, Vojvode Mišića 34./));
+    expect(p.onOpenOutage).toHaveBeenCalledTimes(2);
+  });
+
+  it('a card with no outage is not a button', async () => {
+    const p = props();
+    await show(p);
+    await fireEvent.press(screen.getByLabelText(/^Kuća, Vojvode Mišića 34./));
+    expect(p.onOpenOutage).not.toHaveBeenCalled();
   });
 });

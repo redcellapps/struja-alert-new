@@ -18,7 +18,15 @@ import {
 import { useTheme } from '../design/theme';
 import { CARD_GAP, type StatusKey } from '../design/tokens';
 import { addDays, belgradeDate, dayOfMonth, hhmm } from '../format/time';
-import { agoLabel, dayCaption, durationShort, spokenDuration, weekdayKey, type T } from './format';
+import {
+  agoLabel,
+  dayCaption,
+  durationShort,
+  hoursUntil,
+  spokenDuration,
+  weekdayKey,
+  type T,
+} from './format';
 import { daysWithOutage, outlookForDay, outlookFromNow, type Outlook } from './outlook';
 
 export interface HomeAddress {
@@ -26,6 +34,7 @@ export interface HomeAddress {
   label: string | null;
   // "Vojvode Mišića 34", in the chosen script.
   name: string;
+  houseNumber: number | null;
   primary: boolean;
   outages: AddressOutageDto[];
 }
@@ -46,6 +55,10 @@ export interface HomeViewProps {
   refreshing: boolean;
   onRefresh: () => void;
   onAdd: () => void;
+  // Opens the address to add the house number (the server id of the address).
+  onAddNumber: (addressId: number) => void;
+  // Opens an outage (its id) as it concerns an address (the address id).
+  onOpenOutage: (outageId: number, addressId: number) => void;
   onRetry: () => void;
   onOpenSystemSettings: () => void;
   onOpenAbout: () => void;
@@ -63,10 +76,12 @@ function HeroSection({
   outlook,
   address,
   now,
+  onOpen,
 }: {
   outlook: Outlook;
   address: HomeAddress;
   now: Date;
+  onOpen: (outageId: number, addressId: number) => void;
 }) {
   const { t } = useTranslation();
   const { colors } = useTheme();
@@ -98,14 +113,17 @@ function HeroSection({
           ? t('home.startsIn', { duration: spokenDuration(remaining, t) })
           : `${dayCaption(outage.outageDate, today, t)}, ${when}`;
   }
+  if (outlook.possible && outage) spoken = `${possibleText(outage, t)}. ${spoken}`;
 
   return (
     <StatusHero
       status={status}
       statusLabel={statusWord(status, t)}
+      possible={outlook.possible && status !== 'past' ? t('home.possibleBadge') : undefined}
       headline={headline}
       address={address.name}
       accessibilityLabel={`${headline}. ${address.name}. ${spoken}`}
+      onPress={outage ? () => onOpen(outage.id, address.id) : undefined}
     >
       {status === 'imminent' || status === 'active' ? (
         <View style={{ gap: 2 }}>
@@ -132,7 +150,7 @@ function HeroSection({
           {t('status.clear')}
         </AppText>
       )}
-      {outlook.possible && outage ? (
+      {outlook.possible && outage && status !== 'past' ? (
         <AppText variant="label" color={on}>
           {possibleText(outage, t)}
         </AppText>
@@ -141,33 +159,77 @@ function HeroSection({
   );
 }
 
-function TilesSection({ outlook, now }: { outlook: Outlook; now: Date }) {
+/**
+ * Two tiles that add to the hero instead of repeating it: how long until the next outage starts across
+ * all addresses (or, while one is running, when the power returns), and how many outages the four days
+ * hold. Nothing is shown when there is no outage at all.
+ */
+export function TilesSection({
+  addresses,
+  days,
+  now,
+}: {
+  addresses: HomeAddress[];
+  days: readonly string[];
+  now: Date;
+}) {
   const { t } = useTranslation();
-  const { outage, status } = outlook;
-  if (!outage || status === 'clear' || status === 'past') return null;
   const today = belgradeDate(now);
-  const active = status === 'active';
-  const first = active ? outage.endsAt : outage.startsAt;
-  const caption = dayCaption(
-    active ? belgradeDate(new Date(outage.endsAt)) : outage.outageDate,
-    today,
-    t,
-  );
+  const outlooks = addresses.map((a) => ({ a, o: outlookFromNow(a.outages, now) }));
+  const running = outlooks
+    .filter((x) => x.o.status === 'active')
+    .sort((x, y) => x.o.endsMs - y.o.endsMs)[0];
+  const next = outlooks
+    .filter((x) => x.o.status === 'imminent' || x.o.status === 'upcoming')
+    .sort((x, y) => x.o.startsMs - y.o.startsMs)[0];
+  const ids = new Set<number>();
+  for (const a of addresses)
+    for (const o of a.outages)
+      if (o.status !== 'cancelled' && days.includes(o.outageDate)) ids.add(o.id);
+  if (!running && !next && ids.size === 0) return null;
+
+  const several = addresses.length > 1;
+  let first: { label: string; value: string; caption: string; spoken: string } | null = null;
+  if (running?.o.outage) {
+    const end = running.o.outage.endsAt;
+    const caption = several
+      ? (running.a.label ?? running.a.name)
+      : dayCaption(belgradeDate(new Date(end)), today, t);
+    first = {
+      label: t('home.returnTile'),
+      value: hhmm(end),
+      caption,
+      spoken: `${t('home.returnTile')}: ${hhmm(end)}, ${caption}`,
+    };
+  } else if (next?.o.outage) {
+    const ms = next.o.startsMs - now.getTime();
+    const when = `${dayCaption(next.o.outage.outageDate, today, t)} ${hhmm(next.o.outage.startsAt)}`;
+    const caption = several ? `${next.a.label ?? next.a.name} · ${when}` : when;
+    first = {
+      label: t('home.startsInLabel'),
+      value: hoursUntil(ms),
+      caption,
+      spoken: `${t('home.startsInLabel')} ${spokenDuration(ms, t)}, ${caption}`,
+    };
+  }
+  const count = t('outages.count', { count: ids.size });
   return (
     <View style={{ flexDirection: 'row', gap: CARD_GAP }}>
+      {first ? (
+        <BentoTile
+          icon={{ ios: 'clock.fill', android: 'schedule' }}
+          label={first.label}
+          value={first.value}
+          caption={first.caption}
+          accessibilityLabel={first.spoken}
+        />
+      ) : null}
       <BentoTile
-        icon={{ ios: 'clock.fill', android: 'schedule' }}
-        label={active ? t('home.returnTile') : t('home.nextTile')}
-        value={hhmm(first)}
-        caption={caption}
-        accessibilityLabel={`${active ? t('home.returnTile') : t('home.nextTile')}: ${caption}, ${hhmm(first)}`}
-      />
-      <BentoTile
-        icon={{ ios: 'timer', android: 'timer' }}
-        label={t('home.durationTile')}
-        value={durationShort(outlook.endsMs - outlook.startsMs)}
-        caption={range(outage)}
-        accessibilityLabel={`${t('home.durationTile')}: ${spokenDuration(outlook.endsMs - outlook.startsMs, t)}, ${range(outage)}`}
+        icon={{ ios: 'calendar', android: 'calendar_month' }}
+        label={t('home.weekTile')}
+        value={String(ids.size)}
+        caption={`${count} · ${t('home.nextDays')}`}
+        accessibilityLabel={`${t('home.weekTile')}: ${count}, ${t('home.nextDays')}`}
       />
     </View>
   );
@@ -193,10 +255,16 @@ function cardFor(address: HomeAddress, day: string, now: Date, t: T) {
     if (outlook.possible && status !== 'past') summary = `${summary} · ${possibleText(outage, t)}`;
     spoken = `${statusWord(status, t)}, ${time}. ${summary}`;
   }
-  return { outlook, time, summary, spoken };
+  // "Moguće" with no number entered: adding the house number settles it.
+  const canAddNumber =
+    outlook.possible &&
+    status !== 'past' &&
+    outage?.reason === 'no_number' &&
+    address.houseNumber === null;
+  return { outlook, time, summary, spoken, canAddNumber };
 }
 
-/** Početna: the hero for the primary address, four days, the next outage in two tiles, all addresses. */
+/** Početna: the hero for the primary address, four days, two tiles, all addresses. */
 export function HomeView(props: HomeViewProps) {
   const { t } = useTranslation();
   const { now, addresses } = props;
@@ -226,6 +294,13 @@ export function HomeView(props: HomeViewProps) {
   const primary = addresses.find((a) => a.primary) ?? addresses[0];
   const primaryOutlook = primary ? outlookFromNow(primary.outages, now) : null;
   const empty = addresses.length === 0 && !props.loading && !props.failed;
+  const addressesTitle =
+    day === today
+      ? t('home.addresses')
+      : t('home.sectionDay', {
+          title: t('home.addresses'),
+          day: `${t(`home.weekdayLong.${weekdayKey(day)}`)} ${dayOfMonth(day)}.`,
+        });
 
   return (
     <Screen onRefresh={props.onRefresh} refreshing={props.refreshing}>
@@ -270,16 +345,21 @@ export function HomeView(props: HomeViewProps) {
 
       {primary && primaryOutlook ? (
         <View style={{ gap: CARD_GAP }}>
-          <HeroSection outlook={primaryOutlook} address={primary} now={now} />
+          <HeroSection
+            outlook={primaryOutlook}
+            address={primary}
+            now={now}
+            onOpen={props.onOpenOutage}
+          />
           <DayStrip days={days} selected={day} onSelect={setSelected} />
-          <TilesSection outlook={primaryOutlook} now={now} />
+          <TilesSection addresses={addresses} days={dayList} now={now} />
         </View>
       ) : null}
 
       {addresses.length > 0 ? (
         <View style={{ gap: CARD_GAP }}>
           <SectionHeader
-            title={t('home.addresses')}
+            title={addressesTitle}
             actionLabel={props.canAdd ? t('home.addAddress') : undefined}
             trailing={props.canAdd ? undefined : t('outages.count', { count: all.length })}
             onAction={props.onAdd}
@@ -295,8 +375,23 @@ export function HomeView(props: HomeViewProps) {
                 address={a.name}
                 status={card.outlook.status}
                 statusLabel={statusWord(card.outlook.status, t)}
+                possible={
+                  card.outlook.possible && card.outlook.status !== 'past'
+                    ? t('home.possibleBadge')
+                    : undefined
+                }
                 time={card.time}
                 summary={card.summary}
+                action={
+                  card.canAddNumber
+                    ? { label: t('home.addNumber'), onPress: () => props.onAddNumber(a.id) }
+                    : undefined
+                }
+                onPress={
+                  card.outlook.outage
+                    ? () => props.onOpenOutage(card.outlook.outage!.id, a.id)
+                    : undefined
+                }
                 accessibilityLabel={`${a.label ? `${a.label}, ` : ''}${a.name}. ${card.spoken}`}
               />
             );

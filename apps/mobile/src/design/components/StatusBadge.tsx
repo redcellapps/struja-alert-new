@@ -31,6 +31,38 @@ export function StatusBadge({ status, label, onFill }: StatusBadgeProps) {
   );
 }
 
+export interface PossibleBadgeProps {
+  label: string;
+  // The status colour the badge sits next to or on (hero: translucent in its text colour).
+  status?: StatusKey;
+  onFill?: boolean;
+}
+
+/**
+ * "Moguće": the address may be affected but we cannot be sure. A second pill beside the status
+ * badge, which keeps the status colour; the question mark says what the word says.
+ */
+export function PossibleBadge({ label, status = 'upcoming', onFill }: PossibleBadgeProps) {
+  const { colors, radius } = useTheme();
+  const on = onFill ? colors.status[status].onFill : colors.chrome.text;
+  return (
+    <View
+      style={[
+        styles.badge,
+        {
+          borderRadius: radius.full,
+          backgroundColor: onFill ? colors.status[status].onFill + '22' : colors.chrome.raised,
+        },
+      ]}
+    >
+      <Icon name={{ ios: 'questionmark.circle.fill', android: 'help' }} size={16} color={on} />
+      <AppText variant="caption" color={on}>
+        {label}
+      </AppText>
+    </View>
+  );
+}
+
 const styles = StyleSheet.create({
   badge: {
     flexDirection: 'row',

@@ -1,0 +1,97 @@
+import { useQuery } from '@tanstack/react-query';
+import { useLocalSearchParams, useRouter } from 'expo-router';
+import { useTranslation } from 'react-i18next';
+import { api } from '../../src/api/runtime';
+import { useNow } from '../../src/design/useNow';
+import { SUBSCRIPTIONS_KEY } from '../../src/home/useHomeData';
+import {
+  addToCalendar,
+  calendarAvailable,
+  calendarEvent,
+  openSource,
+  shareMessage,
+  shareOutage,
+  todayInBelgrade,
+} from '../../src/outage/actions';
+import { OutageDetailView, type DetailAddress } from '../../src/outage/OutageDetailView';
+import { useSettings } from '../../src/store/settings';
+
+// A modal sheet: one outage, and how it concerns the person's saved addresses.
+export default function OutageSheet() {
+  const { id, addressId } = useLocalSearchParams<{ id?: string; addressId?: string }>();
+  const { t } = useTranslation();
+  const router = useRouter();
+  const now = useNow(1000);
+  const script = useSettings((s) => s.script);
+  const detailQuery = useQuery({
+    queryKey: ['outage', id],
+    queryFn: () => api.outage(Number(id)),
+    enabled: id !== undefined,
+  });
+  const subsQuery = useQuery({
+    queryKey: SUBSCRIPTIONS_KEY,
+    queryFn: async () => (await api.subscriptions()).subscriptions,
+  });
+  const detail = detailQuery.data ?? null;
+
+  // The saved addresses this outage concerns, with the street and the number to compare with its ranges.
+  const addresses: DetailAddress[] = (detail?.mine ?? []).flatMap((m) => {
+    const sub = subsQuery.data?.find((s) => s.id === m.subscriptionId);
+    if (!sub) return [];
+    const street = script === 'cyrl' ? sub.name.cyrillic : sub.name.latin;
+    return [
+      {
+        subscriptionId: sub.id,
+        label: sub.label,
+        street: sub.name,
+        name: `${street}${sub.houseNumber ? ` ${sub.houseNumber}${sub.houseSuffix ?? ''}` : ''}`,
+        houseNumber: sub.houseNumber,
+        match: m.match,
+        reason: m.reason,
+      },
+    ];
+  });
+  // Where, in words: the person's address(es), otherwise the first streets of the outage.
+  const where = detail
+    ? addresses.length > 0
+      ? addresses.map((a) => a.name).join(', ')
+      : detail.segments
+          .slice(0, 3)
+          .map((seg) => seg.name?.[script === 'cyrl' ? 'cyrillic' : 'latin'] ?? seg.raw)
+          .join(', ')
+    : '';
+
+  return (
+    <OutageDetailView
+      now={now}
+      script={script}
+      detail={detail}
+      addresses={addresses}
+      loading={detailQuery.isPending && !detailQuery.isError}
+      failed={detailQuery.isError && !detail}
+      onRetry={() => void detailQuery.refetch()}
+      onAddNumber={(subscriptionId) =>
+        router.push({ pathname: '/edit-address', params: { id: String(subscriptionId) } })
+      }
+      onCalendar={
+        calendarAvailable && detail
+          ? () => void addToCalendar(calendarEvent(detail, where, t)).catch(() => {})
+          : undefined
+      }
+      onShare={() => {
+        if (detail)
+          void shareOutage(shareMessage(detail, where, todayInBelgrade(), t)).catch(() => {});
+      }}
+      onOpenSource={() => {
+        if (detail) void openSource(detail.source.url).catch(() => {});
+      }}
+      onReport={(message) =>
+        api.report({
+          outageId: Number(id),
+          subscriptionId: addressId ? Number(addressId) : addresses[0]?.subscriptionId,
+          message,
+        })
+      }
+    />
+  );
+}

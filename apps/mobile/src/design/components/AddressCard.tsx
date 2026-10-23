@@ -2,7 +2,8 @@ import { Pressable, StyleSheet, View } from 'react-native';
 import { useTheme } from '../theme';
 import { CARD_PADDING, MIN_TOUCH, type StatusKey } from '../tokens';
 import { AppText } from './AppText';
-import { StatusBadge } from './StatusBadge';
+import { Button } from './Button';
+import { PossibleBadge, StatusBadge } from './StatusBadge';
 
 export interface AddressCardProps {
   // "Kuća", "Posao", or null when the address has no label.
@@ -16,6 +17,10 @@ export interface AddressCardProps {
   time?: string;
   // The secondary line under it ("Sutra · 4 h") or "Nema najavljenih isključenja".
   summary: string;
+  // "Moguće": the address may be affected, we cannot be sure (the badge label).
+  possible?: string;
+  // One action under the summary ("Dodaj broj").
+  action?: { label: string; onPress: () => void };
   onPress?: () => void;
   accessibilityLabel: string;
 }
@@ -30,6 +35,8 @@ export function AddressCard({
   statusLabel,
   time,
   summary,
+  possible,
+  action,
   onPress,
   accessibilityLabel,
 }: AddressCardProps) {
@@ -60,7 +67,10 @@ export function AddressCard({
           ) : null}
           <AppText variant="bodyStrong">{address}</AppText>
         </View>
-        <StatusBadge status={status} label={statusLabel} />
+        <View style={styles.badges}>
+          <StatusBadge status={status} label={statusLabel} />
+          {possible ? <PossibleBadge label={possible} /> : null}
+        </View>
       </View>
       <View style={styles.bottom}>
         {time ? (
@@ -76,6 +86,11 @@ export function AddressCard({
           {summary}
         </AppText>
       </View>
+      {action ? (
+        <View style={styles.action}>
+          <Button label={action.label} variant="secondary" onPress={action.onPress} />
+        </View>
+      ) : null}
     </Pressable>
   );
 }
@@ -85,5 +100,7 @@ const styles = StyleSheet.create({
   top: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12 },
   titles: { flex: 1, gap: 2 },
   bottom: { gap: 2 },
+  badges: { alignItems: 'flex-end', gap: 6 },
+  action: { alignItems: 'flex-start' },
   struck: { textDecorationLine: 'line-through' },
 });

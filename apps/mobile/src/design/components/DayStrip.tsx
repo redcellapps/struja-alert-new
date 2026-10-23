@@ -53,7 +53,12 @@ export function DayStrip({ days, selected, onSelect }: DayStripProps) {
             <AppText variant="value" color={fg}>
               {String(d.dayOfMonth)}
             </AppText>
-            <View style={[styles.dot, { backgroundColor: d.hasOutage ? dot : 'transparent' }]} />
+            {/* Keyed by its colour: Android keeps the square background of a view whose colour changed
+                from transparent, so a dot that appears or changes colour is made again. */}
+            <View
+              key={d.hasOutage ? dot : 'none'}
+              style={[styles.dot, { backgroundColor: d.hasOutage ? dot : 'transparent' }]}
+            />
           </Pressable>
         );
       })}

@@ -13,3 +13,14 @@ export async function requestNotificationPermission(): Promise<NotificationPermi
   const result = await PermissionsAndroid.request('android.permission.POST_NOTIFICATIONS');
   return result === PermissionsAndroid.RESULTS.GRANTED ? 'granted' : 'denied';
 }
+
+/**
+ * What the system says right now, without asking (the person can revoke the permission in the system
+ * settings at any time). Android only until iOS gets expo-notifications in Phase 4 **[MAC]**.
+ */
+export async function checkNotificationPermission(): Promise<NotificationPermission> {
+  if (Platform.OS !== 'android') return 'undetermined';
+  if (Number(Platform.Version) < 33) return 'granted';
+  const granted = await PermissionsAndroid.check('android.permission.POST_NOTIFICATIONS');
+  return granted ? 'granted' : 'denied';
+}

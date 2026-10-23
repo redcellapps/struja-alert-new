@@ -18,6 +18,14 @@ export function agoLabel(ms: number, t: T): string {
   return t('home.ago.days', { count: Math.floor(hours / 24) });
 }
 
+/** "40 min", "5 h", "2 d": how long until something starts, rounded down to a whole unit. */
+export function hoursUntil(ms: number): string {
+  const minutes = Math.max(0, Math.floor(ms / 60_000));
+  if (minutes < 60) return `${minutes} min`;
+  const hours = Math.floor(minutes / 60);
+  return hours < 48 ? `${hours} h` : `${Math.floor(hours / 24)} d`;
+}
+
 /** "4 h", "4 h 30 min", "45 min" (the units read the same in Serbian and English). */
 export function durationShort(ms: number): string {
   const { hours, minutes } = hoursAndMinutes(ms);

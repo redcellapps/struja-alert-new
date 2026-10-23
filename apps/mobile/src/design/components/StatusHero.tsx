@@ -1,5 +1,5 @@
 import { useEffect, type ReactNode } from 'react';
-import { StyleSheet, View } from 'react-native';
+import { Pressable, StyleSheet, View } from 'react-native';
 import Animated, {
   FadeIn,
   useAnimatedStyle,
@@ -12,7 +12,7 @@ import { CARD_PADDING } from '../tokens';
 import { useTheme } from '../theme';
 import { AppText } from './AppText';
 import { BoltWatermark } from './BoltWatermark';
-import { StatusBadge } from './StatusBadge';
+import { PossibleBadge, StatusBadge } from './StatusBadge';
 import type { StatusKey } from '../tokens';
 
 export interface StatusHeroProps {
@@ -22,10 +22,14 @@ export interface StatusHeroProps {
   headline: string;
   // The address the status is about.
   address?: string;
+  // "Moguće": a second badge beside the status badge, which keeps the status colour.
+  possible?: string;
   // Slot for the countdown / window under the headline.
   children?: ReactNode;
   // A full spoken sentence for TalkBack.
   accessibilityLabel: string;
+  // Opens the outage the hero is about.
+  onPress?: () => void;
 }
 
 // The active state pulses gently, on the badge only.
@@ -62,17 +66,21 @@ export function StatusHero({
   statusLabel,
   headline,
   address,
+  possible,
   children,
   accessibilityLabel,
+  onPress,
 }: StatusHeroProps) {
   const { colors, radius, motion } = useTheme();
   const s = colors.status[status];
   const reduced = useReducedMotion();
   return (
-    <View
+    <Pressable
       accessible
-      accessibilityRole="summary"
+      accessibilityRole={onPress ? 'button' : 'summary'}
       accessibilityLabel={accessibilityLabel}
+      disabled={!onPress}
+      onPress={onPress}
       style={[styles.card, { borderRadius: radius.xl, backgroundColor: s.fill }]}
     >
       <View style={styles.watermark} pointerEvents="none">
@@ -83,11 +91,14 @@ export function StatusHero({
         entering={reduced ? undefined : FadeIn.duration(motion.duration.hero)}
         style={{ padding: CARD_PADDING, gap: 12 }}
       >
-        <PulsingBadge
-          status={status}
-          label={statusLabel}
-          enabled={status === 'active' && !reduced}
-        />
+        <View style={styles.badges}>
+          <PulsingBadge
+            status={status}
+            label={statusLabel}
+            enabled={status === 'active' && !reduced}
+          />
+          {possible ? <PossibleBadge label={possible} status={status} onFill /> : null}
+        </View>
         <View style={{ gap: 4 }}>
           <AppText variant="headline" color={s.onFill}>
             {headline}
@@ -100,7 +111,7 @@ export function StatusHero({
         </View>
         {children}
       </Animated.View>
-    </View>
+    </Pressable>
   );
 }
 
@@ -108,4 +119,5 @@ const styles = StyleSheet.create({
   card: { overflow: 'hidden' },
   watermark: { position: 'absolute', right: -44, bottom: -52 },
   address: { opacity: 0.8 },
+  badges: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
 });

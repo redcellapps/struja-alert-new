@@ -48,6 +48,7 @@ export function useHomeData(): DataProps {
       id: s.id,
       label: s.label,
       name: `${base}${number}`,
+      houseNumber: s.houseNumber,
       primary: s.isPrimary,
       outages: (outs.data ?? []).filter((o) => o.subscriptionId === s.id),
     };
