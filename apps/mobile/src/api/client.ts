@@ -18,9 +18,10 @@ export interface ClientDeps {
   fetch: typeof fetch;
   // "<deviceId>.<secret>" for the Authorization header, or null when the device is not registered.
   getCredentials: () => Promise<string | null>;
-  // Called once after a 401 on an authenticated request: re-register and re-add the addresses.
+  // Called once after a 401 on an authenticated request, with the credentials that request used:
+  // re-register and re-add the addresses (once, however many requests failed together).
   // Returns true when the request should be retried with the new credentials.
-  onUnauthorized?: () => Promise<boolean>;
+  onUnauthorized?: (usedCredentials: string | null) => Promise<boolean>;
 }
 
 export interface RequestOptions<S extends z.ZodType> {
@@ -52,8 +53,9 @@ export function createClient(deps: ClientDeps): ApiClient {
     const headers: Record<string, string> = { accept: 'application/json', ...opts.headers };
     if (opts.body !== undefined) headers['content-type'] = 'application/json';
     const auth = opts.auth ?? false;
+    let credentials: string | null = null;
     if (auth) {
-      const credentials = await deps.getCredentials();
+      credentials = await deps.getCredentials();
       if (credentials) headers.authorization = `Bearer ${credentials}`;
       else if (auth === true) throw new ApiError(401, 'unauthorized', 'Not registered');
     }
@@ -68,7 +70,7 @@ export function createClient(deps: ClientDeps): ApiClient {
       throw new ApiError(0, 'network', e instanceof Error ? e.message : 'Network error');
     }
     if (res.status === 401 && auth === true && !retried && deps.onUnauthorized) {
-      if (await deps.onUnauthorized()) return send(opts, true);
+      if (await deps.onUnauthorized(credentials)) return send(opts, true);
     }
     return res;
   }

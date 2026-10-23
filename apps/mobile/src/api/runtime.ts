@@ -4,7 +4,7 @@ import { createClient } from './client';
 import {
   ensureRegistered,
   getCredentials,
-  recoverDevice,
+  singleFlightRecovery,
   type DeviceDeps,
   type SecretStore,
 } from './device';
@@ -48,6 +48,6 @@ export const client = createClient({
   baseUrl: API_URL,
   fetch: (...args) => fetch(...args),
   getCredentials: async () => (await getCredentials(secureStore)) ?? ensureRegistered(deps()),
-  onUnauthorized: () => recoverDevice(deps()),
+  onUnauthorized: singleFlightRecovery(deps()),
 });
 export const api = endpoints(client);

@@ -47,6 +47,8 @@ export function createMockServer(opts: MockOptions = {}): Server {
       const url = new URL(req.url ?? '/', 'http://mock');
       const path = url.pathname;
       const method = req.method ?? 'GET';
+      if (process.env.MOCK_LOG)
+        console.log(method, req.url, req.headers.authorization?.slice(0, 18));
 
       if (path === '/healthz') return json(res, 200, { status: 'ok' });
       if (path === '/v1/cities') return json(res, 200, cities);

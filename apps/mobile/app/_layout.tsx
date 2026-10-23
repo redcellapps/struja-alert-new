@@ -1,6 +1,8 @@
+import { focusManager } from '@tanstack/react-query';
 import { PersistQueryClientProvider } from '@tanstack/react-query-persist-client';
 import { Stack } from 'expo-router';
 import { useEffect, useState } from 'react';
+import { AppState } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { ThemeProvider, useTheme } from '../src/design/theme';
 import { initI18n, setLocale } from '../src/i18n';
@@ -8,6 +10,12 @@ import { createQueryClient, CACHE_MAX_AGE_MS, mmkvPersister } from '../src/query
 import { useSettings } from '../src/store/settings';
 
 const queryClient = createQueryClient();
+
+// Coming back to the app refetches stale data (React Native has no window focus event).
+focusManager.setEventListener((handleFocus) => {
+  const sub = AppState.addEventListener('change', (state) => handleFocus(state === 'active'));
+  return () => sub.remove();
+});
 
 // Inside the theme provider, so every screen (and the sheet) gets the page background at once.
 function RootStack() {

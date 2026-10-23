@@ -1,4 +1,6 @@
+import { useQueryClient } from '@tanstack/react-query';
 import { api } from '../api/runtime';
+import { MY_OUTAGES_KEY, SUBSCRIPTIONS_KEY } from '../home/useHomeData';
 import { useGazetteer } from '../gazetteer/cache';
 import { useAddresses } from '../store/addresses';
 import { useSettings } from '../store/settings';
@@ -9,6 +11,7 @@ import { saveAddress } from './save';
 export function AddAddressContainer({ onSaved }: { onSaved: () => void }) {
   const { index, status, retry } = useGazetteer('nis');
   const script = useSettings((s) => s.script);
+  const queryClient = useQueryClient();
   const existingCount = useAddresses((s) => s.items.length);
   return (
     <AddAddressForm
@@ -17,7 +20,15 @@ export function AddAddressContainer({ onSaved }: { onSaved: () => void }) {
       onRetryIndex={retry}
       script={script}
       existingCount={existingCount}
-      save={(request) => saveAddress(api, request)}
+      save={async (request) => {
+        const saved = await saveAddress(api, request);
+        // Početna shows the new address and the outages already published for it.
+        await Promise.all([
+          queryClient.invalidateQueries({ queryKey: SUBSCRIPTIONS_KEY }),
+          queryClient.invalidateQueries({ queryKey: MY_OUTAGES_KEY }),
+        ]);
+        return saved;
+      }}
       onSaved={onSaved}
     />
   );

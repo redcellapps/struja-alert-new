@@ -68,6 +68,26 @@ async function register(deps: DeviceDeps): Promise<string> {
 }
 
 /**
+ * The recovery as the client calls it. Several requests fail with 401 at the same moment (Početna
+ * loads two queries): the first one starts the recovery, the others wait for it and retry; a request
+ * that failed with credentials that were replaced meanwhile just retries. Without this each failure
+ * would register again and add every address once more.
+ */
+export function singleFlightRecovery(deps: DeviceDeps): (used: string | null) => Promise<boolean> {
+  let running: Promise<boolean> | null = null;
+  return (used) => {
+    // The shared promise is set before anything is awaited, so callers arriving together join it.
+    running ??= (async () => {
+      if ((await getCredentials(deps.secrets)) === used) await recoverDevice(deps);
+      return true;
+    })().finally(() => {
+      running = null;
+    });
+    return running;
+  };
+}
+
+/**
  * The secret is gone or no longer valid (reinstall, cleared storage, server restore): register again
  * with the same push token, which makes the server drop the old device and its addresses, then add
  * the addresses kept on the device. Adding an address records the already published outages as told
