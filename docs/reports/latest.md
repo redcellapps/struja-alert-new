@@ -1,61 +1,52 @@
-# Report: Phase 3, step 4 fixes and step 5 (outage detail), 23 Oct 2026
+# Report: Phase 3, step 5 fixes and step 6 (Najave, Istorija), 23 Oct 2026
 
-Stopped for review. Nothing from step 6 is started.
+Stopped for review. Nothing from step 7 is started.
 
 ## Commits
 
-| Commit                                         | What                                                              | On GitHub |
-| ---------------------------------------------- | ----------------------------------------------------------------- | --------- |
-| `e080680`                                      | Početna review fixes and step 5 (outage detail sheet), one commit | **no**    |
-| (this report, committed right after `e080680`) | `docs/reports/` files                                             | **no**    |
-| `066eeb0`                                      | Report for step 4                                                 | yes       |
-| `49152c1`                                      | Step 4: Početna                                                   | yes       |
+| Commit                                         | What                                       | On GitHub |
+| ---------------------------------------------- | ------------------------------------------ | --------- |
+| `dbe9830`                                      | Step 5 review fixes and step 6, one commit | **no**    |
+| (this report, committed right after `dbe9830`) | `docs/reports/` files                      | **no**    |
+| `a4c826f`                                      | Report for step 5                          | yes       |
+| `e080680`                                      | Početna review fixes and step 5            | yes       |
 
-`origin/main` is at `066eeb0` (pushed on the owner's approval). Not pushed: `e080680` and the report commit. A push needs the owner's go-ahead.
+`origin/main` is at `a4c826f` (pushed on the owner's approval). Not pushed: `dbe9830` and the report commit. A push needs the owner's go-ahead.
 
 ## Checks (all green)
 
 - `pnpm lint`: zero warnings. `pnpm typecheck`: 5 of 5.
-- `pnpm test`: shared 22, parser 144 (+3 todo), scripts 62, server 227, **mobile 206 jest + 16 contract** (was 162 + 7).
-- New: ranges and the detail view (`outage`), the "Dodaj broj" flow (`housenumber`), the permission check of the Expo config and of the merged Android manifest (`manifest`), the mock scenarios (`scenarios.test.ts`), and more `home` cases.
+- `pnpm test`: shared 22, parser 144 (+3 todo), scripts 62, server 227, **mobile 234 jest + 20 contract** (was 206 + 16).
+- New: `lists` (grouping, search, both views, follow), `useNow` (the minute clock), more `outage`, `components`, `home` and `addresses` cases, and the mock's city list, history and detail.
 
-## The Početna fixes you asked for
+## Your five fixes (step 5 review)
 
-a. **Tab bar:** card colour, lime indicator with a dark icon, the label of all four tabs always visible (Početna, Najave, Istorija, Podešavanja), no Material You tint.
-b. **Tiles:** replaced. "Počinje za" is the hours until the next outage across all addresses ("25 h", "40 min", "2 d"; with several addresses it names the address); while an outage runs it becomes "Struja se vraća" with the time. "Ove nedelje" is the number of outages (each counted once, cancelled ones excluded) in the next four days. Both are hidden when there is no outage.
-c. **Chosen day:** the cards' header reads "Adrese · subota 24." for any day but today.
-d. **Possible matches:** the status colour stays; a "Moguće" badge with a question mark sits beside the status badge (hero and cards). When the only doubt is the missing house number, the card has a **"Dodaj broj"** button that opens a sheet (`/edit-address`), patches the address on the server (`PATCH /v1/subscriptions/:id`) and then on the device. A partial or unresolved doubt gets the badge but no button.
-e. **Mock API scenarios** (development only): `clear`, `upcoming`, `imminent`, `active` (ends in 1 h 12 min), `cancelled`, `possible`, `three` (three addresses: active, imminent, possible), `offline` (the connection drops, so the app shows saved data with the offline notice). Start with `MOCK_SCENARIO=<name>` or switch with `POST /__dev/scenario`. "Notifications off" is real: the script revokes the Android permission, and Početna now reads the permission live, also when it is changed in the system settings. Screenshots, dark and light, are in `docs/screens/android/step4/` (69 files: `<scenario>-<mode>-<page>.png`, `detail-<scenario>-<mode>-<page>.png`, `possible-add-number-dark.png`). Command: `pnpm --filter @struja/scripts home-scenarios` (in CLAUDE.md).
+a. **Countdown:** "Povratak za 1 h 12 min" / "Počinje za 1 h 12 min" on the hero and in the detail sheet; under an hour "45 min"; under a minute **"manje od minuta"** (you wrote "manje od minut"; I used the correct genitive plural, tell me if you want it otherwise). It follows a clock that ticks on the full minute, so it never redraws every second. `CountdownText`, `H:MM:SS`, the rolling digits and the tabular digits are gone, which also removes the clipped rolling digit you saw in `active-dark-1.png`. Minutes are rounded up, as the spoken form is.
+b. **Sheets** (the detail, Add address and "Dodaj broj"): rounded top corners (28), a grab handle (Android draws none, so the screen does), a close button (X) with the TalkBack label "Zatvori", and a clear gap above the detail sheet so the page title is whole.
+c. **Notifications-off banner:** one row (icon, "Obaveštenja su isključena", "Uključi" on the right); the button drops under the text at large font sizes.
+d. **"Moguće" badge** also in the detail header.
+e. **Tile** "Naredna 4 dana": the big number and the word under it with the correct plural (isključenje, isključenja), without repeating the number.
 
-## Step 5: the outage detail sheet
+## Step 6
 
-Opened from the hero or an address card (`app/outage/[id].tsx`, a bottom sheet).
+**Najave** (`app/(tabs)/najave.tsx`): what EDS announced for the city, by day ("Danas · petak 23.", "Sutra · subota 24.", "nedelja 25."), each outage as a card with the time, the municipality, the first three streets and "i još 2", tags "Vaša adresa", "Otkazano", "Izmenjeno". Search by street or municipality in any script, case and diacritics ("cegar", "ЧЕГАР"). **Follow any street:** the streets that match what was typed appear under "Pratite ulicu" with a "Prati" button, even when no outage is announced for them, and the streets of an outage have a "Prati" button in the detail sheet; both open the Add address sheet with the street already chosen (you add the number and label and save). A street already followed says "Pratite"; at three addresses the buttons give way to "Već pratite najviše 3 adrese." Skeletons, empty ("Nema najavljenih isključenja"), "Nema rezultata za „…“", error with retry, the offline notice with the saved list, pull to refresh.
 
-- Header: status badge, the date ("petak, 23. oktobar"), the municipality; a note when the time was changed or the outage cancelled.
-- The window: big time range (struck through when cancelled), duration, a running countdown inside 24 hours (to the start, or to the return while it runs) or whole hours/days further away, and the **24 h timeline** with the "now" dot on today.
-- **For each saved address it concerns:** the ranges of its street as chips, the one holding the person's number highlighted, with "Vaš broj 34 je u opsegu 26–40"; or "Moguće pogođeno — niste uneli broj" with "Dodaj broj".
-- The affected streets (script-aware; "delovi ulice", "cela ulica", ranges), and the **raw EDS text** behind an expander, exactly as published.
-- Actions: **Dodaj u kalendar**, **Podeli**, **Otvori izvor (EDS)**, **Prijavi grešku** (a short form that posts to `/v1/reports`).
-- Calendar uses the system "add event" screen through an Android intent (`expo-intent-launcher`), so there is **no calendar permission**; the manifest test checks the Expo config and the merged manifest of the last build for calendar and location permissions. I did not install `expo-calendar`, whose plugin would add them.
-- The map is step 10, as planned.
+**Istorija** (`app/(tabs)/istorija.tsx`): the past outages of the saved addresses, newest month first ("Oktobar 2026", with a count), each as a card (the address label, the day and time, the duration; cancelled ones struck through with "Otkazano"); the **year in two tiles** ("Ove godine" count, "Bez struje" hours; cancelled outages do not count). It works offline from the saved copy. Both lists open the outage detail.
 
-## Bugs found on the emulator
+Mock API: a city list (the person's own outage plus six others: a cancelled one, a changed one, one with five streets), a history of six past outages per address, and details for all of them; the "clear" scenario gives a quiet city and a new person (empty states). Details of other people's outages show no ranges (they do not concern you).
 
-- **Square day dots** after the data changed: Android kept the square background of a view whose colour changed from transparent. The dot is now re-made when its colour changes.
-- The new native module needed a rebuild; until then the detail route crashed on load (expected, not a defect).
-- `uiautomator` cannot read a screen with a running countdown ("could not get idle state"); the screenshot script taps by position and retries.
+Screenshots, dark and light: `docs/screens/android/step6/` (Najave, search, follow sheet, no results, an outage's detail with "Prati", offline, empty; Istorija, offline, empty) and a fresh set of Početna in every scenario in `docs/screens/android/step4/`. Commands: `pnpm --filter @struja/scripts list-screens` and `home-scenarios` (both in CLAUDE.md).
 
 ## Not verified / limits
 
-- **Calendar:** the intent hands off to Google Calendar, which on this emulator only asks to sign in (no Google account), so I did not see the filled-in event. The event content is covered by a unit test; please try it once on your phone.
-- **Share** and **Otvori izvor** are covered by tests, not exercised on the emulator.
-- **Report an error** posts to the mock API only.
-- iOS: the calendar button is not shown (the system editor comes with the iOS polish **[MAC]**).
-- Mock API only; the real stack is step 9. Dev-only mock detail uses fixed example streets.
+- Mock API only; the real stack is step 9. The mock city list is small; real lists are longer, so the performance of a long list (a virtualised list) is not tested.
+- Search matches by word beginnings in the street names and the municipality; it does not know EDS's alternative street names (the gazetteer has them for the Add address search only).
+- "Prati" on a street opens the Add address sheet rather than adding at once: the person may want a house number or a label first.
+- iOS **[MAC]** unchanged (calendar button, native tab bar styling). Calendar, share and "Otvori izvor" stay for your phone session at step 11.
 
 ## Decisions needed
 
-1. **Push** `e080680` and the report commit? (Needs your go-ahead.)
-2. The status badge in the detail header does not repeat the "Moguće" badge (the text under the ranges says it). Add the badge there too?
-3. The "notifications off" banner is tall because its action sits under the message. Compact it to one row, or keep?
-4. Continue with **step 6, Najave and Istorija**?
+1. **Push** `dbe9830` and the report commit?
+2. **Follow flow:** keep opening the sheet (more taps, a deliberate choice), or add the street at once with a toast and "Dodaj broj" afterwards?
+3. **Istorija** shows only outages of the addresses you have now; those of an address you deleted show "Obrisana adresa". OK, or should they be hidden?
+4. Continue with **step 7, Podešavanja** (script, language, notification kinds, quiet hours, manage addresses, privacy and "Obriši sve moje podatke", about)?
