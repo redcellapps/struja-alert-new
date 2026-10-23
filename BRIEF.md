@@ -323,7 +323,7 @@ The app should feel calm, trustworthy and current, closer to a modern bento dash
 ### Principles
 - **Flat, bento, bold.** Solid fills only: no gradients, no mesh, no shadows or outlines to separate surfaces. Large rounded cards in a 1- and 2-column grid, each carrying one big number or one short headline with a small icon and a label.
 - **One brand accent: electric lime** (`#D4F84A`), used as a fill (selected chip, primary button, selected day, switch on, the `clear` status) with near-black text on it. Never lime as text on a light background.
-- **Strong hierarchy:** a big bold headline, huge tabular numerals for times and countdowns, quiet secondary text, sentence-case labels (no letter-spaced capitals).
+- **Strong hierarchy:** a big bold headline, huge numerals for times and countdowns (tabular figures only in a live countdown, so it does not jitter; static times, ranges and day numbers use the font's proportional digits), quiet secondary text, sentence-case labels (no letter-spaced capitals).
 - **Platform-adaptive, not identical.**
   - Shared across platforms: layout, content, information hierarchy, motion and the signature elements.
   - Native per platform: the chrome and controls, so the app feels at home on each.
@@ -349,7 +349,7 @@ The app should feel calm, trustworthy and current, closer to a modern bento dash
 
 - **Color is never the only signal.** Every status also has an icon and a text label.
 - **Surfaces (dark / light):** background `#0B0B0D` / `#F2F2F5`, card `#18181B` / `#FFFFFF`, raised or pressed `#222226` / `#E9E9EE`, text `#F5F5F7` / `#0B0B0D`, secondary text `#9A9AA3` / `#5C5C66`.
-- **Typography:** one open-source (OFL) family, **embedded at build time** with the `expo-font` config plugin (static Regular, Medium, SemiBold, Bold and ExtraBold files; no system font, no runtime download). The family is one token, so a later change is a one-line edit. The candidates (Onest, Manrope, Unbounded for headlines with Onest for text) are compared on a type specimen screen; each was checked in the font files for Serbian Latin, Serbian Cyrillic (and the Serbian `locl` forms where present) and tabular figures (`tnum`). Scale: display numerals 56–72 ExtraBold tabular, headline 28–32 Bold, title 20 SemiBold, body 16, label 13–14 Medium in secondary colour. Font scaling still reflows up to 200 %.
+- **Typography:** one open-source (OFL) family, **embedded at build time** with the `expo-font` config plugin (static Regular, Medium, SemiBold, Bold and ExtraBold files; no system font, no runtime download). The family is one token, so a later change is a one-line edit. The candidates (Onest, Manrope, Unbounded for headlines with Onest for text) are compared on a type specimen screen; each was checked in the font files for Serbian Latin, Serbian Cyrillic (and the Serbian `locl` forms where present) and tabular figures (`tnum`). Scale: display numerals 56–72 ExtraBold (tabular in a live countdown only), headline 28–32 Bold, title 20 SemiBold, body 16, label 13–14 Medium in secondary colour. Font scaling still reflows up to 200 %.
 - **Layout:**
   - 4-pt grid, 20-pt side margins and card padding, 12 between cards, 28–32 between sections
   - Radius 24 for cards; 16 for inputs, tiles and buttons; a full pill only for small badges

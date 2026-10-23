@@ -61,6 +61,8 @@ describe.each(['light', 'dark'] as const)('components (%s)', (mode) => {
     );
     const digits = screen.getAllByText(/^[0-9:]$/).map((n) => n.props.children);
     expect(digits.join('')).toBe('1:02:05');
+    for (const n of screen.getAllByText(/^[0-9:]$/))
+      expect(StyleSheet.flatten(n.props.style).fontVariant).toEqual(['tabular-nums']);
   });
 
   it('DayStrip marks the selected day and reports a press', async () => {
@@ -183,11 +185,14 @@ describe.each(['light', 'dark'] as const)('components (%s)', (mode) => {
     expect(time.textDecorationLine).toBe('line-through');
   });
 
-  it('AppText uses the static weight file of the font token, tabular for big numbers', async () => {
+  it('AppText uses the static weight file of the font token; digits are tabular only when asked for', async () => {
     await renderThemed(
       <>
         <AppText variant="headline">Naslov</AppText>
         <AppText variant="display">12:30</AppText>
+        <AppText variant="display" tabular>
+          1:12:05
+        </AppText>
       </>,
       mode,
     );
@@ -195,7 +200,10 @@ describe.each(['light', 'dark'] as const)('components (%s)', (mode) => {
     const display = StyleSheet.flatten(screen.getByText('12:30').props.style);
     expect(headline.fontFamily).toBe('Onest_700Bold');
     expect(display.fontFamily).toBe('Onest_800ExtraBold');
-    expect(display.fontVariant).toEqual(['tabular-nums']);
+    expect(display.fontVariant).toBeUndefined();
+    expect(StyleSheet.flatten(screen.getByText('1:12:05').props.style).fontVariant).toEqual([
+      'tabular-nums',
+    ]);
   });
 
   it('BentoTile reads as one spoken sentence', async () => {

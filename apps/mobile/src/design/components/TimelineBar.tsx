@@ -67,7 +67,7 @@ export function TimelineBar({
         importantForAccessibility="no-hide-descendants"
       >
         {TICKS.map((h) => (
-          <AppText key={h} variant="caption" color="textSecondary" tabular>
+          <AppText key={h} variant="caption" color="textSecondary">
             {String(h).padStart(2, '0')}
           </AppText>
         ))}

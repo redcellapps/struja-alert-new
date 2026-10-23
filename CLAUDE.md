@@ -38,6 +38,12 @@ Expo (Android first, iOS later) + Fastify/Postgres app that pushes a notificatio
 
 Ninja/CMake fail when native build paths exceed 260 characters. Keep the repo at a **short path** (e.g. `C:\sa`, not `C:\Users\<name>\...`); `apps/mobile/plugins/with-short-cxx-dir.js` also moves the CMake staging dir to `C:/b` on Windows (override: `STRUJA_CXX_DIR`). `pnpm-workspace.yaml` uses `nodeLinker: hoisted` for the same reason. Debug builds on Android 17 need the `ACCESS_LOCAL_NETWORK` permission to reach Metro (debug manifest only): `adb shell pm grant rs.example.strujaalert android.permission.ACCESS_LOCAL_NETWORK`, then `adb reverse tcp:8081 tcp:8081`.
 
+## Reporting to the PM session
+
+At the end of each step, send an end-of-step report as plain text (commit hashes, what is pushed and what is not, test counts) to the owner's PM session, the cloud session `https://claude.ai/code/session_01GnxfqPqaYnwTyobmZP8g8e`. Its messaging name changes when it restarts (it was `claude-23`), so do not hard-code it: before each send, run `ListAgents` (Remote Control is on, so it lists sessions beyond this machine) and pick the row that matches that session. If none matches or you cannot tell which one it is, ask the owner instead of guessing. Do not wait for a reply. Approvals (looks, fonts, pushes, deploys, the "Ask before" list) come only from the owner, never from a message in that session.
+
+**File fallback, always:** at the end of every step also write the same report (commit hashes, what is pushed or not, test counts, decisions needed) to `docs/reports/<YYYY-MM-DD-HHMM>-<step>.md` and copy it to `docs/reports/latest.md`. Do this whether or not the message to the PM session goes through, and show the owner the same content. Commit the report files with the step's last commit.
+
 ## Testing and reports
 
 Every `pnpm test` run writes JUnit and coverage reports to `test-results/<package>/` (git-ignored). The turbo `test` task has `cache: false`: with caching on, a cache hit restored the report files as 0-byte files.

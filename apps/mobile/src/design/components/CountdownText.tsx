@@ -40,7 +40,7 @@ function RollingChar({
   }));
   return (
     <Animated.View style={style}>
-      <AppText variant={variant} color={color}>
+      <AppText variant={variant} color={color} tabular>
         {ch}
       </AppText>
     </Animated.View>

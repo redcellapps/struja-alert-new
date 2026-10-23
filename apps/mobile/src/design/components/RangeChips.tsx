@@ -32,7 +32,7 @@ export function RangeChips({ ranges, note }: RangeChipsProps) {
               { borderRadius: radius.md, backgroundColor: r.contains ? c.accent : c.raised },
             ]}
           >
-            <AppText variant="label" color={r.contains ? c.onAccent : c.text} tabular>
+            <AppText variant="label" color={r.contains ? c.onAccent : c.text}>
               {r.label}
             </AppText>
           </View>
