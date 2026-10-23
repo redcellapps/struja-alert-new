@@ -153,7 +153,6 @@ export const en: Deep<Messages> = {
     yearTile: 'This year',
     hoursTile: 'Without power',
     hoursCaption: 'hours this year',
-    deletedAddress: 'Deleted address',
   },
   address: {
     add: 'Add address',
@@ -172,6 +171,8 @@ export const en: Deep<Messages> = {
     limit: 'You can follow at most {{max}} addresses.',
     primary: 'Primary address',
     noLocation: 'We never ask for your location. You choose the address yourself.',
+    numberHint:
+      'With a number we tell you only when an outage affects it. Without one we tell you about the whole street.',
     houseNumberTitle: 'House number',
     addNumberWhy: 'With the number we know exactly whether an outage affects you.',
     saveNumber: 'Save number',

@@ -17,12 +17,14 @@ export interface TextFieldProps extends Pick<
   | 'autoFocus'
 > {
   label: string;
+  // A quiet line under the field, when there is no error.
+  hint?: string;
   // Shown under the field in the error colour; the field is also announced as invalid.
   error?: string;
 }
 
 /** A filled input (card fill, radius 16, 56 high) with its label above. */
-export function TextField({ label, error, ...input }: TextFieldProps) {
+export function TextField({ label, error, hint, ...input }: TextFieldProps) {
   const { colors, radius, fonts } = useTheme();
   const c = colors.chrome;
   return (
@@ -51,6 +53,10 @@ export function TextField({ label, error, ...input }: TextFieldProps) {
       {error ? (
         <AppText variant="label" color={c.error} accessibilityLiveRegion="polite">
           {error}
+        </AppText>
+      ) : hint ? (
+        <AppText variant="label" color="textSecondary">
+          {hint}
         </AppText>
       ) : null}
     </View>

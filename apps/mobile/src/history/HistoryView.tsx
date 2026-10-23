@@ -15,7 +15,7 @@ import { CARD_GAP } from '../design/tokens';
 import { dayOfMonth, hhmm } from '../format/time';
 import { agoLabel, durationShort, spokenDuration, weekdayKey } from '../home/format';
 import { dateLong } from '../outage/actions';
-import { groupByMonth, yearOf, yearSummary } from './group';
+import { groupByMonth, ofSavedAddresses, yearOf, yearSummary } from './group';
 
 export interface HistoryAddress {
   id: number;
@@ -43,8 +43,12 @@ export function HistoryView(props: HistoryViewProps) {
   const { t } = useTranslation();
   const { now } = props;
   const haveData = !props.loading && !props.failed;
-  const groups = groupByMonth(props.outages, t);
-  const summary = yearSummary(props.outages, yearOf(now));
+  const outages = ofSavedAddresses(
+    props.outages,
+    props.addresses.map((a) => a.id),
+  );
+  const groups = groupByMonth(outages, t);
+  const summary = yearSummary(outages, yearOf(now));
   const byId = new Map(props.addresses.map((a) => [a.id, a]));
 
   return (
@@ -113,9 +117,7 @@ export function HistoryView(props: HistoryViewProps) {
                 const wd = t(`weekday.${weekdayKey(o.outageDate)}`);
                 const time = `${wd} ${dayOfMonth(o.outageDate)}. · ${hhmm(o.startsAt)}–${hhmm(o.endsAt)}`;
                 const ms = Date.parse(o.endsAt) - Date.parse(o.startsAt);
-                const where = address
-                  ? (address.label ?? address.name)
-                  : t('history.deletedAddress');
+                const where = address ? (address.label ?? address.name) : '';
                 return (
                   <OutageCard
                     key={o.id}

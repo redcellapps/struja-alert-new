@@ -220,6 +220,30 @@ describe('AddAddressForm started from a street ("Prati")', () => {
     onSaved: jest.fn(),
   };
 
+  it('puts the cursor in the house number field, and says what saving without a number means', async () => {
+    await themed(
+      <AddAddressForm
+        {...base}
+        index={index}
+        initial={{ kind: 'street', id: 2 }}
+        save={jest.fn()}
+      />,
+    );
+    expect(screen.getByLabelText('Kućni broj (nije obavezno)').props.autoFocus).toBe(true);
+    expect(
+      screen.getByText(
+        'Sa brojem javljamo samo kada isključenje pogađa vaš broj. Bez broja javljamo za celu ulicu.',
+      ),
+    ).toBeTruthy();
+  });
+
+  it('does not grab the cursor when the person picked the street by searching', async () => {
+    await themed(<AddAddressForm {...base} index={index} save={jest.fn()} />);
+    await fireEvent.changeText(screen.getByLabelText('Ulica ili naselje'), 'cegarska');
+    await fireEvent.press(screen.getByLabelText('Čegarska, Crveni krst'));
+    expect(screen.getByLabelText('Kućni broj (nije obavezno)').props.autoFocus).toBeFalsy();
+  });
+
   it('has the street picked already and saves it', async () => {
     const save = jest.fn().mockResolvedValue(undefined);
     await themed(

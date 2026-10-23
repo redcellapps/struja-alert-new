@@ -3,7 +3,7 @@ import type { AddressOutageDto } from '@struja/shared';
 import { gazetteer } from '../mock-server/fixtures';
 import { buildTheme, ThemeProvider } from '../src/design/theme';
 import { buildIndex, findStreet, search } from '../src/gazetteer/search';
-import { groupByMonth, monthTitle, yearSummary } from '../src/history/group';
+import { groupByMonth, monthTitle, ofSavedAddresses, yearSummary } from '../src/history/group';
 import { HistoryView, type HistoryViewProps } from '../src/history/HistoryView';
 import { i18next, initI18n } from '../src/i18n';
 import {
@@ -236,6 +236,18 @@ const past = (
 });
 
 describe('history logic', () => {
+  it('keeps only the outages of the saved addresses, without touching the data', () => {
+    const all = [
+      past('2026-10-21T14:00:00Z', 3, { subscriptionId: 1 }),
+      past('2026-10-14T14:00:00Z', 3, { subscriptionId: 2 }),
+      past('2026-10-07T14:00:00Z', 3, { subscriptionId: 9 }),
+    ];
+    expect(ofSavedAddresses(all, [1, 2]).map((o) => o.subscriptionId)).toEqual([1, 2]);
+    expect(ofSavedAddresses(all, [])).toEqual([]);
+    expect(all).toHaveLength(3); // the full list is still there: it comes back with the address
+    expect(ofSavedAddresses(all, [1, 2, 9])).toHaveLength(3);
+  });
+
   const list = [
     past('2026-09-12T14:00:00Z', 5),
     past('2026-10-21T14:00:00Z', 3),
@@ -294,18 +306,24 @@ describe('HistoryView', () => {
     const p = history({ outages: list });
     await showHistory(p);
     expect(screen.getByText('Ove godine')).toBeTruthy();
-    expect(screen.getByText('2')).toBeTruthy(); // outages that happened this year
-    expect(screen.getByText('8 h')).toBeTruthy();
+    expect(screen.getByText('1')).toBeTruthy(); // the outage that happened this year at a saved address
+    expect(screen.getByText('3 h')).toBeTruthy();
     expect(screen.getByText('Oktobar 2026')).toBeTruthy();
-    expect(screen.getByText('Septembar 2026')).toBeTruthy();
     await fireEvent.press(screen.getByLabelText(/^sreda, 21\. oktobar, 16:00–19:00\. Kuća/));
     expect(p.onOpen).toHaveBeenCalledWith(7, 1);
   });
 
-  it('marks a cancelled outage and names an address that was deleted', async () => {
+  it('marks a cancelled outage', async () => {
     await showHistory(history({ outages: list }));
     expect(screen.getAllByText('Otkazano').length).toBeGreaterThan(0);
-    expect(screen.getByText('Obrisana adresa')).toBeTruthy();
+  });
+
+  it('hides the outages of an address that was deleted, and does not count them in the year', async () => {
+    await showHistory(history({ outages: list }));
+    // the September outage belongs to address 99, which is not saved any more
+    expect(screen.queryByText('Septembar 2026')).toBeNull();
+    expect(screen.queryByText('Obrisana adresa')).toBeNull();
+    expect(screen.getByText('Oktobar 2026')).toBeTruthy();
   });
 
   it('is empty before the first outage, loading, failed and offline', async () => {

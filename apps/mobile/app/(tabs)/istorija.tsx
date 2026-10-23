@@ -35,7 +35,7 @@ export default function HistoryScreen() {
       outages={history.data ?? []}
       addresses={addresses}
       updatedAt={history.data ? history.dataUpdatedAt : null}
-      loading={history.isPending && !history.isError}
+      loading={(history.isPending && !history.isError) || (subs.isPending && !subs.isError)}
       failed={history.isError && history.data === undefined}
       offline={history.isError && history.data !== undefined}
       refreshing={refreshing}

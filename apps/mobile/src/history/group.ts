@@ -31,6 +31,18 @@ export function groupByMonth(outages: readonly AddressOutageDto[], t: T): MonthG
   }));
 }
 
+/**
+ * The outages to show: only those of the addresses that are saved now. The outages of a deleted address
+ * are kept in the saved copy and on the server, but neither listed nor counted in the year.
+ */
+export function ofSavedAddresses(
+  outages: readonly AddressOutageDto[],
+  addressIds: readonly number[],
+): AddressOutageDto[] {
+  const ids = new Set(addressIds);
+  return outages.filter((o) => ids.has(o.subscriptionId));
+}
+
 export interface YearSummary {
   count: number;
   // Hours without power, rounded to a whole number.

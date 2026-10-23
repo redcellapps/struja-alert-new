@@ -71,11 +71,16 @@ export function AddAddressForm({
   const [query, setQuery] = useState('');
   const [picked, setPicked] = useState<Place | null>(null);
   const [initialApplied, setInitialApplied] = useState(false);
+  // The street came from "Prati": the cursor goes straight to the house number.
+  const [prefilled, setPrefilled] = useState(false);
   // Start with the street the person chose elsewhere, as soon as the street list is there.
   useEffect(() => {
     if (!initial || initialApplied || !index) return;
     const place = index.places.find((p) => p.kind === initial.kind && p.id === initial.id);
-    if (place) setPicked(place);
+    if (place) {
+      setPicked(place);
+      setPrefilled(true);
+    }
     setInitialApplied(true);
   }, [initial, initialApplied, index]);
   const [house, setHouse] = useState('');
@@ -172,7 +177,14 @@ export function AddAddressForm({
                   : placeMunicipality(picked, script)}
               </AppText>
             </View>
-            <Button label={t('address.change')} variant="text" onPress={() => setPicked(null)} />
+            <Button
+              label={t('address.change')}
+              variant="text"
+              onPress={() => {
+                setPicked(null);
+                setPrefilled(false);
+              }}
+            />
           </View>
         </View>
       ) : (
@@ -233,6 +245,8 @@ export function AddAddressForm({
           {isStreet ? (
             <TextField
               label={t('address.houseNumber')}
+              autoFocus={prefilled}
+              hint={t('address.numberHint')}
               value={house}
               onChangeText={setHouse}
               placeholder="34"

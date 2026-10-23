@@ -156,7 +156,6 @@ export const sr = {
     yearTile: 'Ove godine',
     hoursTile: 'Bez struje',
     hoursCaption: 'sati ove godine',
-    deletedAddress: 'Obrisana adresa',
   },
   address: {
     add: 'Dodaj adresu',
@@ -175,6 +174,8 @@ export const sr = {
     limit: 'Možete pratiti najviše {{max}} adrese.',
     primary: 'Glavna adresa',
     noLocation: 'Ne tražimo vašu lokaciju. Adresu birate sami.',
+    numberHint:
+      'Sa brojem javljamo samo kada isključenje pogađa vaš broj. Bez broja javljamo za celu ulicu.',
     houseNumberTitle: 'Kućni broj',
     addNumberWhy: 'Sa brojem tačno znamo da li vas isključenje pogađa.',
     saveNumber: 'Sačuvaj broj',

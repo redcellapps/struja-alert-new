@@ -88,6 +88,7 @@ async function main() {
     if (await tapLabelWithRetry('Prati Čegarska')) {
       await sleep(3000);
       shot(`najave-follow-${mode}.png`);
+      await closeKeyboard(); // the cursor is in the house number field
       back();
       await sleep(1200);
     }
