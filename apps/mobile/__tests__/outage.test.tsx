@@ -219,6 +219,7 @@ describe('OutageDetailView', () => {
     failed: false,
     onRetry: jest.fn(),
     onAddNumber: jest.fn(),
+    onClose: jest.fn(),
     onCalendar: jest.fn(),
     onShare: jest.fn(),
     onOpenSource: jest.fn(),
@@ -240,6 +241,7 @@ describe('OutageDetailView', () => {
     expect(screen.getByText('Trajanje: 4 h')).toBeTruthy();
     expect(screen.getByText('Počinje za')).toBeTruthy();
     expect(screen.getByLabelText('2 časa 30 minuta')).toBeTruthy();
+    expect(screen.getByText('2 h 30 min')).toBeTruthy(); // hours and minutes, no seconds
     expect(screen.getByText('Uskoro')).toBeTruthy(); // within 24 hours
   });
 
@@ -368,6 +370,36 @@ describe('OutageDetailView', () => {
     );
     expect(screen.getByText('Ovo isključenje više nije dostupno.')).toBeTruthy();
   });
+  it('has a close button for the sheet, in every state', async () => {
+    const p = props();
+    const { rerender } = await show(p);
+    await fireEvent.press(screen.getByLabelText('Zatvori'));
+    expect(p.onClose).toHaveBeenCalledTimes(1);
+    await rerender(
+      <ThemeProvider override={buildTheme('dark')}>
+        <OutageDetailView {...p} detail={null} loading />
+      </ThemeProvider>,
+    );
+    expect(screen.getByLabelText('Zatvori')).toBeTruthy();
+  });
+
+  it('shows the "Moguće" badge in the header when an address is only possibly affected', async () => {
+    const possible = detail({
+      mine: [{ subscriptionId: 1, match: 'possible', reason: 'no_number' }],
+    });
+    const { unmount } = await show(
+      props({
+        detail: possible,
+        addresses: [mine({ match: 'possible', reason: 'no_number', houseNumber: null })],
+      }),
+    );
+    expect(screen.getByText('Moguće')).toBeTruthy();
+    await unmount();
+    await show(
+      props({ detail: detail({ mine: [{ subscriptionId: 1, match: 'affected', reason: null }] }) }),
+    );
+    expect(screen.queryByText('Moguće')).toBeNull();
+  });
 });
 
 describe('sharing', () => {
@@ -377,5 +409,52 @@ describe('sharing', () => {
       .mockResolvedValue({ action: Share.sharedAction, activityType: undefined });
     await shareOutage('hello');
     expect(spy).toHaveBeenCalledWith({ message: 'hello' });
+  });
+});
+
+describe('following a street from the outage detail', () => {
+  const d = detail();
+  const show = (p: Partial<OutageDetailViewProps>) =>
+    render(
+      <ThemeProvider override={buildTheme('dark')}>
+        <OutageDetailView
+          now={NOW}
+          script="latn"
+          detail={d}
+          addresses={[]}
+          loading={false}
+          failed={false}
+          onRetry={jest.fn()}
+          onAddNumber={jest.fn()}
+          onClose={jest.fn()}
+          onShare={jest.fn()}
+          onOpenSource={jest.fn()}
+          onReport={jest.fn()}
+          {...p}
+        />
+      </ThemeProvider>,
+    );
+
+  it('shows "Prati" for a street that can be followed, "Pratite" for one that is, nothing for the rest', async () => {
+    const onFollow = jest.fn();
+    await show({
+      onFollow,
+      followState: (seg) =>
+        seg.name?.latin === 'Vojvode Mišića'
+          ? 'can'
+          : seg.name?.latin === 'Studenička'
+            ? 'followed'
+            : 'none',
+    });
+    await fireEvent.press(screen.getByLabelText('Prati Vojvode Mišića'));
+    expect(onFollow).toHaveBeenCalledWith(d.segments[0]);
+    expect(screen.getByText('Pratite')).toBeTruthy();
+    expect(screen.queryByLabelText('Prati Kosmajska')).toBeNull();
+  });
+
+  it('has no follow buttons when the screen does not offer them', async () => {
+    await show({});
+    expect(screen.queryByText('Prati')).toBeNull();
+    expect(screen.queryByText('Pratite')).toBeNull();
   });
 });

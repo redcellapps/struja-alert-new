@@ -1,4 +1,4 @@
-import { clock, hoursAndMinutes, splitMs, wholeMinutes } from '../src/format/duration';
+import { hoursAndMinutes, remainingLabel, splitMs, wholeMinutes } from '../src/format/duration';
 import { addDays, belgradeDate, dayHour, dayOfMonth, hhmm, weekdayIndex } from '../src/format/time';
 
 describe('duration', () => {
@@ -13,11 +13,16 @@ describe('duration', () => {
     expect(splitMs(-5000).negative).toBe(true);
   });
 
-  it('formats a clock with hours only when there are any', () => {
-    expect(clock((1 * 60 + 12) * 60_000 + 5000)).toBe('1:12:05');
-    expect(clock(12 * 60_000 + 9000)).toBe('12:09');
-    expect(clock(26 * 3600_000)).toBe('26:00:00');
-    expect(clock(0)).toBe('00:00');
+  it('says how long is left in hours and minutes, rounded up, with a word under a minute', () => {
+    const word = 'manje od minuta';
+    expect(remainingLabel((60 + 12) * 60_000 + 5000, word)).toBe('1 h 13 min');
+    expect(remainingLabel(72 * 60_000, word)).toBe('1 h 12 min');
+    expect(remainingLabel(2 * 3_600_000, word)).toBe('2 h');
+    expect(remainingLabel(45 * 60_000, word)).toBe('45 min');
+    expect(remainingLabel(60_000, word)).toBe('1 min');
+    expect(remainingLabel(59_999, word)).toBe(word);
+    expect(remainingLabel(0, word)).toBe(word);
+    expect(remainingLabel(-5, word)).toBe(word);
   });
 
   it('rounds minutes up and splits hours and minutes', () => {

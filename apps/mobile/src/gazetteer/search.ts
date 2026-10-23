@@ -93,6 +93,12 @@ export const placeMunicipality = (place: Place, script: 'latn' | 'cyrl'): string
       ? place.municipality
       : cyrillicToLatin(place.municipality);
 
+/** The street of the gazetteer that goes by this name (any script, case or diacritics), if there is one. */
+export function findStreet(index: GazetteerIndex, name: string): Place | undefined {
+  const wanted = normalizeName(name);
+  return index.places.find((p) => p.kind === 'street' && p.norms.includes(wanted));
+}
+
 /** The name in the chosen script. */
 export const placeName = (place: Place, script: 'latn' | 'cyrl'): string =>
   script === 'cyrl' ? place.nameCyrillic : place.nameLatin;

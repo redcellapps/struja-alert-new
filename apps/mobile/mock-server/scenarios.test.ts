@@ -1,7 +1,9 @@
 import type { AddressInfo } from 'node:net';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import {
+  cityOutagesResponseSchema,
   myOutagesResponseSchema,
+  outageDetailSchema,
   subscriptionWithOutagesSchema,
   subscriptionsResponseSchema,
 } from '@struja/shared';
@@ -123,5 +125,59 @@ describe('mock scenarios', () => {
       'three',
       'offline',
     ]);
+  });
+});
+
+describe('mock city list, history and detail', () => {
+  const cityList = async () =>
+    cityOutagesResponseSchema.parse(await (await fetch(`${base}/v1/cities/nis/outages`)).json());
+  const outageDetail = async (id: number) =>
+    outageDetailSchema.parse(await (await get(`/v1/outages/${id}`)).json());
+
+  it('lists the outages of the city, soonest first, with the person’s own among them', async () => {
+    await scenario('upcoming');
+    const { outages } = await cityList();
+    expect(outages.length).toBeGreaterThanOrEqual(6);
+    const starts = outages.map((o) => Date.parse(o.startsAt));
+    expect(starts).toEqual([...starts].sort((a, b) => a - b));
+    expect(outages.some((o) => o.status === 'cancelled')).toBe(true);
+    expect(outages.some((o) => o.status === 'changed')).toBe(true);
+    for (const o of outages) expect(Date.parse(o.endsAt)).toBeGreaterThan(NOW.getTime());
+  });
+
+  it('a quiet city and a new person: nothing to list in "clear"', async () => {
+    await scenario('clear');
+    expect((await cityList()).outages).toEqual([]);
+    const history = myOutagesResponseSchema.parse(
+      await (await get('/v1/me/outages?range=history')).json(),
+    );
+    expect(history.outages).toEqual([]);
+  });
+
+  it('keeps a history of past outages for the person’s addresses, one cancelled', async () => {
+    await scenario('upcoming');
+    const { outages } = myOutagesResponseSchema.parse(
+      await (await get('/v1/me/outages?range=history')).json(),
+    );
+    expect(outages.length).toBeGreaterThanOrEqual(5);
+    for (const o of outages) expect(Date.parse(o.endsAt)).toBeLessThan(NOW.getTime());
+    expect(outages.some((o) => o.status === 'cancelled')).toBe(true);
+  });
+
+  it('answers the detail of a city outage, a history outage and an own outage', async () => {
+    await scenario('upcoming');
+    const city = (await cityList()).outages.find((o) => o.id === 2002)!;
+    const d = await outageDetail(2002);
+    expect(d.startsAt).toBe(city.startsAt);
+    expect(d.mine).toEqual([]);
+    expect(d.segments.map((s) => s.name?.cyrillic)).toEqual(city.streets);
+    expect(d.segments[0]?.name?.latin).toBe('Bulevar Nemanjića');
+    const history = myOutagesResponseSchema.parse(
+      await (await get('/v1/me/outages?range=history')).json(),
+    ).outages;
+    expect((await outageDetail(history[0]!.id)).startsAt).toBe(history[0]!.startsAt);
+    const own = (await outages())[0]!;
+    expect((await outageDetail(own.id)).mine[0]?.subscriptionId).toBe(own.subscriptionId);
+    expect((await get('/v1/outages/999999')).status).toBe(404);
   });
 });

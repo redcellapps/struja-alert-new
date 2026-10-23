@@ -211,3 +211,57 @@ describe('AddAddressForm', () => {
     expect(screen.queryByLabelText('Ulica ili naselje')).toBeNull();
   });
 });
+
+describe('AddAddressForm started from a street ("Prati")', () => {
+  const base = {
+    indexStatus: 'ready' as const,
+    script: 'latn' as const,
+    existingCount: 0,
+    onSaved: jest.fn(),
+  };
+
+  it('has the street picked already and saves it', async () => {
+    const save = jest.fn().mockResolvedValue(undefined);
+    await themed(
+      <AddAddressForm {...base} index={index} initial={{ kind: 'street', id: 2 }} save={save} />,
+    );
+    expect(screen.getByText('Studenička')).toBeTruthy();
+    expect(screen.queryByLabelText('Ulica ili naselje')).toBeNull();
+    await fireEvent.press(screen.getByLabelText('Sačuvaj adresu'));
+    await waitFor(() => expect(save).toHaveBeenCalledWith({ city: 'nis', streetId: 2 }));
+  });
+
+  it('waits for the street list, then picks the street; "Promeni" lets the person search again', async () => {
+    const save = jest.fn();
+    const { rerender } = await themed(
+      <AddAddressForm
+        {...base}
+        index={null}
+        indexStatus="loading"
+        initial={{ kind: 'street', id: 1 }}
+        save={save}
+      />,
+    );
+    expect(screen.queryByText('Vojvode Mišića')).toBeNull();
+    await rerender(
+      <ThemeProvider override={buildTheme('dark')}>
+        <AddAddressForm {...base} index={index} initial={{ kind: 'street', id: 1 }} save={save} />
+      </ThemeProvider>,
+    );
+    expect(screen.getByText('Vojvode Mišića')).toBeTruthy();
+    await fireEvent.press(screen.getByLabelText('Promeni'));
+    expect(screen.getByLabelText('Ulica ili naselje')).toBeTruthy();
+  });
+
+  it('ignores a street that is not in the list', async () => {
+    await themed(
+      <AddAddressForm
+        {...base}
+        index={index}
+        initial={{ kind: 'street', id: 9999 }}
+        save={jest.fn()}
+      />,
+    );
+    expect(screen.getByLabelText('Ulica ili naselje')).toBeTruthy();
+  });
+});

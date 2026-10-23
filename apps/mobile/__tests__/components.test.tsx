@@ -9,20 +9,26 @@ import {
   Button,
   CheckboxRow,
   Chip,
-  CountdownText,
   DayStrip,
   EmptyState,
   RadioRow,
   RangeChips,
+  RemainingText,
   SectionHeader,
   Segmented,
+  SheetHeader,
   SkeletonCard,
   StatusHero,
   SwitchRow,
   TimelineBar,
 } from '../src/design/components';
 import { buildTheme, ThemeProvider } from '../src/design/theme';
+import { initI18n } from '../src/i18n';
 import { STATUS_KEYS } from '../src/design/tokens';
+
+beforeAll(async () => {
+  await initI18n('sr', 'latn');
+});
 
 const renderThemed = (ui: ReactElement, name: 'light' | 'dark' = 'light') =>
   render(<ThemeProvider override={buildTheme(name)}>{ui}</ThemeProvider>);
@@ -39,8 +45,8 @@ describe.each(['light', 'dark'] as const)('components (%s)', (mode) => {
           address="Vojvode Mišića 34"
           accessibilityLabel="Bez struje do 12:30, Vojvode Mišića 34"
         >
-          <CountdownText
-            remainingMs={72 * 60_000 + 5000}
+          <RemainingText
+            remainingMs={72 * 60_000}
             color="#000000"
             accessibilityLabel="1 čas 12 minuta"
           />
@@ -54,15 +60,50 @@ describe.each(['light', 'dark'] as const)('components (%s)', (mode) => {
     },
   );
 
-  it('CountdownText shows tabular digits for the remaining time', async () => {
+  it('RemainingText shows hours and minutes, never seconds, and speaks its own sentence', async () => {
     await renderThemed(
-      <CountdownText remainingMs={3_725_000} color="#fff" accessibilityLabel="x" />,
+      <>
+        <RemainingText
+          remainingMs={72 * 60_000}
+          color="#fff"
+          accessibilityLabel="1 čas 12 minuta"
+        />
+        <RemainingText remainingMs={45 * 60_000} color="#fff" accessibilityLabel="45 minuta" />
+        <RemainingText remainingMs={30_000} color="#fff" accessibilityLabel="skoro" />
+      </>,
       mode,
     );
-    const digits = screen.getAllByText(/^[0-9:]$/).map((n) => n.props.children);
-    expect(digits.join('')).toBe('1:02:05');
-    for (const n of screen.getAllByText(/^[0-9:]$/))
-      expect(StyleSheet.flatten(n.props.style).fontVariant).toEqual(['tabular-nums']);
+    expect(screen.getByText('1 h 12 min')).toBeTruthy();
+    expect(screen.getByText('45 min')).toBeTruthy();
+    expect(screen.getByText('manje od minuta')).toBeTruthy();
+    expect(screen.getByLabelText('1 čas 12 minuta')).toBeTruthy();
+    // no tabular digits: the text is set in the font's own figures
+    expect(StyleSheet.flatten(screen.getByText('45 min').props.style).fontVariant).toBeUndefined();
+  });
+
+  it('SheetHeader closes the sheet with a labelled button and draws no tabular digits', async () => {
+    const onClose = jest.fn();
+    await renderThemed(<SheetHeader onClose={onClose} />, mode);
+    await fireEvent.press(screen.getByLabelText('Zatvori'));
+    expect(onClose).toHaveBeenCalled();
+  });
+
+  it('Banner is one row: icon, message and the action beside it', async () => {
+    const onAction = jest.fn();
+    await renderThemed(
+      <Banner
+        tone="warning"
+        message="Obaveštenja su isključena"
+        actionLabel="Uključi"
+        onAction={onAction}
+      />,
+      mode,
+    );
+    await fireEvent.press(screen.getByLabelText('Uključi'));
+    expect(onAction).toHaveBeenCalled();
+    const row = StyleSheet.flatten(screen.getByRole('alert').props.style);
+    expect(row.flexDirection).toBe('row');
+    expect(row.flexWrap).toBe('wrap'); // drops under the message at large font sizes
   });
 
   it('DayStrip marks the selected day and reports a press', async () => {
@@ -185,14 +226,11 @@ describe.each(['light', 'dark'] as const)('components (%s)', (mode) => {
     expect(time.textDecorationLine).toBe('line-through');
   });
 
-  it('AppText uses the static weight file of the font token; digits are tabular only when asked for', async () => {
+  it('AppText uses the static weight file of the font token; no tabular digits', async () => {
     await renderThemed(
       <>
         <AppText variant="headline">Naslov</AppText>
         <AppText variant="display">12:30</AppText>
-        <AppText variant="display" tabular>
-          1:12:05
-        </AppText>
       </>,
       mode,
     );
@@ -201,9 +239,6 @@ describe.each(['light', 'dark'] as const)('components (%s)', (mode) => {
     expect(headline.fontFamily).toBe('Onest_700Bold');
     expect(display.fontFamily).toBe('Onest_800ExtraBold');
     expect(display.fontVariant).toBeUndefined();
-    expect(StyleSheet.flatten(screen.getByText('1:12:05').props.style).fontVariant).toEqual([
-      'tabular-nums',
-    ]);
   });
 
   it('BentoTile reads as one spoken sentence', async () => {

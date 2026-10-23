@@ -1,6 +1,6 @@
 import { StyleSheet, View } from 'react-native';
 import { useTheme } from '../theme';
-import { icons, type StatusKey } from '../tokens';
+import { icons, type IconName, type StatusKey } from '../tokens';
 import { AppText } from './AppText';
 import { Icon } from './Icon';
 
@@ -57,6 +57,25 @@ export function PossibleBadge({ label, status = 'upcoming', onFill }: PossibleBa
     >
       <Icon name={{ ios: 'questionmark.circle.fill', android: 'help' }} size={16} color={on} />
       <AppText variant="caption" color={on}>
+        {label}
+      </AppText>
+    </View>
+  );
+}
+
+export interface TagPillProps {
+  label: string;
+  icon?: IconName;
+}
+
+/** A quiet neutral pill on a card ("Vaša adresa", "Izmenjeno"). */
+export function TagPill({ label, icon }: TagPillProps) {
+  const { colors, radius } = useTheme();
+  const c = colors.chrome;
+  return (
+    <View style={[styles.badge, { borderRadius: radius.full, backgroundColor: c.raised }]}>
+      {icon ? <Icon name={icon} size={16} color={c.text} /> : null}
+      <AppText variant="caption" color={c.text}>
         {label}
       </AppText>
     </View>

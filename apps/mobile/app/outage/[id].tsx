@@ -1,8 +1,11 @@
 import { useQuery } from '@tanstack/react-query';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useTranslation } from 'react-i18next';
+import { MAX_ADDRESSES } from '@struja/shared';
 import { api } from '../../src/api/runtime';
-import { useNow } from '../../src/design/useNow';
+import { useGazetteer } from '../../src/gazetteer/cache';
+import { findStreet } from '../../src/gazetteer/search';
+import { useMinuteNow } from '../../src/design/useNow';
 import { SUBSCRIPTIONS_KEY } from '../../src/home/useHomeData';
 import {
   addToCalendar,
@@ -14,6 +17,7 @@ import {
   todayInBelgrade,
 } from '../../src/outage/actions';
 import { OutageDetailView, type DetailAddress } from '../../src/outage/OutageDetailView';
+import { useAddresses } from '../../src/store/addresses';
 import { useSettings } from '../../src/store/settings';
 
 // A modal sheet: one outage, and how it concerns the person's saved addresses.
@@ -21,7 +25,7 @@ export default function OutageSheet() {
   const { id, addressId } = useLocalSearchParams<{ id?: string; addressId?: string }>();
   const { t } = useTranslation();
   const router = useRouter();
-  const now = useNow(1000);
+  const now = useMinuteNow();
   const script = useSettings((s) => s.script);
   const detailQuery = useQuery({
     queryKey: ['outage', id],
@@ -33,6 +37,8 @@ export default function OutageSheet() {
     queryFn: async () => (await api.subscriptions()).subscriptions,
   });
   const detail = detailQuery.data ?? null;
+  const saved = useAddresses((s) => s.items);
+  const { index } = useGazetteer('nis');
 
   // The saved addresses this outage concerns, with the street and the number to compare with its ranges.
   const addresses: DetailAddress[] = (detail?.mine ?? []).flatMap((m) => {
@@ -70,6 +76,21 @@ export default function OutageSheet() {
       loading={detailQuery.isPending && !detailQuery.isError}
       failed={detailQuery.isError && !detail}
       onRetry={() => void detailQuery.refetch()}
+      onClose={() => router.back()}
+      followState={(segment) => {
+        const place = segment.name && index ? findStreet(index, segment.name.latin) : undefined;
+        if (!place) return 'none';
+        if (saved.some((a) => a.request.streetId === place.id)) return 'followed';
+        return saved.length < MAX_ADDRESSES ? 'can' : 'none';
+      }}
+      onFollow={(segment) => {
+        const place = segment.name && index ? findStreet(index, segment.name.latin) : undefined;
+        if (place)
+          router.push({
+            pathname: '/add-address',
+            params: { kind: 'street', id: String(place.id) },
+          });
+      }}
       onAddNumber={(subscriptionId) =>
         router.push({ pathname: '/edit-address', params: { id: String(subscriptionId) } })
       }

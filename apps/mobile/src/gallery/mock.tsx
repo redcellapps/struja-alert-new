@@ -1,6 +1,6 @@
 import { View } from 'react-native';
 import { useTranslation } from 'react-i18next';
-import { AppText, CountdownText, StatusHero } from '../design/components';
+import { AppText, RemainingText, StatusHero } from '../design/components';
 import { useTheme } from '../design/theme';
 import type { StatusKey } from '../design/tokens';
 import { addDays, dayOfMonth, weekdayIndex } from '../format/time';
@@ -60,7 +60,7 @@ export function MockHero({
           <AppText variant="label" color={on}>
             {text.detail}
           </AppText>
-          <CountdownText
+          <RemainingText
             variant={big}
             remainingMs={remaining}
             color={on}

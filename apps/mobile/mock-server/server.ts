@@ -6,8 +6,11 @@ import {
   patchSubscriptionRequestSchema,
   registerDeviceRequestSchema,
 } from '@struja/shared';
-import { cities, detailFor, detailForOutage, gazetteer } from './fixtures.ts';
+import { cities, gazetteer } from './fixtures.ts';
 import {
+  cityOutages,
+  findDetail,
+  historyOutages,
   isScenario,
   outagesForScenario,
   visibleSubscriptions,
@@ -89,21 +92,10 @@ export function createMockServer(opts: MockOptions = {}): Server {
         return void res.end(JSON.stringify(gazetteer));
       }
       if (path === '/v1/cities/nis/outages') {
-        const detail = detailFor(1001, 1, now());
-        return json(res, 200, {
-          city: 'nis',
-          outages: [
-            {
-              id: detail.id,
-              municipality: detail.municipality,
-              startsAt: detail.startsAt,
-              endsAt: detail.endsAt,
-              outageDate: detail.outageDate,
-              status: detail.status,
-              streets: ['Војводе Мишића', 'Студеничка'],
-            },
-          ],
-        });
+        // city-wide: the outages of every device's addresses are part of the list
+        const everyone = [...subs.values()].flatMap((list) => visibleSubscriptions(scenario, list));
+        const mineNow = everyone.flatMap((x, i) => outagesForScenario(scenario, x, i, now()));
+        return json(res, 200, { city: 'nis', outages: cityOutages(scenario, mineNow, now()) });
       }
 
       if (path === '/v1/devices' && method === 'POST') {
@@ -192,7 +184,7 @@ export function createMockServer(opts: MockOptions = {}): Server {
         const history = url.searchParams.get('range') === 'history';
         return json(res, 200, {
           outages: history
-            ? []
+            ? historyOutages(scenario, visibleSubscriptions(scenario, mine), now())
             : visibleSubscriptions(scenario, mine).flatMap((s, i) =>
                 outagesForScenario(scenario, s, i, now()),
               ),
@@ -200,11 +192,14 @@ export function createMockServer(opts: MockOptions = {}): Server {
       }
       const outageId = /^\/v1\/outages\/(\d+)$/.exec(path)?.[1];
       if (outageId) {
-        const found = visibleSubscriptions(scenario, mine)
-          .flatMap((s, i) => outagesForScenario(scenario, s, i, now()))
-          .find((o) => o.id === Number(outageId));
-        if (!found) return error(res, 404, 'not_found', 'No such outage');
-        return json(res, 200, detailForOutage(found));
+        const detail = findDetail(
+          scenario,
+          visibleSubscriptions(scenario, mine),
+          now(),
+          Number(outageId),
+        );
+        if (!detail) return error(res, 404, 'not_found', 'No such outage');
+        return json(res, 200, detail);
       }
       if (path === '/v1/devices/me' && method === 'DELETE') {
         if (deviceId) {

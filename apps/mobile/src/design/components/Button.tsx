@@ -13,6 +13,8 @@ export interface ButtonProps {
   // Full width (the default for primary) or as wide as its label.
   fullWidth?: boolean;
   accessibilityHint?: string;
+  // Spoken instead of the label when the label alone is ambiguous ("Prati" in a list of streets).
+  accessibilityLabel?: string;
 }
 
 export function Button({
@@ -22,6 +24,7 @@ export function Button({
   disabled,
   fullWidth,
   accessibilityHint,
+  accessibilityLabel,
 }: ButtonProps) {
   const { colors, radius } = useTheme();
   const c = colors.chrome;
@@ -30,7 +33,7 @@ export function Button({
   return (
     <Pressable
       accessibilityRole="button"
-      accessibilityLabel={label}
+      accessibilityLabel={accessibilityLabel ?? label}
       accessibilityHint={accessibilityHint}
       accessibilityState={{ disabled: !!disabled }}
       disabled={disabled}

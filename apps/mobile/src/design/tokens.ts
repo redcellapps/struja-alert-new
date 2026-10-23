@@ -244,8 +244,6 @@ export const typography = {
 } satisfies Record<string, TextStyleToken>;
 export type TypographyKey = keyof typeof typography;
 
-export const tabularNums = ['tabular-nums'] as const;
-
 // Reanimated springs and durations; non-essential motion is skipped when the system asks for it.
 export const motion = {
   spring: {

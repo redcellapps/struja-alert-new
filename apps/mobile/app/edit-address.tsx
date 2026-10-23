@@ -3,7 +3,7 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { api } from '../src/api/runtime';
 import { HouseNumberForm } from '../src/addresses/HouseNumberForm';
 import { saveHouseNumber } from '../src/addresses/houseNumber';
-import { Screen } from '../src/design/components';
+import { Screen, SheetHeader } from '../src/design/components';
 import { MY_OUTAGES_KEY, SUBSCRIPTIONS_KEY } from '../src/home/useHomeData';
 import { useSettings } from '../src/store/settings';
 
@@ -18,9 +18,15 @@ export default function EditAddressSheet() {
     queryFn: async () => (await api.subscriptions()).subscriptions,
   });
   const subscription = data?.find((s) => String(s.id) === id);
-  if (!subscription) return <Screen inset="none">{null}</Screen>;
+  if (!subscription)
+    return (
+      <Screen inset="none">
+        <SheetHeader onClose={() => router.back()} />
+      </Screen>
+    );
   return (
     <Screen inset="none">
+      <SheetHeader onClose={() => router.back()} />
       <HouseNumberForm
         name={script === 'cyrl' ? subscription.name.cyrillic : subscription.name.latin}
         save={async (number) => {

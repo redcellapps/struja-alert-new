@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import { MAX_ADDRESSES, type CreateSubscriptionRequest } from '@struja/shared';
@@ -47,6 +47,8 @@ export interface AddAddressFormProps {
   // Saves the address; rejects when it could not be saved.
   save: (request: CreateSubscriptionRequest) => Promise<unknown>;
   onSaved: () => void;
+  // A street or settlement to start with ("Prati" in Najave and in the outage detail).
+  initial?: { kind: 'street' | 'settlement'; id: number };
 }
 
 /**
@@ -62,11 +64,20 @@ export function AddAddressForm({
   existingCount,
   save,
   onSaved,
+  initial,
 }: AddAddressFormProps) {
   const { t } = useTranslation();
   const { colors, radius } = useTheme();
   const [query, setQuery] = useState('');
   const [picked, setPicked] = useState<Place | null>(null);
+  const [initialApplied, setInitialApplied] = useState(false);
+  // Start with the street the person chose elsewhere, as soon as the street list is there.
+  useEffect(() => {
+    if (!initial || initialApplied || !index) return;
+    const place = index.places.find((p) => p.kind === initial.kind && p.id === initial.id);
+    if (place) setPicked(place);
+    setInitialApplied(true);
+  }, [initial, initialApplied, index]);
   const [house, setHouse] = useState('');
   const [label, setLabel] = useState<LabelKey | null>(null);
   const [customLabel, setCustomLabel] = useState('');

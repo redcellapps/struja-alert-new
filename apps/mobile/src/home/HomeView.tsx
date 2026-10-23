@@ -7,9 +7,9 @@ import {
   AppText,
   Banner,
   BentoTile,
-  CountdownText,
   DayStrip,
   EmptyState,
+  RemainingText,
   Screen,
   SectionHeader,
   SkeletonCard,
@@ -130,7 +130,7 @@ function HeroSection({
           <AppText variant="label" color={on}>
             {status === 'active' ? t('home.returnInLabel') : t('home.startsInLabel')}
           </AppText>
-          <CountdownText
+          <RemainingText
             variant="display"
             remainingMs={remaining}
             color={on}
@@ -213,6 +213,7 @@ export function TilesSection({
     };
   }
   const count = t('outages.count', { count: ids.size });
+  const word = t('outages.word', { count: ids.size });
   return (
     <View style={{ flexDirection: 'row', gap: CARD_GAP }}>
       {first ? (
@@ -226,10 +227,10 @@ export function TilesSection({
       ) : null}
       <BentoTile
         icon={{ ios: 'calendar', android: 'calendar_month' }}
-        label={t('home.weekTile')}
+        label={t('home.nextDaysTile')}
         value={String(ids.size)}
-        caption={`${count} · ${t('home.nextDays')}`}
-        accessibilityLabel={`${t('home.weekTile')}: ${count}, ${t('home.nextDays')}`}
+        caption={word}
+        accessibilityLabel={`${t('home.nextDaysTile')}: ${count}`}
       />
     </View>
   );
@@ -312,7 +313,7 @@ export function HomeView(props: HomeViewProps) {
         <Banner
           tone="warning"
           message={t('banner.notificationsOff')}
-          actionLabel={t('banner.openSettings')}
+          actionLabel={t('banner.turnOn')}
           onAction={props.onOpenSystemSettings}
         />
       ) : null}

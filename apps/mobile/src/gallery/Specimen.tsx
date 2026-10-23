@@ -1,5 +1,5 @@
 import { View } from 'react-native';
-import { AppText, Chip, CountdownText } from '../design/components';
+import { AppText, Chip } from '../design/components';
 import { buildTheme, ThemeProvider, useTheme } from '../design/theme';
 import { fontSets, type FontSetKey } from '../design/tokens';
 
@@ -31,12 +31,7 @@ function Candidate({ fontKey }: { fontKey: FontSetKey }) {
           </AppText>
         </View>
         <AppText variant="headline">Uskoro bez struje</AppText>
-        <CountdownText
-          variant="display"
-          remainingMs={72 * 60_000 + 5_000}
-          color={c.text}
-          accessibilityLabel="1 čas 12 minuta"
-        />
+        <AppText variant="display">1 h 12 min</AppText>
         <AppText variant="body" color="textSecondary">
           Elektrodistribucija je najavila isključenje struje za vašu adresu. Javićemo vam čim se
           nešto promeni.

@@ -13,7 +13,8 @@
     "confirm-labels": "node src/confirm-labels.ts",
     "synthetic-eval": "node src/synthetic-eval.ts",
     "design-review": "node src/design-review.ts",
-    "home-scenarios": "node src/home-scenarios.ts"
+    "home-scenarios": "node src/home-scenarios.ts",
+    "list-screens": "node src/list-screens.ts"
   },
   "dependencies": {
     "@struja/parser": "workspace:*"

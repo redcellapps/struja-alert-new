@@ -6,12 +6,14 @@ import type { OutageDetailDto } from '@struja/shared';
 import {
   AppText,
   Button,
-  CountdownText,
   EmptyState,
+  PossibleBadge,
+  RemainingText,
   IconTile,
   RangeChips,
   Screen,
   SectionHeader,
+  SheetHeader,
   SkeletonCard,
   StatusBadge,
   TextField,
@@ -23,7 +25,7 @@ import { belgradeDate, dayHour } from '../format/time';
 import { durationShort, hoursUntil, spokenDuration } from '../home/format';
 import { statusAt } from '../home/outlook';
 import { dateLong, windowText } from './actions';
-import { addressRanges, segmentForStreet, streetLine } from './ranges';
+import { addressRanges, segmentForStreet, streetLine, type Segment } from './ranges';
 
 export interface DetailAddress {
   subscriptionId: number;
@@ -46,6 +48,11 @@ export interface OutageDetailViewProps {
   failed: boolean;
   onRetry: () => void;
   onAddNumber: (subscriptionId: number) => void;
+  onClose: () => void;
+  // "Prati": whether a street of the outage can be followed (it is in the street list and there is
+  // room), is followed already, or neither; and the action.
+  followState?: (segment: Segment) => 'can' | 'followed' | 'none';
+  onFollow?: (segment: Segment) => void;
   onCalendar?: () => void;
   onShare: () => void;
   onOpenSource: () => void;
@@ -132,6 +139,7 @@ export function OutageDetailView(props: OutageDetailViewProps) {
   if (props.loading)
     return (
       <Screen inset="none">
+        <SheetHeader onClose={props.onClose} />
         <SkeletonCard lines={2} accessibilityLabel={t('state.loading')} />
         <SkeletonCard lines={3} accessibilityLabel={t('state.loading')} />
       </Screen>
@@ -139,6 +147,7 @@ export function OutageDetailView(props: OutageDetailViewProps) {
   if (props.failed || !detail)
     return (
       <Screen inset="none">
+        <SheetHeader onClose={props.onClose} />
         <EmptyState
           icon={{ ios: 'wifi.slash', android: 'cloud_off' }}
           title={props.failed ? t('home.loadError') : t('detail.notFound')}
@@ -172,8 +181,14 @@ export function OutageDetailView(props: OutageDetailViewProps) {
 
   return (
     <Screen inset="none">
+      <SheetHeader onClose={props.onClose} />
       <View style={{ gap: 8 }}>
-        <StatusBadge status={status} label={statusLabel} />
+        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
+          <StatusBadge status={status} label={statusLabel} />
+          {!cancelled && !over && detail.mine.some((m) => m.match === 'possible') ? (
+            <PossibleBadge label={t('home.possibleBadge')} />
+          ) : null}
+        </View>
         <AppText variant="headline" accessibilityRole="header">
           {dateLong(detail.outageDate, t)}
         </AppText>
@@ -218,7 +233,7 @@ export function OutageDetailView(props: OutageDetailViewProps) {
               <AppText variant="label" color="textSecondary">
                 {status === 'active' ? t('detail.countdownReturns') : t('detail.countdownStarts')}
               </AppText>
-              <CountdownText
+              <RemainingText
                 variant="countdown"
                 remainingMs={remaining}
                 color={colors.chrome.text}
@@ -277,12 +292,30 @@ export function OutageDetailView(props: OutageDetailViewProps) {
         <Card gap={12}>
           {detail.segments.map((seg, i) => {
             const line = streetLine(seg, script, t);
+            const follow = props.followState?.(seg) ?? 'none';
             return (
-              <View key={`${seg.raw}-${i}`} style={{ gap: 2 }}>
-                <AppText variant="bodyStrong">{line.title}</AppText>
-                {line.detail ? (
+              <View
+                key={`${seg.raw}-${i}`}
+                style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}
+              >
+                <View style={{ flex: 1, gap: 2 }}>
+                  <AppText variant="bodyStrong">{line.title}</AppText>
+                  {line.detail ? (
+                    <AppText variant="label" color="textSecondary">
+                      {line.detail}
+                    </AppText>
+                  ) : null}
+                </View>
+                {follow === 'can' ? (
+                  <Button
+                    label={t('upcoming.follow')}
+                    accessibilityLabel={`${t('upcoming.follow')} ${line.title}`}
+                    variant="secondary"
+                    onPress={() => props.onFollow?.(seg)}
+                  />
+                ) : follow === 'followed' ? (
                   <AppText variant="label" color="textSecondary">
-                    {line.detail}
+                    {t('upcoming.following')}
                   </AppText>
                 ) : null}
               </View>

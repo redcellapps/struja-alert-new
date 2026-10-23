@@ -147,6 +147,7 @@ describe('HomeView', () => {
     const o = outage('2026-11-03T07:30:00Z', '2026-11-03T11:30:00Z');
     await show(props({ addresses: [home([o])] }));
     expect(screen.getByText('Uskoro bez struje')).toBeTruthy();
+    expect(screen.getAllByText('2 h 30 min').length).toBeGreaterThan(0);
     expect(
       screen.getByLabelText('Počinje za 2 časa 30 minuta'), // the spoken countdown
     ).toBeTruthy();
@@ -154,8 +155,8 @@ describe('HomeView', () => {
     expect(screen.getAllByText('Počinje za')).toHaveLength(2); // the hero label and the tile
     expect(screen.getByText('2 h')).toBeTruthy();
     expect(screen.getByText('Danas 08:30')).toBeTruthy();
-    expect(screen.getByText('Ove nedelje')).toBeTruthy();
-    expect(screen.getByText('1 isključenje · 4 dana')).toBeTruthy();
+    expect(screen.getByText('Naredna 4 dana')).toBeTruthy();
+    expect(screen.getByText('isključenje')).toBeTruthy();
     expect(screen.queryByText('Trajanje')).toBeNull();
   });
 
@@ -233,7 +234,7 @@ describe('HomeView', () => {
     const p = props({ offline: true, notificationsOff: true });
     await show(p);
     expect(screen.getByText('Prikazujem sačuvane podatke')).toBeTruthy();
-    await fireEvent.press(screen.getByLabelText('Otvori podešavanja'));
+    await fireEvent.press(screen.getByLabelText('Uključi'));
     expect(p.onOpenSystemSettings).toHaveBeenCalled();
   });
 
@@ -248,7 +249,7 @@ describe('HomeView', () => {
 
   it('hides the tiles when there is no outage', async () => {
     await show(props());
-    expect(screen.queryByText('Ove nedelje')).toBeNull();
+    expect(screen.queryByText('Naredna 4 dana')).toBeNull();
     expect(screen.queryByText('Počinje za')).toBeNull();
   });
 
@@ -265,7 +266,8 @@ describe('HomeView', () => {
       primary: false,
     });
     await show(props({ addresses: [home([shared]), second] }));
-    expect(screen.getByText('1 isključenje · 4 dana')).toBeTruthy();
+    expect(screen.getByText('1')).toBeTruthy();
+    expect(screen.getByText('isključenje')).toBeTruthy();
   });
 
   it('while an outage runs, the first tile gives the time the power returns', async () => {

@@ -10,6 +10,7 @@ export type BannerTone = 'offline' | 'warning';
 export interface BannerProps {
   tone: BannerTone;
   message: string;
+  // The action on the right ("Uključi"); it wraps under the message at large font sizes.
   actionLabel?: string;
   onAction?: () => void;
 }
@@ -19,7 +20,7 @@ const ICONS: Record<BannerTone, IconName> = {
   warning: { ios: 'bell.slash.fill', android: 'notifications_off' },
 };
 
-/** A persistent notice under the header: offline (showing saved data) or notifications turned off. */
+/** A persistent notice under the header, one row: icon, message, and an optional action. */
 export function Banner({ tone, message, actionLabel, onAction }: BannerProps) {
   const { colors, radius } = useTheme();
   const mark = (tone === 'offline' ? colors.status.past : colors.status.upcoming).mark;
@@ -30,27 +31,26 @@ export function Banner({ tone, message, actionLabel, onAction }: BannerProps) {
       accessibilityLabel={message}
       style={[
         styles.card,
-        { backgroundColor: colors.chrome.card, borderRadius: radius.xl, padding: CARD_PADDING },
+        {
+          backgroundColor: colors.chrome.card,
+          borderRadius: radius.xl,
+          paddingVertical: 12,
+          paddingLeft: CARD_PADDING,
+          paddingRight: actionLabel ? 8 : CARD_PADDING,
+        },
       ]}
     >
-      <View style={styles.row}>
-        <IconTile icon={ICONS[tone]} color={mark} />
-        <AppText variant="bodyStrong" style={styles.text}>
-          {message}
-        </AppText>
-      </View>
-      {actionLabel ? (
-        <View style={styles.action}>
-          <Button label={actionLabel} variant="text" onPress={onAction} />
-        </View>
-      ) : null}
+      <IconTile icon={ICONS[tone]} color={mark} />
+      <AppText variant="bodyStrong" style={styles.text}>
+        {message}
+      </AppText>
+      {actionLabel ? <Button label={actionLabel} variant="text" onPress={onAction} /> : null}
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  card: { gap: 8 },
-  row: { flexDirection: 'row', alignItems: 'center', gap: 14 },
-  text: { flex: 1 },
-  action: { alignItems: 'flex-start', marginLeft: -12 },
+  // Wraps: at a large font the action drops under the message instead of squeezing it.
+  card: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', columnGap: 14, rowGap: 4 },
+  text: { flex: 1, minWidth: 140 },
 });

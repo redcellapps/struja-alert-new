@@ -33,8 +33,8 @@ function RootStack() {
         name="add-address"
         options={{
           presentation: 'formSheet',
-          sheetAllowedDetents: [0.95],
-          sheetGrabberVisible: true,
+          sheetAllowedDetents: [0.9],
+          sheetCornerRadius: 28,
         }}
       />
       <Stack.Screen
@@ -42,15 +42,15 @@ function RootStack() {
         options={{
           presentation: 'formSheet',
           sheetAllowedDetents: [0.6],
-          sheetGrabberVisible: true,
+          sheetCornerRadius: 28,
         }}
       />
       <Stack.Screen
         name="outage/[id]"
         options={{
           presentation: 'formSheet',
-          sheetAllowedDetents: [0.95],
-          sheetGrabberVisible: true,
+          sheetAllowedDetents: [0.86],
+          sheetCornerRadius: 28,
         }}
       />
       <Stack.Screen name="gallery" />

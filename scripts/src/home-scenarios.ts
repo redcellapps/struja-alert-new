@@ -7,20 +7,30 @@
 // Scenarios are switched at run time with POST /__dev/scenario; the app is told to refresh by a pull
 // down. "offline" follows a loaded scenario, so the app shows its saved data with the offline notice.
 // "notifications off" revokes the notification permission with adb (which restarts the app) and
-// grants it again afterwards.
-import { execFileSync } from 'node:child_process';
-import { mkdirSync, writeFileSync } from 'node:fs';
+// grants it again afterwards. Do not edit the app's code while it runs: Fast Refresh would put a
+// banner in the pictures.
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import {
+  APP_ID,
+  adb,
+  back,
+  h,
+  launch,
+  pullToRefresh,
+  screenshotter,
+  setScenario,
+  sleep,
+  swipe,
+  tap,
+  tapLabelWithRetry,
+  toTop,
+  w,
+} from './device.ts';
 
-const APP_ID = 'rs.example.strujaalert';
-const MOCK = process.env.MOCK_URL ?? 'http://localhost:3000';
 const root = fileURLToPath(new URL('../../', import.meta.url));
 const outDir = process.argv[2] ?? join(root, 'docs', 'screens', 'android', 'step4');
-
-const adb = (...args: string[]): Buffer =>
-  execFileSync('adb', args, { maxBuffer: 64 * 1024 * 1024, stdio: ['ignore', 'pipe', 'inherit'] });
-const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+const { shot, files } = screenshotter(outDir);
 
 const SCENARIOS = [
   'clear',
@@ -33,61 +43,8 @@ const SCENARIOS = [
   'offline',
 ] as const;
 
-async function setScenario(name: string) {
-  const res = await fetch(`${MOCK}/__dev/scenario`, {
-    method: 'POST',
-    body: JSON.stringify({ name }),
-  });
-  if (!res.ok) throw new Error(`Cannot set the scenario ${name}: HTTP ${res.status}`);
-}
-
-function size(): { w: number; h: number } {
-  const m = /(\d+)x(\d+)/.exec(adb('shell', 'wm', 'size').toString());
-  if (!m) throw new Error('Cannot read the screen size from adb');
-  return { w: Number(m[1]), h: Number(m[2]) };
-}
-const { w, h } = size();
-const swipe = (fromY: number, toY: number, ms: number) =>
-  adb(
-    'shell',
-    'input',
-    'swipe',
-    String(w / 2),
-    String(Math.round(h * fromY)),
-    String(w / 2),
-    String(Math.round(h * toY)),
-    String(ms),
-  );
-const toTop = () => {
-  for (let i = 0; i < 4; i++) swipe(0.2, 0.85, 120);
-};
-const pullToRefresh = () => swipe(0.25, 0.7, 300);
-const launch = () =>
-  adb('shell', 'monkey', '-p', APP_ID, '-c', 'android.intent.category.LAUNCHER', '1');
-
-function tapLabel(label: string): boolean {
-  adb('shell', 'uiautomator', 'dump', '/sdcard/ui.xml');
-  const xml = adb('exec-out', 'cat', '/sdcard/ui.xml').toString('utf8');
-  for (const m of xml.matchAll(/<node [^>]*>/g)) {
-    const node = m[0];
-    const desc = / content-desc="([^"]*)"/.exec(node)?.[1] ?? '';
-    const text = / text="([^"]*)"/.exec(node)?.[1] ?? '';
-    const b = /bounds="\[(\d+),(\d+)\]\[(\d+),(\d+)\]"/.exec(node);
-    if (b && (desc === label || text === label)) {
-      const x = Math.round((Number(b[1]) + Number(b[3])) / 2);
-      const y = Math.round((Number(b[2]) + Number(b[4])) / 2);
-      adb('shell', 'input', 'tap', String(x), String(y));
-      return true;
-    }
-  }
-  return false;
-}
-
-const files: string[] = [];
-function shot(name: string) {
-  writeFileSync(join(outDir, name), adb('exec-out', 'screencap', '-p'));
-  files.push(name);
-}
+// Scenarios whose hero opens an outage detail worth showing.
+const DETAIL = new Set(['upcoming', 'active', 'cancelled', 'possible']);
 
 /** The top of the page, then the rest of it when it scrolls. */
 async function capture(base: string) {
@@ -109,7 +66,7 @@ async function capture(base: string) {
 async function captureDetail(base: string) {
   toTop();
   await sleep(600);
-  adb('shell', 'input', 'tap', String(Math.round(w / 2)), String(Math.round(h * 0.27)));
+  tap(w / 2, h * 0.27);
   await sleep(3500);
   shot(`${base}-1.png`);
   swipe(0.85, 0.2, 500);
@@ -118,15 +75,11 @@ async function captureDetail(base: string) {
   swipe(0.85, 0.2, 500);
   await sleep(900);
   shot(`${base}-3.png`);
-  adb('shell', 'input', 'keyevent', '4');
+  back();
   await sleep(1500);
 }
 
-// Scenarios whose hero opens an outage detail worth showing.
-const DETAIL = new Set(['upcoming', 'active', 'cancelled', 'possible']);
-
 async function main() {
-  mkdirSync(outDir, { recursive: true });
   await setScenario('upcoming');
   adb('shell', 'am', 'force-stop', APP_ID);
   launch();
@@ -148,22 +101,12 @@ async function main() {
         toTop();
         swipe(0.85, 0.3, 500);
         await sleep(800);
-        // the screen can be busy for a moment (the refresh spinner): try a few times
-        let tapped = false;
-        for (let i = 0; i < 4 && !tapped; i++) {
-          try {
-            tapped = tapLabel('Dodaj broj');
-          } catch {
-            // uiautomator could not get an idle state
-          }
-          if (!tapped) await sleep(1500);
-        }
-        if (tapped) {
+        if (await tapLabelWithRetry('Dodaj broj')) {
           await sleep(2500);
           shot(`possible-add-number-${mode}.png`);
-          adb('shell', 'input', 'keyevent', '4');
+          back();
           await sleep(1000);
-          adb('shell', 'input', 'keyevent', '4');
+          back();
           await sleep(1500);
         }
       }

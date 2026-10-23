@@ -84,8 +84,9 @@ describe('mock API contract', () => {
   it('city outages, history, reports and delete-my-data answer in the shared shapes', async () => {
     const { api } = app(memorySecrets());
     await api.addSubscription({ city: 'nis', streetId: 2 });
-    expect((await api.cityOutages('nis')).outages).toHaveLength(1);
-    expect((await api.myOutages('history')).outages).toEqual([]);
+    // the city list holds the person's own outage and others; the history is the past of their address
+    expect((await api.cityOutages('nis')).outages.length).toBeGreaterThan(1);
+    expect((await api.myOutages('history')).outages.length).toBeGreaterThan(0);
     expect(await api.report({ message: 'Pogrešna ulica' })).toEqual({ id: 1 });
     await api.deleteMyData();
   });

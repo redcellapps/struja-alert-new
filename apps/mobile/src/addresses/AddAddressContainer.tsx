@@ -8,7 +8,13 @@ import { AddAddressForm } from './AddAddressForm';
 import { saveAddress } from './save';
 
 /** The add-address form wired to the real gazetteer cache, the API and the list on the device. */
-export function AddAddressContainer({ onSaved }: { onSaved: () => void }) {
+export function AddAddressContainer({
+  onSaved,
+  initial,
+}: {
+  onSaved: () => void;
+  initial?: { kind: 'street' | 'settlement'; id: number };
+}) {
   const { index, status, retry } = useGazetteer('nis');
   const script = useSettings((s) => s.script);
   const queryClient = useQueryClient();
@@ -30,6 +36,7 @@ export function AddAddressContainer({ onSaved }: { onSaved: () => void }) {
         return saved;
       }}
       onSaved={onSaved}
+      initial={initial}
     />
   );
 }
