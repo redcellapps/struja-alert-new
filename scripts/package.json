@@ -14,7 +14,8 @@
     "synthetic-eval": "node src/synthetic-eval.ts",
     "design-review": "node src/design-review.ts",
     "home-scenarios": "node src/home-scenarios.ts",
-    "list-screens": "node src/list-screens.ts"
+    "list-screens": "node src/list-screens.ts",
+    "settings-screens": "node src/settings-screens.ts"
   },
   "dependencies": {
     "@struja/parser": "workspace:*"

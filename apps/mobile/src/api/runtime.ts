@@ -17,7 +17,7 @@ import { newId } from '../util/uuid';
 // EXPO_PUBLIC_API_URL to the https address of the server.
 export const API_URL = process.env.EXPO_PUBLIC_API_URL ?? 'http://10.0.2.2:3000';
 
-const secureStore: SecretStore = {
+export const secureStore: SecretStore = {
   get: (key) => SecureStore.getItemAsync(key),
   set: (key, value) => SecureStore.setItemAsync(key, value),
   remove: (key) => SecureStore.deleteItemAsync(key),

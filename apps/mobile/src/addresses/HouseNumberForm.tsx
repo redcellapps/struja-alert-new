@@ -9,16 +9,18 @@ import { parseHouseNumber } from '../gazetteer/search';
 export interface HouseNumberFormProps {
   // The address the number is for ("Vojvode Mišića").
   name: string;
+  // The number the address has now, when it is being changed ("34a").
+  initialText?: string;
   // Rejects when the number could not be saved.
   save: (number: { houseNumber: number; houseSuffix?: string }) => Promise<unknown>;
   onSaved: () => void;
 }
 
 /** "Dodaj broj": one field for the house number (with a suffix such as 34a) and one button. */
-export function HouseNumberForm({ name, save, onSaved }: HouseNumberFormProps) {
+export function HouseNumberForm({ name, initialText, save, onSaved }: HouseNumberFormProps) {
   const { t } = useTranslation();
   const { colors } = useTheme();
-  const [text, setText] = useState('');
+  const [text, setText] = useState(initialText ?? '');
   const [saving, setSaving] = useState(false);
   const [failed, setFailed] = useState(false);
   const parsed = parseHouseNumber(text);

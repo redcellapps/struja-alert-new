@@ -107,6 +107,8 @@ export function CheckboxRow({ label, description, checked, onChange }: CheckboxR
 // ---- Switch: a pill track, lime when on, with a white thumb ---------------------------------------
 
 export interface SwitchRowProps {
+  // Inside a card that has its own padding: no background of its own, no side padding.
+  plain?: boolean;
   label: string;
   description?: string;
   value: boolean;
@@ -150,7 +152,7 @@ function SwitchTrack({ value }: { value: boolean }) {
   );
 }
 
-export function SwitchRow({ label, description, value, onChange }: SwitchRowProps) {
+export function SwitchRow({ label, description, value, onChange, plain }: SwitchRowProps) {
   const { colors, radius } = useTheme();
   return (
     <Pressable
@@ -165,8 +167,13 @@ export function SwitchRow({ label, description, value, onChange }: SwitchRowProp
         styles.row,
         {
           borderRadius: radius.md,
-          backgroundColor: pressed ? colors.chrome.raised : colors.chrome.card,
-          minHeight: 64,
+          backgroundColor: plain
+            ? 'transparent'
+            : pressed
+              ? colors.chrome.raised
+              : colors.chrome.card,
+          minHeight: plain ? 56 : 64,
+          paddingHorizontal: plain ? 0 : 20,
         },
       ]}
     >

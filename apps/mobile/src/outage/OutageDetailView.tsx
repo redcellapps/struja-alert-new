@@ -10,13 +10,13 @@ import {
   PossibleBadge,
   RemainingText,
   IconTile,
+  MessageForm,
   RangeChips,
   Screen,
   SectionHeader,
   SheetHeader,
   SkeletonCard,
   StatusBadge,
-  TextField,
   TimelineBar,
 } from '../design/components';
 import { useTheme } from '../design/theme';
@@ -72,59 +72,6 @@ function Card({ children, gap = 16 }: { children: React.ReactNode; gap?: number 
       }}
     >
       {children}
-    </View>
-  );
-}
-
-function ReportBox({ onReport }: { onReport: OutageDetailViewProps['onReport'] }) {
-  const { t } = useTranslation();
-  const { colors } = useTheme();
-  const [open, setOpen] = useState(false);
-  const [text, setText] = useState('');
-  const [state, setState] = useState<'idle' | 'sending' | 'sent' | 'failed'>('idle');
-  if (!open)
-    return (
-      <Button
-        label={t('detail.reportError')}
-        variant="secondary"
-        fullWidth
-        onPress={() => setOpen(true)}
-      />
-    );
-  if (state === 'sent')
-    return (
-      <AppText variant="bodyStrong" accessibilityLiveRegion="polite">
-        {t('detail.reportThanks')}
-      </AppText>
-    );
-  const send = async () => {
-    setState('sending');
-    try {
-      await onReport(text.trim());
-      setState('sent');
-    } catch {
-      setState('failed');
-    }
-  };
-  return (
-    <View style={{ gap: 12 }}>
-      <TextField
-        label={t('detail.reportHint')}
-        value={text}
-        onChangeText={setText}
-        maxLength={1000}
-        autoFocus
-      />
-      {state === 'failed' ? (
-        <AppText variant="bodyStrong" color={colors.chrome.error} accessibilityLiveRegion="polite">
-          {t('detail.reportFailed')}
-        </AppText>
-      ) : null}
-      <Button
-        label={t('detail.reportSend')}
-        disabled={text.trim().length < 3 || state === 'sending'}
-        onPress={send}
-      />
     </View>
   );
 }
@@ -364,7 +311,14 @@ export function OutageDetailView(props: OutageDetailViewProps) {
           fullWidth
           onPress={props.onOpenSource}
         />
-        <ReportBox onReport={props.onReport} />
+        <MessageForm
+          openLabel={t('detail.reportError')}
+          hint={t('detail.reportHint')}
+          sendLabel={t('detail.reportSend')}
+          thanks={t('detail.reportThanks')}
+          failedText={t('detail.reportFailed')}
+          onSend={props.onReport}
+        />
         <AppText variant="caption" color="textSecondary">
           {t('home.source')}
         </AppText>

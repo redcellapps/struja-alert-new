@@ -2,6 +2,7 @@ import type { AddressInfo } from 'node:net';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import {
   cityOutagesResponseSchema,
+  deviceSchema,
   myOutagesResponseSchema,
   outageDetailSchema,
   subscriptionWithOutagesSchema,
@@ -179,5 +180,44 @@ describe('mock city list, history and detail', () => {
     const own = (await outages())[0]!;
     expect((await outageDetail(own.id)).mine[0]?.subscriptionId).toBe(own.subscriptionId);
     expect((await get('/v1/outages/999999')).status).toBe(404);
+  });
+});
+
+describe('mock device settings', () => {
+  const device = async () => deviceSchema.parse(await (await get('/v1/devices/me')).json());
+
+  it('starts with the default quiet hours and every kind, and takes changes', async () => {
+    expect(await device()).toMatchObject({
+      locale: 'sr',
+      script: 'latn',
+      quietHours: { start: '22:00', end: '07:00' },
+      enabledKinds: ['new', 'evening_before', 'changed', 'cancelled'],
+    });
+    const res = await fetch(`${base}/v1/devices/me`, {
+      method: 'PATCH',
+      headers: auth,
+      body: JSON.stringify({
+        locale: 'en',
+        script: 'cyrl',
+        quietHours: null,
+        enabledKinds: ['new'],
+      }),
+    });
+    expect(deviceSchema.parse(await res.json())).toMatchObject({
+      locale: 'en',
+      script: 'cyrl',
+      quietHours: null,
+      enabledKinds: ['new'],
+    });
+    expect(await device()).toMatchObject({ locale: 'en', quietHours: null });
+  });
+
+  it('refuses an empty change', async () => {
+    const res = await fetch(`${base}/v1/devices/me`, {
+      method: 'PATCH',
+      headers: auth,
+      body: JSON.stringify({}),
+    });
+    expect(res.status).toBe(400);
   });
 });

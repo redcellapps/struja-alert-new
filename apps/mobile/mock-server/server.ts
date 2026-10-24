@@ -1,8 +1,11 @@
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from 'node:http';
 import {
+  DEFAULT_QUIET_HOURS,
   MAX_ADDRESSES,
+  NOTIFICATION_KINDS,
   type SubscriptionDto,
   createSubscriptionRequestSchema,
+  patchDeviceRequestSchema,
   patchSubscriptionRequestSchema,
   registerDeviceRequestSchema,
 } from '@struja/shared';
@@ -45,7 +48,17 @@ async function readBody(req: IncomingMessage): Promise<unknown> {
 export function createMockServer(opts: MockOptions = {}): Server {
   const now = opts.now ?? (() => new Date());
   let scenario: Scenario = opts.scenario ?? 'upcoming';
-  const devices = new Map<string, { secret: string; token: string }>();
+  const devices = new Map<
+    string,
+    {
+      secret: string;
+      token: string;
+      locale: 'sr' | 'en';
+      script: 'latn' | 'cyrl';
+      quietHours: { start: string; end: string } | null;
+      enabledKinds: (typeof NOTIFICATION_KINDS)[number][];
+    }
+  >();
   const subs = new Map<string, SubscriptionDto[]>();
   let nextSub = 1;
 
@@ -110,7 +123,14 @@ export function createMockServer(opts: MockOptions = {}): Server {
         }
         const id = crypto.randomUUID();
         const secret = crypto.randomUUID().replaceAll('-', '') + 'x'.repeat(8);
-        devices.set(id, { secret, token: body.data.pushToken });
+        devices.set(id, {
+          secret,
+          token: body.data.pushToken,
+          locale: body.data.locale,
+          script: body.data.script,
+          quietHours: { ...DEFAULT_QUIET_HOURS },
+          enabledKinds: [...NOTIFICATION_KINDS],
+        });
         subs.set(id, []);
         return json(res, 201, { deviceId: id, deviceSecret: secret });
       }
@@ -200,6 +220,24 @@ export function createMockServer(opts: MockOptions = {}): Server {
         );
         if (!detail) return error(res, 404, 'not_found', 'No such outage');
         return json(res, 200, detail);
+      }
+      if (path === '/v1/devices/me' && (method === 'GET' || method === 'PATCH')) {
+        const device = deviceId ? devices.get(deviceId) : undefined;
+        if (!deviceId || !device) return error(res, 401, 'unauthorized', 'Unauthorized');
+        if (method === 'PATCH') {
+          const body = patchDeviceRequestSchema.safeParse(await readBody(req));
+          if (!body.success) return error(res, 400, 'invalid_request', 'Invalid body');
+          const { pushToken, ...rest } = body.data;
+          Object.assign(device, rest, pushToken ? { token: pushToken } : null);
+        }
+        return json(res, 200, {
+          id: deviceId,
+          platform: 'android',
+          locale: device.locale,
+          script: device.script,
+          quietHours: device.quietHours,
+          enabledKinds: device.enabledKinds,
+        });
       }
       if (path === '/v1/devices/me' && method === 'DELETE') {
         if (deviceId) {

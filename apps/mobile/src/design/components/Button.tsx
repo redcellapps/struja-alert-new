@@ -7,8 +7,9 @@ import { AppText } from './AppText';
 export interface ButtonProps {
   label: string;
   onPress?: () => void;
-  // primary: lime with dark text; secondary: the raised fill; text: lime text on dark, primary text on light.
-  variant?: 'primary' | 'secondary' | 'text';
+  // primary: lime with dark text; secondary: the raised fill; text: lime text on dark, primary text on
+  // light; danger: the red of an outage in progress, for what cannot be undone.
+  variant?: 'primary' | 'secondary' | 'text' | 'danger';
   disabled?: boolean;
   // Full width (the default for primary) or as wide as its label.
   fullWidth?: boolean;
@@ -28,8 +29,23 @@ export function Button({
 }: ButtonProps) {
   const { colors, radius } = useTheme();
   const c = colors.chrome;
-  const bg = variant === 'primary' ? c.accent : variant === 'secondary' ? c.raised : 'transparent';
-  const fg = variant === 'primary' ? c.onAccent : variant === 'secondary' ? c.text : c.link;
+  const red = colors.status.active;
+  const bg =
+    variant === 'primary'
+      ? c.accent
+      : variant === 'secondary'
+        ? c.raised
+        : variant === 'danger'
+          ? red.fill
+          : 'transparent';
+  const fg =
+    variant === 'primary'
+      ? c.onAccent
+      : variant === 'secondary'
+        ? c.text
+        : variant === 'danger'
+          ? red.onFill
+          : c.link;
   return (
     <Pressable
       accessibilityRole="button"
@@ -50,7 +66,7 @@ export function Button({
           backgroundColor: bg,
           opacity: disabled ? 0.4 : pressed ? 0.8 : 1,
         },
-        (fullWidth ?? variant === 'primary') && styles.full,
+        (fullWidth ?? (variant === 'primary' || variant === 'danger')) && styles.full,
       ]}
     >
       <AppText variant="button" color={fg}>

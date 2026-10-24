@@ -65,8 +65,11 @@ export const TABS = ['home', 'upcoming', 'history', 'settings'] as const;
 export const openTab = (tab: (typeof TABS)[number]) =>
   tap(w * (0.125 + 0.25 * TABS.indexOf(tab)), h * 0.936);
 
-/** Taps the element whose spoken label or text is exactly `label`; false when it is not on screen. */
-export function tapLabel(label: string): boolean {
+/**
+ * Taps the element whose spoken label or text is exactly `label` (or starts with it, with `prefix`);
+ * false when it is not on screen.
+ */
+export function tapLabel(label: string, prefix = false): boolean {
   adb('shell', 'uiautomator', 'dump', '/sdcard/ui.xml');
   const xml = adb('exec-out', 'cat', '/sdcard/ui.xml').toString('utf8');
   for (const m of xml.matchAll(/<node [^>]*>/g)) {
@@ -74,7 +77,8 @@ export function tapLabel(label: string): boolean {
     const desc = / content-desc="([^"]*)"/.exec(node)?.[1] ?? '';
     const text = / text="([^"]*)"/.exec(node)?.[1] ?? '';
     const b = /bounds="\[(\d+),(\d+)\]\[(\d+),(\d+)\]"/.exec(node);
-    if (b && (desc === label || text === label)) {
+    const hit = (s: string) => (prefix ? s.startsWith(label) : s === label);
+    if (b && (hit(desc) || hit(text))) {
       tap((Number(b[1]) + Number(b[3])) / 2, (Number(b[2]) + Number(b[4])) / 2);
       return true;
     }
@@ -83,10 +87,14 @@ export function tapLabel(label: string): boolean {
 }
 
 /** `tapLabel` a few times: the screen can be busy for a moment (a refresh spinner). */
-export async function tapLabelWithRetry(label: string, tries = 4): Promise<boolean> {
+export async function tapLabelWithRetry(
+  label: string,
+  tries = 4,
+  prefix = false,
+): Promise<boolean> {
   for (let i = 0; i < tries; i++) {
     try {
-      if (tapLabel(label)) return true;
+      if (tapLabel(label, prefix)) return true;
     } catch {
       // uiautomator could not get an idle state
     }

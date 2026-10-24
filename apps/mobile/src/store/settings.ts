@@ -19,21 +19,30 @@ export interface SettingsState {
   onboarded: boolean;
   // What the system said the last time we asked (Android 13+ and iOS ask at runtime).
   notificationPermission: NotificationPermission;
-  set: (patch: Partial<Omit<SettingsState, 'set'>>) => void;
+  set: (patch: Partial<SettingsValues>) => void;
+  // Back to the factory settings ("delete all my data").
+  reset: () => void;
 }
+
+export type SettingsValues = Omit<SettingsState, 'set' | 'reset'>;
+
+export const DEFAULT_SETTINGS: SettingsValues = {
+  themeMode: 'system',
+  language: 'sr',
+  script: 'latn',
+  highContrast: false,
+  enabledKinds: [...NOTIFICATION_KINDS],
+  quietHours: { ...DEFAULT_QUIET_HOURS },
+  onboarded: false,
+  notificationPermission: 'undetermined',
+};
 
 export const useSettings = create<SettingsState>()(
   persist(
     (set) => ({
-      themeMode: 'system',
-      language: 'sr',
-      script: 'latn',
-      highContrast: false,
-      enabledKinds: [...NOTIFICATION_KINDS],
-      quietHours: { ...DEFAULT_QUIET_HOURS },
-      onboarded: false,
-      notificationPermission: 'undetermined',
+      ...DEFAULT_SETTINGS,
       set: (patch) => set(patch),
+      reset: () => set({ ...DEFAULT_SETTINGS, enabledKinds: [...NOTIFICATION_KINDS] }),
     }),
     {
       name: 'settings',

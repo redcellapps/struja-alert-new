@@ -17,6 +17,9 @@ export interface AddressesState {
     match: AddressMatch,
     next: { houseNumber: number; houseSuffix?: string },
   ) => void;
+  // The same, for deleting an address and for making it the primary one.
+  removeMatching: (match: AddressMatch) => void;
+  setPrimaryMatching: (match: AddressMatch) => void;
 }
 
 export interface AddressMatch {
@@ -25,6 +28,12 @@ export interface AddressMatch {
   houseNumber: number | null;
   label: string | null;
 }
+
+const sameAddress = (a: LocalAddress, match: AddressMatch): boolean =>
+  (a.request.streetId ?? null) === match.streetId &&
+  (a.request.settlementId ?? null) === match.settlementId &&
+  (a.request.houseNumber ?? null) === match.houseNumber &&
+  (a.request.label ?? null) === match.label;
 
 export const useAddresses = create<AddressesState>()(
   persist(
@@ -55,13 +64,7 @@ export const useAddresses = create<AddressesState>()(
         }),
       setHouseNumber: (match, next) =>
         set((s) => {
-          const i = s.items.findIndex(
-            (a) =>
-              (a.request.streetId ?? null) === match.streetId &&
-              (a.request.settlementId ?? null) === match.settlementId &&
-              (a.request.houseNumber ?? null) === match.houseNumber &&
-              (a.request.label ?? null) === match.label,
-          );
+          const i = s.items.findIndex((a) => sameAddress(a, match));
           if (i < 0) return s;
           const items = [...s.items];
           const request = { ...items[i]!.request, houseNumber: next.houseNumber };
@@ -70,6 +73,14 @@ export const useAddresses = create<AddressesState>()(
           items[i] = { localId: items[i]!.localId, request };
           return { items };
         }),
+      removeMatching: (match) => {
+        const found = get().items.find((a) => sameAddress(a, match));
+        if (found) get().remove(found.localId);
+      },
+      setPrimaryMatching: (match) => {
+        const found = get().items.find((a) => sameAddress(a, match));
+        if (found) get().setPrimary(found.localId);
+      },
       setPrimary: (localId) =>
         set((s) => ({
           items: s.items.map((a) => ({

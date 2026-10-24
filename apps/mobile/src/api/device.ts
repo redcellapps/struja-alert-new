@@ -30,6 +30,12 @@ export interface DeviceDeps {
   addresses: () => LocalAddress[];
 }
 
+/** Forgets the device on this phone: its credentials and the development push token. */
+export async function forgetDevice(secrets: SecretStore): Promise<void> {
+  await secrets.remove(CRED_KEY);
+  await secrets.remove(TOKEN_KEY);
+}
+
 /** "<deviceId>.<secret>" or null. */
 export async function getCredentials(secrets: SecretStore): Promise<string | null> {
   return secrets.get(CRED_KEY);

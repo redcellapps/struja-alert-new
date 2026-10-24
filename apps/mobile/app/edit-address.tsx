@@ -28,6 +28,11 @@ export default function EditAddressSheet() {
     <Screen inset="none">
       <SheetHeader onClose={() => router.back()} />
       <HouseNumberForm
+        initialText={
+          subscription.houseNumber
+            ? `${subscription.houseNumber}${subscription.houseSuffix ?? ''}`
+            : undefined
+        }
         name={script === 'cyrl' ? subscription.name.cyrillic : subscription.name.latin}
         save={async (number) => {
           const saved = await saveHouseNumber(api, subscription, number);

@@ -6,10 +6,10 @@ import { AppState } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { ThemeProvider, useTheme } from '../src/design/theme';
 import { initI18n, setLocale } from '../src/i18n';
-import { createQueryClient, CACHE_MAX_AGE_MS, mmkvPersister } from '../src/query/client';
+import { CACHE_MAX_AGE_MS, mmkvPersister } from '../src/query/client';
+import { queryClient } from '../src/query/instance';
+import { useDeviceSync } from '../src/settings/sync';
 import { useSettings } from '../src/store/settings';
-
-const queryClient = createQueryClient();
 
 // Coming back to the app refetches stale data (React Native has no window focus event).
 focusManager.setEventListener((handleFocus) => {
@@ -59,6 +59,8 @@ function RootStack() {
 }
 
 export default function RootLayout() {
+  // The server keeps the language and the notification choices in step with the settings.
+  useDeviceSync();
   const language = useSettings((s) => s.language);
   const script = useSettings((s) => s.script);
   const [ready, setReady] = useState(false);
