@@ -1,9 +1,10 @@
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
+import { Linking } from 'react-native';
 import { StyleSheet, View } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import { AddAddressContainer } from '../src/addresses/AddAddressContainer';
-import { AppText, BoltWatermark, Button, IconTile, Screen } from '../src/design/components';
+import { AppText, Banner, BoltWatermark, Button, IconTile, Screen } from '../src/design/components';
 import { useTheme } from '../src/design/theme';
 import { CARD_PADDING } from '../src/design/tokens';
 import { requestNotificationPermission } from '../src/notifications/permission';
@@ -117,9 +118,12 @@ export default function Onboarding() {
           <AddAddressContainer onSaved={finish} />
           <Button label={t('onboarding.later')} variant="text" fullWidth onPress={finish} />
           {permission === 'denied' ? (
-            <AppText variant="label" color="textSecondary">
-              {t('banner.notificationsOff')}
-            </AppText>
+            <Banner
+              tone="warning"
+              message={t('banner.notificationsOff')}
+              actionLabel={t('banner.turnOn')}
+              onAction={() => void Linking.openSettings()}
+            />
           ) : null}
         </>
       ) : null}

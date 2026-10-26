@@ -176,6 +176,7 @@ export const sr = {
     noLocation: 'Ne tražimo vašu lokaciju. Adresu birate sami.',
     numberHint:
       'Sa brojem javljamo samo kada isključenje pogađa vaš broj. Bez broja javljamo za celu ulicu.',
+    notFound: 'Ova adresa više ne postoji.',
     houseNumberTitle: 'Kućni broj',
     addNumberWhy: 'Sa brojem tačno znamo da li vas isključenje pogađa.',
     saveNumber: 'Sačuvaj broj',
@@ -247,6 +248,7 @@ export const sr = {
     confirmDeleteAddress: 'Obrisati adresu {{name}}? Briše se i njena istorija.',
     deleteAddressFailed: 'Adresa nije obrisana. Pokušajte ponovo.',
     actionFailed: 'Nije uspelo. Pokušajte ponovo.',
+    noAddresses: 'Nemate sačuvanih adresa.',
     privacyBody:
       'Nema naloga, ne tražimo vašu lokaciju i nema praćenja. Čuvamo samo adrese koje unesete i podešavanja obaveštenja.',
     deleteDataBody:

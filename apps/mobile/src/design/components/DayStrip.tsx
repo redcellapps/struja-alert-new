@@ -1,4 +1,4 @@
-import { Pressable, StyleSheet, View } from 'react-native';
+import { PixelRatio, Pressable, StyleSheet, View } from 'react-native';
 import { haptics } from '../haptics';
 import { useTheme } from '../theme';
 import { CARD_GAP, type StatusKey } from '../tokens';
@@ -26,6 +26,7 @@ export interface DayStripProps {
 export function DayStrip({ days, selected, onSelect }: DayStripProps) {
   const { colors, radius } = useTheme();
   const c = colors.chrome;
+  const large = PixelRatio.getFontScale() > 1.3;
   return (
     <View style={[styles.row, { gap: CARD_GAP }]} accessibilityRole="tablist">
       {days.map((d) => {
@@ -44,6 +45,8 @@ export function DayStrip({ days, selected, onSelect }: DayStripProps) {
             }}
             style={[
               styles.day,
+              // square, until a large font needs more room than a square has
+              large ? { paddingVertical: 12 } : { aspectRatio: 1 },
               { borderRadius: radius.lg, backgroundColor: active ? c.accent : c.card },
             ]}
           >
@@ -68,6 +71,6 @@ export function DayStrip({ days, selected, onSelect }: DayStripProps) {
 
 const styles = StyleSheet.create({
   row: { flexDirection: 'row' },
-  day: { flex: 1, aspectRatio: 1, alignItems: 'center', justifyContent: 'center', gap: 2 },
+  day: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 2 },
   dot: { width: 8, height: 8, borderRadius: 4, marginTop: 2 },
 });

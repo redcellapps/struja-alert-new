@@ -7,11 +7,13 @@ import {
   Banner,
   Button,
   MessageForm,
+  EmptyState,
   Screen,
   Segmented,
   SectionHeader,
+  SkeletonCard,
+  SmallButton,
   SwitchRow,
-  TagPill,
   TimeStepper,
 } from '../design/components';
 import { useTheme } from '../design/theme';
@@ -38,6 +40,11 @@ export interface SettingsViewProps {
   permission: NotificationPermission;
   onOpenSystemSettings: () => void;
   addresses: SettingsAddress[];
+  // Where the list of addresses stands: still loading, failed (with nothing saved to show), or ready.
+  addressesState: 'loading' | 'error' | 'ready';
+  onRetryAddresses: () => void;
+  // The last refresh failed but saved data is shown.
+  offline: boolean;
   canAdd: boolean;
   onAdd: () => void;
   onEditNumber: (addressId: number) => void;
@@ -138,7 +145,6 @@ function AddressRow({ address, props }: { address: SettingsAddress; props: Setti
           </AppText>
         ) : null}
         <AppText variant="bodyStrong">{address.name}</AppText>
-        {address.primary ? <TagPill label={t('address.primary')} /> : null}
       </View>
       {confirming ? (
         <Confirm
@@ -156,35 +162,42 @@ function AddressRow({ address, props }: { address: SettingsAddress; props: Setti
           }}
         />
       ) : (
-        <View style={{ gap: 4 }}>
+        <View style={{ gap: 8 }}>
           {failed ? (
             <AppText variant="label" color="textSecondary">
               {failed}
             </AppText>
           ) : null}
-          <View style={{ flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center' }}>
-            {!address.primary && props.addresses.length > 1 ? (
-              <Button
-                label={t('settings.makePrimary')}
-                variant="text"
-                accessibilityLabel={`${t('settings.makePrimary')}: ${address.name}`}
-                disabled={busy}
-                onPress={() =>
-                  void run(() => props.onMakePrimary(address.id), t('settings.actionFailed'))
-                }
-              />
-            ) : null}
+          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
+            <SmallButton
+              label={t('address.primary')}
+              icon={{ ios: 'star.fill', android: 'star' }}
+              selected={address.primary}
+              accessibilityLabel={
+                address.primary
+                  ? `${t('address.primary')}: ${address.name}`
+                  : `${t('settings.makePrimary')}: ${address.name}`
+              }
+              disabled={busy}
+              onPress={
+                address.primary
+                  ? undefined
+                  : () =>
+                      void run(() => props.onMakePrimary(address.id), t('settings.actionFailed'))
+              }
+            />
             {address.canHaveNumber ? (
-              <Button
+              <SmallButton
                 label={address.hasNumber ? t('settings.changeNumber') : t('home.addNumber')}
-                variant="text"
+                icon={{ ios: 'pencil', android: 'edit' }}
                 accessibilityLabel={`${address.hasNumber ? t('settings.changeNumber') : t('home.addNumber')}: ${address.name}`}
                 onPress={() => props.onEditNumber(address.id)}
               />
             ) : null}
-            <Button
+            <SmallButton
               label={t('settings.delete')}
-              variant="text"
+              icon={{ ios: 'trash.fill', android: 'delete' }}
+              tone="danger"
               accessibilityLabel={`${t('settings.delete')}: ${address.name}`}
               onPress={() => setConfirming(true)}
             />
@@ -249,6 +262,7 @@ export function SettingsView(props: SettingsViewProps) {
       <AppText variant="headline" accessibilityRole="header">
         {t('settings.title')}
       </AppText>
+      {props.offline ? <Banner tone="offline" message={t('banner.offline')} /> : null}
 
       <Section title={t('settings.appearance')}>
         <Card>
@@ -275,7 +289,7 @@ export function SettingsView(props: SettingsViewProps) {
               value={values.language}
               onChange={(language) => onChange({ language })}
               options={[
-                { value: 'sr', label: 'Srpski' },
+                { value: 'sr', label: values.script === 'cyrl' ? 'Српски' : 'Srpski' },
                 { value: 'en', label: 'English' },
               ]}
             />
@@ -357,6 +371,22 @@ export function SettingsView(props: SettingsViewProps) {
       </Section>
 
       <Section title={t('settings.addresses')}>
+        {props.addressesState === 'loading' ? (
+          <SkeletonCard lines={1} accessibilityLabel={t('state.loading')} />
+        ) : null}
+        {props.addressesState === 'error' ? (
+          <EmptyState
+            icon={{ ios: 'wifi.slash', android: 'cloud_off' }}
+            title={t('home.loadError')}
+            actionLabel={t('state.retry')}
+            onAction={props.onRetryAddresses}
+          />
+        ) : null}
+        {props.addressesState === 'ready' && props.addresses.length === 0 ? (
+          <AppText variant="body" color="textSecondary">
+            {t('settings.noAddresses')}
+          </AppText>
+        ) : null}
         {props.addresses.map((a) => (
           <AddressRow key={a.id} address={a} props={props} />
         ))}

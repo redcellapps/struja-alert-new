@@ -10,6 +10,7 @@ import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import {
   APP_ID,
+  ensureApp,
   adb,
   launch,
   openTab,
@@ -56,7 +57,7 @@ async function main() {
   await setScenario('upcoming');
   adb('shell', 'am', 'force-stop', APP_ID);
   launch();
-  await sleep(25000);
+  await ensureApp();
 
   for (const mode of ['dark', 'light'] as const) {
     adb('shell', 'cmd', 'uimode', 'night', mode === 'dark' ? 'yes' : 'no');
@@ -123,7 +124,7 @@ async function main() {
     await sleep(1500);
     adb('shell', 'am', 'force-stop', APP_ID);
     launch();
-    await sleep(15000);
+    await ensureApp();
     openTab('settings');
     await sleep(2500);
     toTop();
@@ -134,7 +135,7 @@ async function main() {
     await sleep(1500);
     adb('shell', 'am', 'force-stop', APP_ID);
     launch();
-    await sleep(15000);
+    await ensureApp();
   }
   adb('shell', 'cmd', 'uimode', 'night', 'no');
   console.log(`${files.length} screenshots in ${outDir}`);

@@ -12,6 +12,7 @@ Expo (Android first, iOS later) + Fastify/Postgres app that pushes a notificatio
 - `pnpm --filter @struja/scripts home-scenarios` — adb screenshots of Početna and the outage detail in every mock scenario, dark and light, into `docs/screens/android/step4/`. Do not edit app code while it runs (Fast Refresh puts a banner in the shots).
 - `pnpm --filter @struja/scripts list-screens` — the same for Najave and Istorija (search, follow a street, offline, empty), into `docs/screens/android/step6/`. Same rule: no app edits while it runs.
 - `pnpm --filter @struja/scripts settings-screens` — the same for Podešavanja (it changes settings and puts them back; confirmations are shown, never confirmed), into `docs/screens/android/step7/`. Same rule: no app edits while it runs.
+- `pnpm --filter @struja/scripts a11y-screens <font2|narrow|narrow-font2>` — every screen at 200 % font, on a 360 dp wide screen, or both, with a check that every control of the app has a spoken label (read from the accessibility tree); into `docs/screens/android/step8/<config>/` with `a11y-labels.md`. It changes the font scale and screen size and puts them back; it stops instead of capturing when the app is not in front. Same rule: no app edits while it runs.
 
 ## Layout
 

@@ -1,8 +1,11 @@
 import { Redirect } from 'expo-router';
 import { NativeTabs } from 'expo-router/native-tabs';
 import { useTranslation } from 'react-i18next';
+import { PixelRatio } from 'react-native';
 import { useTheme } from '../../src/design/theme';
 import { useSettings } from '../../src/store/settings';
+
+const TAB_LABEL_MAX_SCALE = 1.1;
 
 export default function TabsLayout() {
   const { t } = useTranslation();
@@ -11,6 +14,10 @@ export default function TabsLayout() {
   // Nothing but onboarding is shown until it is finished.
   const onboarded = useSettings((s) => s.onboarded);
   if (!onboarded) return <Redirect href="/onboarding" />;
+  // The bar labels grow with the system font only up to 110 % (Material caps bottom navigation labels too), or
+  // four words no longer fit side by side; the rest of the app scales in full.
+  const fontSize =
+    (12 * Math.min(PixelRatio.getFontScale(), TAB_LABEL_MAX_SCALE)) / PixelRatio.getFontScale();
   // The bar follows the design system: the card colour, a lime indicator with a dark icon, and the
   // label of every tab always visible. No Material You tint.
   return (
@@ -21,8 +28,8 @@ export default function TabsLayout() {
       iconColor={{ default: c.textSecondary, selected: c.onAccent }}
       labelVisibilityMode="labeled"
       labelStyle={{
-        default: { color: c.textSecondary, fontFamily: fonts.text['500'], fontSize: 12 },
-        selected: { color: c.text, fontFamily: fonts.text['700'], fontSize: 12 },
+        default: { color: c.textSecondary, fontFamily: fonts.text['500'], fontSize },
+        selected: { color: c.text, fontFamily: fonts.text['700'], fontSize },
       }}
     >
       <NativeTabs.Trigger name="index">

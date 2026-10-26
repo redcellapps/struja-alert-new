@@ -58,6 +58,15 @@ export default function SettingsScreen() {
       permission={settings.notificationPermission}
       onOpenSystemSettings={() => void Linking.openSettings()}
       addresses={addresses}
+      addressesState={
+        saved.length > 0 && subs.isPending && !subs.isError
+          ? 'loading'
+          : subs.isError && subs.data === undefined
+            ? 'error'
+            : 'ready'
+      }
+      onRetryAddresses={() => void subs.refetch()}
+      offline={subs.isError && subs.data !== undefined}
       canAdd={saved.length < MAX_ADDRESSES}
       onAdd={() => router.push('/add-address')}
       onEditNumber={(id) => router.push({ pathname: '/edit-address', params: { id: String(id) } })}

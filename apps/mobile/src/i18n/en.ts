@@ -173,6 +173,7 @@ export const en: Deep<Messages> = {
     noLocation: 'We never ask for your location. You choose the address yourself.',
     numberHint:
       'With a number we tell you only when an outage affects it. Without one we tell you about the whole street.',
+    notFound: 'This address no longer exists.',
     houseNumberTitle: 'House number',
     addNumberWhy: 'With the number we know exactly whether an outage affects you.',
     saveNumber: 'Save number',
@@ -244,6 +245,7 @@ export const en: Deep<Messages> = {
     confirmDeleteAddress: 'Delete the address {{name}}? Its history is deleted too.',
     deleteAddressFailed: 'The address was not deleted. Try again.',
     actionFailed: 'That did not work. Try again.',
+    noAddresses: 'You have no saved addresses.',
     privacyBody:
       'No account, we never ask for your location, and nothing tracks you. We keep only the addresses you enter and your notification settings.',
     deleteDataBody:

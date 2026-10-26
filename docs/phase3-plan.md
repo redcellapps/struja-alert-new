@@ -46,7 +46,7 @@ Starting point: the Expo SDK 58 shell in `apps/mobile` (native tabs `Početna ·
 5. **Outage detail** sheet: date, window, duration, countdown, 24-hour timeline with "now" marker, the user's ranges and number highlighted ("Vaš broj 34 je u opsegu 26–40", "Moguće pogođeno — niste uneli broj"), affected streets, raw EDS text expander, actions (calendar export through the system add-event screen, no calendar permission; share; open source; report an error). _(Done.)_
 6. **Najave** (grouped by day, searchable, follow any street) and **Istorija** (offline, grouped by month, yearly summary). _(Done.)_
 7. **Podešavanja:** script, language, notification kinds, quiet hours, manage addresses, privacy and "Obriši sve moje podatke", about (attribution, disclaimer, version, feedback). _(Done.)_
-8. **All states** on every screen: skeleton loading, empty, error, offline with cached data, permission denied.
+8. **All states** on every screen: skeleton loading, empty, error, offline with cached data, permission denied. _(Done: audited as a screen × state table, then every screen checked at 200 % font and 360 dp wide, and every control checked for a spoken label; see `docs/reports/`.)_
 9. **Real API:** point the app at the local Docker stack (seeded fake subscription) and fix contract gaps found.
 10. **Map** on the outage detail, after the comparison and the owner's choice (decision 1).
 11. **Android design QA:** Maestro (installed at the start of this step, approved) visits every screen and state against the mock API, with `takeScreenshot`, in light and dark and at font scale 1.0 and 2.0 (switched with `adb`) → `docs/screens/android/`. `docs/qa-checklist.md` with the TalkBack checklist for your phone.

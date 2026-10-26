@@ -1,5 +1,5 @@
 import { useEffect } from 'react';
-import { Pressable, StyleSheet, View } from 'react-native';
+import { PixelRatio, Pressable, StyleSheet, View } from 'react-native';
 import Animated, {
   useAnimatedStyle,
   useReducedMotion,
@@ -207,11 +207,17 @@ export function Segmented<T extends string>({
 }: SegmentedProps<T>) {
   const { colors, radius } = useTheme();
   const c = colors.chrome;
+  // At a large font the choices no longer fit side by side without breaking words: one per row.
+  const stacked = PixelRatio.getFontScale() > 1.3;
   return (
     <View
       accessibilityRole="radiogroup"
       accessibilityLabel={accessibilityLabel}
-      style={[styles.segments, { backgroundColor: c.raised, borderRadius: radius.md }]}
+      style={[
+        styles.segments,
+        stacked && { flexDirection: 'column' },
+        { backgroundColor: c.raised, borderRadius: radius.md },
+      ]}
     >
       {options.map((o) => {
         const selected = o.value === value;
@@ -227,6 +233,7 @@ export function Segmented<T extends string>({
             }}
             style={[
               styles.segment,
+              stacked && { flex: 0, alignSelf: 'stretch' },
               { borderRadius: radius.md - 4, backgroundColor: selected ? c.accent : 'transparent' },
             ]}
           >

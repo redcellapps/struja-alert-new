@@ -38,7 +38,8 @@ export function BentoTile({ icon, label, value, caption, accessibilityLabel }: B
           {value}
         </AppText>
         {caption ? (
-          <AppText variant="label" color="textSecondary">
+          // one line that shrinks: a long word would otherwise break in the middle at a large font
+          <AppText variant="label" color="textSecondary" numberOfLines={1} adjustsFontSizeToFit>
             {caption}
           </AppText>
         ) : null}

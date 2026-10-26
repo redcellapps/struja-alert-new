@@ -5,6 +5,7 @@ import { cyrillicToLatin } from '@struja/parser/transliterate';
 import type { OutageDetailDto } from '@struja/shared';
 import {
   AppText,
+  Banner,
   Button,
   EmptyState,
   PossibleBadge,
@@ -46,6 +47,8 @@ export interface OutageDetailViewProps {
   addresses: DetailAddress[];
   loading: boolean;
   failed: boolean;
+  // The last refresh failed but the saved copy is shown.
+  offline?: boolean;
   onRetry: () => void;
   onAddNumber: (subscriptionId: number) => void;
   onClose: () => void;
@@ -85,16 +88,14 @@ export function OutageDetailView(props: OutageDetailViewProps) {
 
   if (props.loading)
     return (
-      <Screen inset="none">
-        <SheetHeader onClose={props.onClose} />
+      <Screen inset="none" header={<SheetHeader onClose={props.onClose} />}>
         <SkeletonCard lines={2} accessibilityLabel={t('state.loading')} />
         <SkeletonCard lines={3} accessibilityLabel={t('state.loading')} />
       </Screen>
     );
   if (props.failed || !detail)
     return (
-      <Screen inset="none">
-        <SheetHeader onClose={props.onClose} />
+      <Screen inset="none" header={<SheetHeader onClose={props.onClose} />}>
         <EmptyState
           icon={{ ios: 'wifi.slash', android: 'cloud_off' }}
           title={props.failed ? t('home.loadError') : t('detail.notFound')}
@@ -127,8 +128,8 @@ export function OutageDetailView(props: OutageDetailViewProps) {
     script === 'cyrl' ? detail.municipality : cyrillicToLatin(detail.municipality);
 
   return (
-    <Screen inset="none">
-      <SheetHeader onClose={props.onClose} />
+    <Screen inset="none" header={<SheetHeader onClose={props.onClose} />}>
+      {props.offline ? <Banner tone="offline" message={t('banner.offline')} /> : null}
       <View style={{ gap: 8 }}>
         <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
           <StatusBadge status={status} label={statusLabel} />
@@ -159,6 +160,8 @@ export function OutageDetailView(props: OutageDetailViewProps) {
         >
           <AppText
             variant="display"
+            numberOfLines={1}
+            adjustsFontSizeToFit
             style={cancelled ? { textDecorationLine: 'line-through', color: s.mark } : undefined}
           >
             {windowText(detail)}

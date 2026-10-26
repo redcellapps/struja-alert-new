@@ -75,6 +75,7 @@ export default function OutageSheet() {
       addresses={addresses}
       loading={detailQuery.isPending && !detailQuery.isError}
       failed={detailQuery.isError && !detail}
+      offline={detailQuery.isError && !!detail}
       onRetry={() => void detailQuery.refetch()}
       onClose={() => router.back()}
       followState={(segment) => {

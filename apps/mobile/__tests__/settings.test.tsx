@@ -1,7 +1,8 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react-native';
 import type { SubscriptionDto } from '@struja/shared';
 import { forgetDevice, type SecretStore } from '../src/api/device';
-import { Button, shiftTime, TimeStepper } from '../src/design/components';
+import { StyleSheet } from 'react-native';
+import { Button, Screen, SheetHeader, shiftTime, TimeStepper } from '../src/design/components';
 import { buildTheme, ThemeProvider } from '../src/design/theme';
 import { initI18n } from '../src/i18n';
 import { deleteAddress, makePrimary, matchOf } from '../src/settings/addresses';
@@ -87,6 +88,9 @@ const props = (over: Partial<SettingsViewProps> = {}): SettingsViewProps => ({
   permission: 'granted',
   onOpenSystemSettings: jest.fn(),
   addresses: [home, work],
+  addressesState: 'ready',
+  onRetryAddresses: jest.fn(),
+  offline: false,
   canAdd: true,
   onAdd: jest.fn(),
   onEditNumber: jest.fn(),
@@ -164,7 +168,10 @@ describe('SettingsView: addresses', () => {
   it('lists the addresses, marks the primary one and offers the actions each needs', async () => {
     const p = props();
     await show(p);
-    expect(screen.getByText('Glavna adresa')).toBeTruthy();
+    // the primary address shows "Glavna adresa" as the chosen button, the other one can be made primary
+    expect(
+      screen.getByLabelText('Glavna adresa: Vojvode Mišića 34').props.accessibilityState.selected,
+    ).toBe(true);
     expect(screen.queryByLabelText('Postavi kao glavnu: Vojvode Mišića 34')).toBeNull();
     await fireEvent.press(screen.getByLabelText('Promeni broj: Vojvode Mišića 34'));
     expect(p.onEditNumber).toHaveBeenCalledWith(1);
@@ -434,5 +441,70 @@ describe('device sync', () => {
     client.patchDevice.mockResolvedValue({});
     expect(await syncDevice(client, kv, settings)).toBe(true);
     expect(client.patchDevice).toHaveBeenCalledTimes(2);
+  });
+});
+
+describe('SettingsView: addresses, states and wording', () => {
+  it('shows the actions as small buttons with an icon, and the delete in the red of "Obriši sve"', async () => {
+    await show(props({ addresses: [work] }));
+    const del = screen.getByLabelText('Obriši: Bulevar Nemanjića');
+    const bg = StyleSheet.flatten(del.props.style).backgroundColor;
+    expect(bg).toBe(buildTheme('dark').colors.status.active.fill);
+    // the same red as the full-width button
+    expect(bg).toBe('#DC2F34');
+    expect(screen.getByLabelText('Dodaj broj: Bulevar Nemanjića')).toBeTruthy();
+  });
+
+  it('a pressed "Glavna adresa" of the primary address does nothing', async () => {
+    const p = props();
+    await show(p);
+    await fireEvent.press(screen.getByLabelText('Glavna adresa: Vojvode Mišića 34'));
+    expect(p.onMakePrimary).not.toHaveBeenCalled();
+  });
+
+  it('names the Serbian option "Српски" in the Cyrillic interface and "Srpski" in the Latin one', async () => {
+    const { unmount } = await show(props());
+    expect(screen.getByLabelText('Srpski')).toBeTruthy();
+    await unmount();
+    await show(props({ values: { ...props().values, script: 'cyrl' } }));
+    expect(screen.getByLabelText('Српски')).toBeTruthy();
+    expect(screen.queryByLabelText('Srpski')).toBeNull();
+  });
+
+  it('loading, error with retry, nothing saved, and the offline notice', async () => {
+    const { rerender } = await show(props({ addresses: [], addressesState: 'loading' }));
+    expect(screen.getByLabelText('Učitavanje')).toBeTruthy();
+    const failed = props({ addresses: [], addressesState: 'error' });
+    await rerender(
+      <ThemeProvider override={buildTheme('dark')}>
+        <SettingsView {...failed} />
+      </ThemeProvider>,
+    );
+    await fireEvent.press(screen.getByLabelText('Pokušaj ponovo'));
+    expect(failed.onRetryAddresses).toHaveBeenCalled();
+    await rerender(
+      <ThemeProvider override={buildTheme('dark')}>
+        <SettingsView {...props({ addresses: [] })} />
+      </ThemeProvider>,
+    );
+    expect(screen.getByText('Nemate sačuvanih adresa.')).toBeTruthy();
+    await rerender(
+      <ThemeProvider override={buildTheme('dark')}>
+        <SettingsView {...props({ offline: true })} />
+      </ThemeProvider>,
+    );
+    expect(screen.getByText('Prikazujem sačuvane podatke')).toBeTruthy();
+  });
+});
+
+describe('Screen: the status bar', () => {
+  it('keeps a header fixed above the scrolling content of a sheet', async () => {
+    await themed(
+      <Screen inset="none" header={<SheetHeader onClose={jest.fn()} />}>
+        <></>
+      </Screen>,
+    );
+    expect(screen.getByTestId('screen-header')).toBeTruthy();
+    expect(screen.getByLabelText('Zatvori')).toBeTruthy();
   });
 });

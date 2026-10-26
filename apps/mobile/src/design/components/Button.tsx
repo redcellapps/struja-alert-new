@@ -69,7 +69,8 @@ export function Button({
         (fullWidth ?? (variant === 'primary' || variant === 'danger')) && styles.full,
       ]}
     >
-      <AppText variant="button" color={fg}>
+      {/* 150 %, not the 200 % of the rest: "Elektrodistribucije" has to fit a narrow button in one piece */}
+      <AppText variant="button" color={fg} maxFontSizeMultiplier={1.5}>
         {label}
       </AppText>
     </Pressable>

@@ -15,8 +15,7 @@ export default function AddAddressSheet() {
         : undefined
       : undefined;
   return (
-    <Screen inset="none">
-      <SheetHeader onClose={() => router.back()} />
+    <Screen inset="none" header={<SheetHeader onClose={() => router.back()} />}>
       <AppText variant="headline" accessibilityRole="header">
         {t('address.add')}
       </AppText>

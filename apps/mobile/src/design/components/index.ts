@@ -27,6 +27,7 @@ export {
   type SegmentedProps,
   type SwitchRowProps,
 } from './Selection';
+export { SmallButton, type SmallButtonProps } from './SmallButton';
 export { SkeletonCard, type SkeletonCardProps } from './SkeletonCard';
 export {
   PossibleBadge,
