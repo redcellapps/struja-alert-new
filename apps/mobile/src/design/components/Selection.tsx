@@ -1,5 +1,5 @@
 import { useEffect } from 'react';
-import { PixelRatio, Pressable, StyleSheet, View } from 'react-native';
+import { Pressable, StyleSheet, View } from 'react-native';
 import Animated, {
   useAnimatedStyle,
   useReducedMotion,
@@ -7,6 +7,7 @@ import Animated, {
   withTiming,
 } from 'react-native-reanimated';
 import { haptics } from '../haptics';
+import { useLargeText } from '../largeText';
 import { useTheme } from '../theme';
 import { MIN_TOUCH } from '../tokens';
 import { AppText } from './AppText';
@@ -208,7 +209,7 @@ export function Segmented<T extends string>({
   const { colors, radius } = useTheme();
   const c = colors.chrome;
   // At a large font the choices no longer fit side by side without breaking words: one per row.
-  const stacked = PixelRatio.getFontScale() > 1.3;
+  const stacked = useLargeText();
   return (
     <View
       accessibilityRole="radiogroup"

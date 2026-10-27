@@ -1,6 +1,7 @@
 export { AddressCard, type AddressCardProps } from './AddressCard';
 export { AppText, type AppTextProps } from './AppText';
 export { Banner, type BannerProps, type BannerTone } from './Banner';
+export { BentoRow } from './BentoRow';
 export { BentoTile, type BentoTileProps } from './BentoTile';
 export { BoltWatermark } from './BoltWatermark';
 export { Button, type ButtonProps } from './Button';

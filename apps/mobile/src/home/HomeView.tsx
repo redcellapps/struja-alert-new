@@ -6,6 +6,7 @@ import {
   AddressCard,
   AppText,
   Banner,
+  BentoRow,
   BentoTile,
   DayStrip,
   EmptyState,
@@ -215,7 +216,7 @@ export function TilesSection({
   const count = t('outages.count', { count: ids.size });
   const word = t('outages.word', { count: ids.size });
   return (
-    <View style={{ flexDirection: 'row', gap: CARD_GAP }}>
+    <BentoRow>
       {first ? (
         <BentoTile
           icon={{ ios: 'clock.fill', android: 'schedule' }}
@@ -232,7 +233,7 @@ export function TilesSection({
         caption={word}
         accessibilityLabel={`${t('home.nextDaysTile')}: ${count}`}
       />
-    </View>
+    </BentoRow>
   );
 }
 

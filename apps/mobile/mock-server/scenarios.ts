@@ -14,6 +14,7 @@ export const SCENARIOS = [
   'possible',
   'three',
   'offline',
+  'fail',
 ] as const;
 export type Scenario = (typeof SCENARIOS)[number];
 
@@ -95,6 +96,7 @@ export function outagesForScenario(
   switch (scenario) {
     case 'clear':
     case 'offline':
+    case 'fail':
       return [];
     case 'imminent':
       return [outage(scenario, sub, now, 2 * HOUR + 20 * MIN, 4 * HOUR)];

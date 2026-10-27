@@ -1,4 +1,5 @@
 import { StyleSheet, View } from 'react-native';
+import { useLargeText } from '../largeText';
 import { useTheme } from '../theme';
 import { CARD_PADDING, type IconName } from '../tokens';
 import { AppText } from './AppText';
@@ -23,6 +24,7 @@ const ICONS: Record<BannerTone, IconName> = {
 /** A persistent notice under the header, one row: icon, message, and an optional action. */
 export function Banner({ tone, message, actionLabel, onAction }: BannerProps) {
   const { colors, radius } = useTheme();
+  const large = useLargeText();
   const mark = (tone === 'offline' ? colors.status.past : colors.status.upcoming).mark;
   return (
     <View
@@ -44,7 +46,12 @@ export function Banner({ tone, message, actionLabel, onAction }: BannerProps) {
       <AppText variant="bodyStrong" style={styles.text}>
         {message}
       </AppText>
-      {actionLabel ? <Button label={actionLabel} variant="text" onPress={onAction} /> : null}
+      {actionLabel ? (
+        // a large font puts the action on its own line, full width
+        <View style={large ? styles.fullLine : undefined}>
+          <Button label={actionLabel} variant="text" fullWidth={large} onPress={onAction} />
+        </View>
+      ) : null}
     </View>
   );
 }
@@ -53,4 +60,5 @@ const styles = StyleSheet.create({
   // Wraps: at a large font the action drops under the message instead of squeezing it.
   card: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', columnGap: 14, rowGap: 4 },
   text: { flex: 1, minWidth: 140 },
+  fullLine: { width: '100%' },
 });

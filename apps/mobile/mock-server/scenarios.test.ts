@@ -115,6 +115,19 @@ describe('mock scenarios', () => {
     expect((await outages()).length).toBeGreaterThan(0);
   });
 
+  it('fail: every /v1 request is a 500 in the shape of the server, the dev control still works', async () => {
+    await scenario('fail');
+    for (const path of ['/v1/me/outages', '/v1/cities/nis/outages', '/v1/subscriptions']) {
+      const res = await get(path);
+      expect(res.status).toBe(500);
+      expect(await res.json()).toEqual({
+        error: { code: 'internal', message: 'Something went wrong' },
+      });
+    }
+    expect((await scenario('upcoming')).status).toBe(200);
+    expect((await outages()).length).toBeGreaterThan(0);
+  });
+
   it('knows the scenarios the screenshot script uses', () => {
     expect([...SCENARIOS]).toEqual([
       'clear',
@@ -125,6 +138,7 @@ describe('mock scenarios', () => {
       'possible',
       'three',
       'offline',
+      'fail',
     ]);
   });
 });

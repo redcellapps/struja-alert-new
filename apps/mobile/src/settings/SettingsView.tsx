@@ -16,6 +16,7 @@ import {
   SwitchRow,
   TimeStepper,
 } from '../design/components';
+import { useLargeText } from '../design/largeText';
 import { useTheme } from '../design/theme';
 import { CARD_GAP, CARD_PADDING } from '../design/tokens';
 import type { Kind, NotificationPermission, SettingsValues } from '../store/settings';
@@ -119,6 +120,7 @@ function Confirm(props: {
 
 function AddressRow({ address, props }: { address: SettingsAddress; props: SettingsViewProps }) {
   const { t } = useTranslation();
+  const large = useLargeText();
   const [confirming, setConfirming] = useState(false);
   const [busy, setBusy] = useState(false);
   const [failed, setFailed] = useState<string | undefined>();
@@ -168,7 +170,13 @@ function AddressRow({ address, props }: { address: SettingsAddress; props: Setti
               {failed}
             </AppText>
           ) : null}
-          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
+          <View
+            style={{
+              flexDirection: large ? 'column' : 'row',
+              flexWrap: 'wrap',
+              gap: 8,
+            }}
+          >
             <SmallButton
               label={t('address.primary')}
               icon={{ ios: 'star.fill', android: 'star' }}

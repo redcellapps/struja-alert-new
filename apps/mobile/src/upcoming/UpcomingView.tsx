@@ -12,6 +12,7 @@ import {
   SectionHeader,
   SkeletonCard,
 } from '../design/components';
+import { useLargeText } from '../design/largeText';
 import { useTheme } from '../design/theme';
 import { CARD_GAP, CARD_PADDING } from '../design/tokens';
 import { belgradeDate, hhmm } from '../format/time';
@@ -50,6 +51,7 @@ export interface UpcomingViewProps {
 /** Najave: what EDS announced for the city, by day; searchable by street; any street can be followed. */
 export function UpcomingView(props: UpcomingViewProps) {
   const { t } = useTranslation();
+  const large = useLargeText();
   const { colors, radius } = useTheme();
   const { now, script, query } = props;
   const today = belgradeDate(now);
@@ -82,7 +84,11 @@ export function UpcomingView(props: UpcomingViewProps) {
             {props.suggestions.map(({ place, followed }) => (
               <View
                 key={`${place.kind}-${place.id}`}
-                style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}
+                style={{
+                  flexDirection: large ? 'column' : 'row',
+                  alignItems: large ? 'stretch' : 'center',
+                  gap: 12,
+                }}
               >
                 <View style={{ flex: 1, gap: 2 }}>
                   <AppText variant="bodyStrong">{placeName(place, script)}</AppText>
@@ -98,6 +104,7 @@ export function UpcomingView(props: UpcomingViewProps) {
                   <Button
                     label={t('upcoming.follow')}
                     variant="secondary"
+                    fullWidth={large}
                     accessibilityLabel={`${t('upcoming.follow')} ${placeName(place, script)}`}
                     onPress={() => props.onFollow(place)}
                   />

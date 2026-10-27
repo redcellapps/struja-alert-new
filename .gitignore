@@ -13,8 +13,12 @@ GoogleService-Info.plist
 *.keystore
 *.p8
 *.p12
-android/
+# the native projects are generated (expo run:android / run:ios)
+/apps/mobile/android/
 ios/
+# working screenshots: at step 11 only the final QA set is committed, compressed
+/docs/screens/android/step*/
+/docs/screens/android/design-review*/
 *.log
 .DS_Store
 test-results/

@@ -69,8 +69,8 @@ export function Button({
         (fullWidth ?? (variant === 'primary' || variant === 'danger')) && styles.full,
       ]}
     >
-      {/* 150 %, not the 200 % of the rest: "Elektrodistribucije" has to fit a narrow button in one piece */}
-      <AppText variant="button" color={fg} maxFontSizeMultiplier={1.5}>
+      {/* scales like the rest of the text; a word wider than the button is hyphenated, not cut */}
+      <AppText variant="button" color={fg} android_hyphenationFrequency="normal">
         {label}
       </AppText>
     </Pressable>

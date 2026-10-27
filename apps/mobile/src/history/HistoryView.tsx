@@ -4,6 +4,7 @@ import type { AddressOutageDto } from '@struja/shared';
 import {
   AppText,
   Banner,
+  BentoRow,
   BentoTile,
   EmptyState,
   OutageCard,
@@ -83,7 +84,7 @@ export function HistoryView(props: HistoryViewProps) {
       ) : null}
 
       {haveData && groups.length > 0 ? (
-        <View style={{ flexDirection: 'row', gap: CARD_GAP }}>
+        <BentoRow>
           <BentoTile
             icon={{ ios: 'bolt.slash.fill', android: 'power_off' }}
             label={t('history.yearTile')}
@@ -101,7 +102,7 @@ export function HistoryView(props: HistoryViewProps) {
             caption={t('history.hoursCaption')}
             accessibilityLabel={`${t('history.hoursTile')}: ${summary.hours} h`}
           />
-        </View>
+        </BentoRow>
       ) : null}
 
       {haveData

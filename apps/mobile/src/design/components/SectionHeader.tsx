@@ -1,4 +1,5 @@
 import { StyleSheet, View } from 'react-native';
+import { useStackHeader } from '../largeText';
 import { AppText } from './AppText';
 import { Button } from './Button';
 
@@ -11,13 +12,16 @@ export interface SectionHeaderProps {
 }
 
 export function SectionHeader({ title, trailing, actionLabel, onAction }: SectionHeaderProps) {
+  // when the title and the action do not fit on one line the action goes under the title, full width
+  const stackHeader = useStackHeader();
+  const stacked = stackHeader && !!actionLabel;
   return (
-    <View style={styles.row}>
+    <View testID="section-header" style={[styles.row, stacked && styles.stacked]}>
       <AppText variant="title" accessibilityRole="header" style={styles.title}>
         {title}
       </AppText>
       {actionLabel ? (
-        <Button label={actionLabel} variant="text" onPress={onAction} />
+        <Button label={actionLabel} variant="text" fullWidth={stacked} onPress={onAction} />
       ) : trailing ? (
         <AppText variant="label" color="textSecondary">
           {trailing}
@@ -29,6 +33,7 @@ export function SectionHeader({ title, trailing, actionLabel, onAction }: Sectio
 
 const styles = StyleSheet.create({
   title: { flexShrink: 1 },
+  stacked: { flexDirection: 'column', alignItems: 'stretch', justifyContent: 'flex-start' },
   row: {
     flexDirection: 'row',
     alignItems: 'center',

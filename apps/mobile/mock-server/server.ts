@@ -95,6 +95,9 @@ export function createMockServer(opts: MockOptions = {}): Server {
       }
       // the offline scenario: the connection drops, as with no network
       if (scenario === 'offline' && path.startsWith('/v1/')) return void req.socket.destroy();
+      // the fail scenario: the server answers every /v1 request with its own 500 (apps/server http/errors.ts)
+      if (scenario === 'fail' && path.startsWith('/v1/'))
+        return error(res, 500, 'internal', 'Something went wrong');
       if (path === '/v1/cities') return json(res, 200, cities);
       if (path === '/v1/cities/nis/gazetteer') {
         if (req.headers['if-none-match'] === gazetteer.etag) {

@@ -20,6 +20,7 @@ import {
   StatusBadge,
   TimelineBar,
 } from '../design/components';
+import { useLargeText } from '../design/largeText';
 import { useTheme } from '../design/theme';
 import { CARD_GAP, CARD_PADDING, type StatusKey } from '../design/tokens';
 import { belgradeDate, dayHour } from '../format/time';
@@ -82,6 +83,7 @@ function Card({ children, gap = 16 }: { children: React.ReactNode; gap?: number 
 /** The outage detail: when, for how long, how it concerns the saved addresses, which streets, the source. */
 export function OutageDetailView(props: OutageDetailViewProps) {
   const { t } = useTranslation();
+  const large = useLargeText();
   const { colors } = useTheme();
   const { detail, now, script } = props;
   const [rawOpen, setRawOpen] = useState(false);
@@ -246,7 +248,11 @@ export function OutageDetailView(props: OutageDetailViewProps) {
             return (
               <View
                 key={`${seg.raw}-${i}`}
-                style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}
+                style={{
+                  flexDirection: large ? 'column' : 'row',
+                  alignItems: large ? 'stretch' : 'center',
+                  gap: 12,
+                }}
               >
                 <View style={{ flex: 1, gap: 2 }}>
                   <AppText variant="bodyStrong">{line.title}</AppText>
@@ -261,6 +267,7 @@ export function OutageDetailView(props: OutageDetailViewProps) {
                     label={t('upcoming.follow')}
                     accessibilityLabel={`${t('upcoming.follow')} ${line.title}`}
                     variant="secondary"
+                    fullWidth={large}
                     onPress={() => props.onFollow?.(seg)}
                   />
                 ) : follow === 'followed' ? (

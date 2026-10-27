@@ -54,7 +54,7 @@ export function SmallButton({
       ]}
     >
       <Icon name={icon} size={18} color={fg} />
-      <AppText variant="label" color={fg} maxFontSizeMultiplier={1.5}>
+      <AppText variant="label" color={fg}>
         {label}
       </AppText>
     </Pressable>
@@ -62,5 +62,11 @@ export function SmallButton({
 }
 
 const styles = StyleSheet.create({
-  base: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 14 },
+  base: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    paddingHorizontal: 14,
+  },
 });
