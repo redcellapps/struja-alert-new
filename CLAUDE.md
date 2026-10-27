@@ -26,6 +26,7 @@ Expo (Android first, iOS later) + Fastify/Postgres app that pushes a notificatio
 - Never pin library versions from memory; check current docs. Install Expo packages with `npx expo install`.
 - Parse saved fixtures, never the live site. Only the fixture collector and the production scheduler may request elektrodistribucija.rs.
 - `.platform.tsx` files only where native chrome differs; logic and data stay shared. Mark Mac-only work **[MAC]**.
+- The outage map (`apps/mobile/src/map/`, notes in `docs/map.md`): the tile host is set in `src/map/config.ts` only; never use `tile.openstreetmap.org`; no offline tile download; the credits stay visible on the map; the map is dropped, never shown blank, when tiles fail.
 - If reality contradicts the brief, stop and tell the user.
 
 ## Non-negotiables (BRIEF §8)

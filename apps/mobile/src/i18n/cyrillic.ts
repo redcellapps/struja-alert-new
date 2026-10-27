@@ -5,7 +5,8 @@ import { latinToCyrillic } from '@struja/parser/transliterate';
 // the mechanical result is wrong, e.g. a word with a Latin "nj" that is two letters in Cyrillic.
 export const CYRL_OVERRIDES: Record<string, string> = {};
 
-const PLACEHOLDER = /(\{\{[^}]+\}\})/;
+// Left as they are: {{placeholders}} and the names of the map data and the tile host (and "IP", "©").
+const PLACEHOLDER = /(\{\{[^}]+\}\}|OpenStreetMap|OpenMapTiles|OpenFreeMap|contributors|\bIP\b|©)/;
 
 export function transliterate(text: string): string {
   return text

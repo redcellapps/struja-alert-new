@@ -13,6 +13,7 @@
     "live-contract": "node --experimental-strip-types live/run.ts"
   },
   "dependencies": {
+    "@maplibre/maplibre-react-native": "^11.5.0",
     "@struja/parser": "workspace:*",
     "@struja/shared": "workspace:*",
     "@tanstack/react-query": "^5.104.5",

@@ -87,6 +87,7 @@ export const en: Deep<Messages> = {
     yourNumber: 'Your number {{n}} is within {{range}}',
     possibleNoNumber: 'Possibly affected — no house number entered',
     affectedStreets: 'Affected streets',
+    mapSource: 'Map sources: OpenStreetMap, OpenMapTiles, OpenFreeMap. Opens the copyright page.',
     rawText: 'Original text from EDS',
     addToCalendar: 'Add to calendar',
     share: 'Share',
@@ -247,13 +248,14 @@ export const en: Deep<Messages> = {
     actionFailed: 'That did not work. Try again.',
     noAddresses: 'You have no saved addresses.',
     privacyBody:
-      'No account, we never ask for your location, and nothing tracks you. We keep only the addresses you enter and your notification settings.',
+      'No account, we never ask for your location, and nothing tracks you. We keep only the addresses you enter and your notification settings. The map on an outage comes from the OpenFreeMap service: it sees your phone’s IP address and the area of the outage you are looking at, but not your addresses.',
     deleteDataBody:
       'Deletes your device, all addresses and the history, on the server and on this phone. It cannot be undone.',
     deleteAll: 'Delete everything',
     deleteDataFailed: 'Deleting failed. Check your connection and try again.',
     version: 'Version {{version}}',
-    aboutBody: 'The outage data comes from Elektrodistribucija Srbije.',
+    aboutBody:
+      'The outage data comes from Elektrodistribucija Srbije. Maps: © OpenStreetMap contributors, © OpenMapTiles, OpenFreeMap.',
     openEds: 'Open the Elektrodistribucija site',
     licences: 'Licences',
     licencesBody:

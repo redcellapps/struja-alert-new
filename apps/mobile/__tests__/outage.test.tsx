@@ -383,9 +383,42 @@ describe('OutageDetailView', () => {
     expect(screen.getByLabelText('Zatvori')).toBeTruthy();
   });
 
+  describe('the map of the affected streets', () => {
+    const streetLine: GeoJSON.Feature = {
+      type: 'Feature',
+      properties: { name: 'Војводе Мишића' },
+      geometry: {
+        type: 'MultiLineString',
+        coordinates: [
+          [
+            [21.9, 43.31],
+            [21.901, 43.32],
+          ],
+        ],
+      },
+    };
+    const withShapes = detail({ geometry: { type: 'FeatureCollection', features: [streetLine] } });
+
+    it('is part of "Pogođene ulice" when the outage has street geometry', async () => {
+      await show(props({ detail: withShapes }));
+      expect(screen.getByTestId('outage-map')).toBeTruthy();
+      expect(screen.getByText('Pogođene ulice')).toBeTruthy();
+    });
+
+    it('is not there without geometry, or when only the saved copy is shown (offline)', async () => {
+      const { unmount } = await show(props());
+      expect(screen.queryByTestId('outage-map')).toBeNull();
+      await unmount();
+      await show(props({ detail: withShapes, offline: true }));
+      expect(screen.queryByTestId('outage-map')).toBeNull();
+      // the street list is still there
+      expect(screen.getByText('Pogođene ulice')).toBeTruthy();
+    });
+  });
+
   it('shows the "Moguće" badge in the header when an address is only possibly affected', async () => {
     const possible = detail({
-      mine: [{ subscriptionId: 1, match: 'possible', reason: 'no_number' }],
+      mine: [{ subscriptionId: 1, match: 'possible', reason: 'no_number', point: null }],
     });
     const { unmount } = await show(
       props({
@@ -396,7 +429,11 @@ describe('OutageDetailView', () => {
     expect(screen.getByText('Moguće')).toBeTruthy();
     await unmount();
     await show(
-      props({ detail: detail({ mine: [{ subscriptionId: 1, match: 'affected', reason: null }] }) }),
+      props({
+        detail: detail({
+          mine: [{ subscriptionId: 1, match: 'affected', reason: null, point: null }],
+        }),
+      }),
     );
     expect(screen.queryByText('Moguće')).toBeNull();
   });

@@ -1,3 +1,4 @@
+import { MOCK_GEOMETRY, MOCK_HOUSE_POINT } from './geometry.ts';
 import type {
   AddressOutageDto,
   CitiesResponse,
@@ -121,12 +122,19 @@ export function detailForOutage(outage: AddressOutageDto): OutageDetailDto {
     revision: outage.revision,
     rawStreets: SEGMENTS.map((x) => x.raw).join(', ') + ';',
     segments: SEGMENTS,
-    geometry: { type: 'FeatureCollection', features: [] },
+    geometry: MOCK_GEOMETRY,
     source: {
       name: 'Elektrodistribucija Srbije',
       url: 'https://elektrodistribucija.rs/planirana-iskljucenja/planirana-ni',
     },
-    mine: [{ subscriptionId: outage.subscriptionId, match: outage.match, reason: outage.reason }],
+    mine: [
+      {
+        subscriptionId: outage.subscriptionId,
+        match: outage.match,
+        reason: outage.reason,
+        point: outage.match === 'affected' ? MOCK_HOUSE_POINT : null,
+      },
+    ],
   };
 }
 
@@ -159,11 +167,11 @@ export function detailFor(id: number, subscriptionId: number, now: Date): Outage
         ranges: [],
       },
     ],
-    geometry: { type: 'FeatureCollection', features: [] },
+    geometry: MOCK_GEOMETRY,
     source: {
       name: 'Elektrodistribucija Srbije',
       url: 'https://elektrodistribucija.rs/planirana-iskljucenja/planirana-ni',
     },
-    mine: [{ subscriptionId, match: 'affected', reason: null }],
+    mine: [{ subscriptionId, match: 'affected', reason: null, point: MOCK_HOUSE_POINT }],
   };
 }

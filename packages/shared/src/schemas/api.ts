@@ -156,6 +156,8 @@ export const outageDetailSchema = z.object({
       subscriptionId: z.number().int(),
       match: z.enum(['affected', 'possible']),
       reason: z.enum(['no_number', 'partial', 'unresolved']).nullable(),
+      // The person's house on the map: only for an address with a number that OSM has a point for.
+      point: z.object({ lng: z.number(), lat: z.number() }).nullable(),
     }),
   ),
 });

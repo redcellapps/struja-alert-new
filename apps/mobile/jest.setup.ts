@@ -29,3 +29,17 @@ jest.mock('react-native-reanimated', () => {
 
 // expo-crypto is native; the tests use Node's.
 jest.mock('expo-crypto', () => ({ randomUUID: () => require('node:crypto').randomUUID() }));
+
+// MapLibre is native; the tests stub it (the map tests bring their own, with events).
+jest.mock('@maplibre/maplibre-react-native', () => {
+  const { View } = require('react-native');
+  const Stub = ({ children }: { children?: unknown }) => children ?? null;
+  return {
+    __esModule: true,
+    Map: View,
+    Camera: Stub,
+    GeoJSONSource: Stub,
+    Layer: Stub,
+    LogManager: { onLog: () => undefined },
+  };
+});

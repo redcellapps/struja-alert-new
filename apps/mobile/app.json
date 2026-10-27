@@ -34,7 +34,8 @@
             "./assets/fonts/Unbounded_800ExtraBold.ttf"
           ]
         }
-      ]
+      ],
+      "@maplibre/maplibre-react-native"
     ],
     "ios": {
       "supportsTablet": false,
@@ -49,7 +50,12 @@
         "monochromeImage": "./assets/android-icon-monochrome.png"
       },
       "predictiveBackGestureEnabled": true,
-      "permissions": ["android.permission.POST_NOTIFICATIONS"]
+      "permissions": ["android.permission.POST_NOTIFICATIONS"],
+      "blockedPermissions": [
+        "android.permission.ACCESS_FINE_LOCATION",
+        "android.permission.ACCESS_COARSE_LOCATION",
+        "android.permission.ACCESS_BACKGROUND_LOCATION"
+      ]
     }
   }
 }

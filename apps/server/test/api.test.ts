@@ -548,7 +548,20 @@ describe('outages for the app', () => {
 
     const signed = outageDetailSchema.parse((await call(c, 'GET', `/v1/outages/${id}`)).json());
     expect(signed.mine).toHaveLength(1);
-    expect(signed.mine[0]).toMatchObject({ match: 'affected' });
+    expect(signed.mine[0]).toMatchObject({ match: 'affected', point: null }); // OSM has no point for house 31 here
+
+    // house 31 gets a point: the map can mark the person's house
+    await w.t.db.execute(sql`
+      INSERT INTO address_point (street_id, housenumber, geom)
+      VALUES (${sid('cegarska')}, '31', ST_SetSRID(ST_MakePoint(21.9012, 43.3154), 4326))`);
+    const withPoint = outageDetailSchema.parse((await call(c, 'GET', `/v1/outages/${id}`)).json());
+    expect(withPoint.mine[0]?.point).toEqual({ lng: 21.9012, lat: 43.3154 });
+
+    // an address without a number has no point to mark
+    const c2 = await register();
+    await call(c2, 'POST', '/v1/subscriptions', { streetId: sid('cegarska') });
+    const noNumber = outageDetailSchema.parse((await call(c2, 'GET', `/v1/outages/${id}`)).json());
+    expect(noNumber.mine[0]).toMatchObject({ match: 'possible', reason: 'no_number', point: null });
   });
 
   it('does not expose rows outside the app’s scope, and 404s an unknown id', async () => {

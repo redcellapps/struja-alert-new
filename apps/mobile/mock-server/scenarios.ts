@@ -1,3 +1,4 @@
+import { MOCK_GEOMETRY } from './geometry.ts';
 import type { AddressOutageDto, OutageDetailDto, SubscriptionDto } from '@struja/shared';
 import { cyrillicToLatin } from '@struja/parser/transliterate';
 import { detailForOutage, outagesFor } from './fixtures.ts';
@@ -254,7 +255,7 @@ function detailForCity(o: CityOutage): OutageDetailDto {
       partial: false,
       ranges: [],
     })),
-    geometry: { type: 'FeatureCollection', features: [] },
+    geometry: MOCK_GEOMETRY,
     source: {
       name: 'Elektrodistribucija Srbije',
       url: 'https://elektrodistribucija.rs/planirana-iskljucenja/planirana-ni',

@@ -90,6 +90,8 @@ export const sr = {
     yourNumber: 'Vaš broj {{n}} je u opsegu {{range}}',
     possibleNoNumber: 'Moguće pogođeno — niste uneli broj',
     affectedStreets: 'Pogođene ulice',
+    mapSource:
+      'Izvor mape: OpenStreetMap, OpenMapTiles, OpenFreeMap. Otvara stranicu o autorskim pravima.',
     rawText: 'Originalni tekst iz EDS',
     addToCalendar: 'Dodaj u kalendar',
     share: 'Podeli',
@@ -250,13 +252,14 @@ export const sr = {
     actionFailed: 'Nije uspelo. Pokušajte ponovo.',
     noAddresses: 'Nemate sačuvanih adresa.',
     privacyBody:
-      'Nema naloga, ne tražimo vašu lokaciju i nema praćenja. Čuvamo samo adrese koje unesete i podešavanja obaveštenja.',
+      'Nema naloga, ne tražimo vašu lokaciju i nema praćenja. Čuvamo samo adrese koje unesete i podešavanja obaveštenja. Mapa na detalju isključenja dolazi od servisa OpenFreeMap: on vidi IP adresu vašeg telefona i okolinu isključenja koju gledate, ali ne i vaše adrese.',
     deleteDataBody:
       'Briše vaš uređaj, sve adrese i istoriju, na serveru i na ovom telefonu. Ne može da se poništi.',
     deleteAll: 'Obriši sve',
     deleteDataFailed: 'Brisanje nije uspelo. Proverite vezu i pokušajte ponovo.',
     version: 'Verzija {{version}}',
-    aboutBody: 'Podaci o isključenjima dolaze od Elektrodistribucije Srbije.',
+    aboutBody:
+      'Podaci o isključenjima dolaze od Elektrodistribucije Srbije. Mape: © OpenStreetMap contributors, © OpenMapTiles, OpenFreeMap.',
     openEds: 'Otvori sajt Elektrodistribucije',
     licences: 'Licence',
     licencesBody:

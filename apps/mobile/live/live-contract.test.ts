@@ -96,6 +96,9 @@ describe.skipIf(!BASE)('live API contract', () => {
     if (first) {
       const detail = await api.outage(first.id);
       expect(detail.rawStreets.length).toBeGreaterThan(0);
+      expect(detail.geometry.features.length).toBeGreaterThan(0);
+      // Trebinjska 34 is a house OSM knows: the map can mark it
+      expect(detail.mine[0]?.point).toEqual({ lng: expect.any(Number), lat: expect.any(Number) });
     }
   });
 

@@ -26,6 +26,7 @@ import { CARD_GAP, CARD_PADDING, type StatusKey } from '../design/tokens';
 import { belgradeDate, dayHour } from '../format/time';
 import { durationShort, hoursUntil, spokenDuration } from '../home/format';
 import { statusAt } from '../home/outlook';
+import { OutageMap } from '../map/OutageMap';
 import { dateLong, windowText } from './actions';
 import { addressRanges, segmentForStreet, streetLine, type Segment } from './ranges';
 
@@ -241,6 +242,15 @@ export function OutageDetailView(props: OutageDetailViewProps) {
 
       <View style={{ gap: CARD_GAP }}>
         <SectionHeader title={t('detail.affectedStreets')} />
+        {/* A still map of the streets; without a network or tiles it is simply not there, the list below stands alone. */}
+        {props.offline ? null : (
+          <OutageMap
+            geometry={detail.geometry}
+            house={detail.mine.find((m) => m.point)?.point ?? null}
+            color={s.mark}
+            script={script}
+          />
+        )}
         <Card gap={12}>
           {detail.segments.map((seg, i) => {
             const line = streetLine(seg, script, t);

@@ -147,6 +147,22 @@ export function outageRoutes(app: FastifyInstance, deps: AppDeps): void {
       }
     }
 
+    // Where the person's house is, when the address has a number and OSM knows that house on the street.
+    const housePoint = async (s: {
+      streetId: number | null;
+      houseNumber: number | null;
+      houseSuffix: string | null;
+    }): Promise<{ lng: number; lat: number } | null> => {
+      if (s.streetId === null || s.houseNumber === null) return null;
+      const number = `${s.houseNumber}${s.houseSuffix ?? ''}`.toLowerCase();
+      const r = await deps.db.execute(sql`
+        SELECT ST_X(geom) AS lng, ST_Y(geom) AS lat FROM address_point
+        WHERE street_id = ${s.streetId} AND lower(housenumber) = ${number} AND geom IS NOT NULL
+        LIMIT 1`);
+      const row = r.rows[0] as { lng: number; lat: number } | undefined;
+      return row ? { lng: Number(row.lng), lat: Number(row.lat) } : null;
+    };
+
     const mine = [];
     if (req.device) {
       const subs = await deps.db
@@ -175,6 +191,7 @@ export function outageRoutes(app: FastifyInstance, deps: AppDeps): void {
             subscriptionId: s.id,
             match: m.kind,
             reason: m.kind === 'possible' ? m.reason : null,
+            point: await housePoint(s),
           });
         }
       }
