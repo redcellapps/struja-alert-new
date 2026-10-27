@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { ApiError, createClient, type ClientDeps } from '../src/api/client';
+import { endpoints } from '../src/api/endpoints';
 
 const ok = (body: unknown, status = 200) =>
   new Response(JSON.stringify(body), { status, headers: { 'content-type': 'application/json' } });
@@ -118,5 +119,20 @@ describe('client', () => {
   it('returns undefined for 204', async () => {
     const { client } = setup(() => new Response(null, { status: 204 }));
     expect(await client.request({ method: 'DELETE', path: '/x', auth: true })).toBeUndefined();
+  });
+});
+
+// Found by the live contract test against the real server: the app sent the bare etag and never got a 304.
+describe('gazetteer revalidation', () => {
+  it('sends the etag as a quoted entity-tag in If-None-Match, and treats 304 as "still current"', async () => {
+    const { client, calls } = setup(() => new Response(null, { status: 304 }));
+    expect(await endpoints(client).gazetteer('nis', 'fdcf52e48d534e6d')).toBeNull();
+    expect(new Headers(calls[0]?.init.headers).get('if-none-match')).toBe('"fdcf52e48d534e6d"');
+  });
+
+  it('does not quote twice', async () => {
+    const { client, calls } = setup(() => new Response(null, { status: 304 }));
+    await endpoints(client).gazetteer('nis', '"abc"');
+    expect(new Headers(calls[0]?.init.headers).get('if-none-match')).toBe('"abc"');
   });
 });

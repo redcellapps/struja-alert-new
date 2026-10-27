@@ -8,7 +8,9 @@
     "typecheck": "tsc -p tsconfig.json",
     "test": "vitest run --passWithNoTests --coverage --reporter=default --reporter=junit --outputFile.junit=../../test-results/server/junit.xml --coverage.reportsDirectory=../../test-results/server/coverage --coverage.reporter=text-summary --coverage.reporter=lcov",
     "db:generate": "drizzle-kit generate",
-    "db:migrate": "node --env-file-if-exists=../../.env src/db/migrate-cli.ts"
+    "db:migrate": "node --env-file-if-exists=../../.env src/db/migrate-cli.ts",
+    "dev:fixtures": "node --experimental-strip-types src/dev/rebase-fixtures.ts",
+    "dev:scrape": "node --experimental-strip-types --env-file-if-exists=../../.env src/dev/scrape-now.ts"
   },
   "dependencies": {
     "@fastify/helmet": "^13.2.0",

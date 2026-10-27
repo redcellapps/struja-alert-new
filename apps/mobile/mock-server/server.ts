@@ -100,11 +100,13 @@ export function createMockServer(opts: MockOptions = {}): Server {
         return error(res, 500, 'internal', 'Something went wrong');
       if (path === '/v1/cities') return json(res, 200, cities);
       if (path === '/v1/cities/nis/gazetteer') {
-        if (req.headers['if-none-match'] === gazetteer.etag) {
+        // like the real server: the ETag header is the body's etag in quotes
+        const etag = `"${gazetteer.etag}"`;
+        if (req.headers['if-none-match'] === etag) {
           res.writeHead(304);
           return void res.end();
         }
-        res.writeHead(200, { 'content-type': 'application/json', etag: gazetteer.etag });
+        res.writeHead(200, { 'content-type': 'application/json', etag });
         return void res.end(JSON.stringify(gazetteer));
       }
       if (path === '/v1/cities/nis/outages') {
@@ -140,7 +142,11 @@ export function createMockServer(opts: MockOptions = {}): Server {
 
       const deviceId = authed(req);
       const optionalAuth = path.startsWith('/v1/outages/');
-      if (!deviceId && !optionalAuth) return error(res, 401, 'unauthorized', 'Unauthorized');
+      // like the real server: only the routes that need a device answer 401; an unknown route is a 404
+      const needsDevice = /^\/v1\/(devices\/me|subscriptions|me\/|reports)/.test(path);
+      if (!deviceId && !optionalAuth && needsDevice) {
+        return error(res, 401, 'unauthorized', 'Unauthorized');
+      }
       const mine = deviceId ? (subs.get(deviceId) ?? []) : [];
 
       if (path === '/v1/subscriptions' && method === 'GET') {

@@ -134,9 +134,12 @@ describe('mock API contract', () => {
     void deps;
   });
 
-  it('returns a JSON error for unknown routes', async () => {
+  it('returns the shared JSON error: 404 for an unknown route, 401 for a device route without credentials', async () => {
     const res = await fetch(`${baseUrl}/v1/nothing`);
-    expect(res.status).toBe(401); // unauthenticated requests are refused before routing
-    expect((await res.json()).error.code).toBe('unauthorized');
+    expect(res.status).toBe(404);
+    expect((await res.json()).error.code).toBe('not_found');
+    const noAuth = await fetch(`${baseUrl}/v1/subscriptions`);
+    expect(noAuth.status).toBe(401);
+    expect((await noAuth.json()).error.code).toBe('unauthorized');
   });
 });

@@ -30,7 +30,7 @@ const street = (id: number, cyr: string, lat: string, norm: string, municipality
 export const gazetteer: GazetteerResponse = {
   city: 'nis',
   version: 1,
-  etag: '"mock-1"',
+  etag: 'mock-1',
   streets: [
     street(1, 'Војводе Мишића', 'Vojvode Mišića', 'vojvode misica', 'Медијана'),
     street(2, 'Студеничка', 'Studenička', 'studenicka', 'Пантелеј'),

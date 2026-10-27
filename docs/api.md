@@ -18,7 +18,7 @@ on every other request. The server stores only a scrypt hash. Missing, malformed
 | ---------------------------------------------- | ----------------------- | ------------------------------------------------------------------------------------------------------------------------------ |
 | `GET /healthz`                                 | –                       | Liveness.                                                                                                                      |
 | `GET /v1/cities`                               | –                       | Cities and the gazetteer version of active ones; the rest are "soon".                                                          |
-| `GET /v1/cities/:city/gazetteer`               | –                       | Streets and settlements for offline search. ETag / `If-None-Match` → 304.                                                      |
+| `GET /v1/cities/:city/gazetteer`               | –                       | Streets and settlements for offline search. ETag / `If-None-Match` → 304 (the header carries the body's `etag` in quotes).     |
 | `GET /v1/cities/:city/outages?date=YYYY-MM-DD` | –                       | City-wide browse (Najave); without `date`, everything not yet over.                                                            |
 | `POST /v1/devices`                             | – (rate limited per IP) | Register. `201 { deviceId, deviceSecret }`. A push token already on file is **taken over** (old device and addresses dropped). |
 | `GET /v1/devices/me`                           | device                  | The device's settings.                                                                                                         |

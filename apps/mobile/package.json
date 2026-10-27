@@ -9,7 +9,8 @@
     "ios": "expo run:ios",
     "typecheck": "tsc -p tsconfig.json",
     "test": "jest --ci --coverage --coverageDirectory=../../test-results/mobile/coverage --coverageReporters=text-summary --coverageReporters=lcov --reporters=default --reporters=jest-junit && vitest run --reporter=default --reporter=junit --outputFile.junit=../../test-results/mobile/junit-contract.xml",
-    "mock": "node --experimental-strip-types mock-server/run.ts"
+    "mock": "node --experimental-strip-types mock-server/run.ts",
+    "live-contract": "node --experimental-strip-types live/run.ts"
   },
   "dependencies": {
     "@struja/parser": "workspace:*",
