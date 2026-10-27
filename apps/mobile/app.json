@@ -11,6 +11,7 @@
       "expo-router",
       "expo-status-bar",
       "./plugins/with-short-cxx-dir.js",
+      "./plugins/with-gradle-memory.js",
       "expo-secure-store",
       "expo-localization",
       [

@@ -6,6 +6,10 @@
 import { copyFileSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { assertLocalDatabase } from './local-only.ts';
+
+// It only writes files under .dev, but it belongs to the local stack: the same guard as dev:scrape.
+assertLocalDatabase(process.env.DATABASE_URL, 'dev:fixtures');
 
 const repoRoot = fileURLToPath(new URL('../../../../', import.meta.url));
 const CITY = 'Nis';
