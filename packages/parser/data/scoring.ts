@@ -27,4 +27,10 @@ export const SCORING = {
   // when it is within this far of them and at least this much nearer than the next one.
   placeMaxMeters: 3000,
   placeLeadMeters: 1500,
+  // A segment that is only some words of another street's name ("мишића" for "Војводе Мишића") is a
+  // proposal: it is accepted only when the street lies within this far of a street already resolved
+  // in the same EDS row.
+  partialConfirmMeters: 1500,
+  // ... and no more than this many street names may contain those words ("прилаз" is in dozens).
+  partialMaxNames: 3,
 } as const;

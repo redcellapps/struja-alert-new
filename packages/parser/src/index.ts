@@ -23,6 +23,13 @@ export {
   type ResolvedBy,
 } from './gazetteer.ts';
 export {
+  areaAt,
+  assembleRings,
+  buildSettlementAreas,
+  type OsmAreaRelation,
+  type SettlementArea,
+} from './areas.ts';
+export {
   buildNisGazetteer,
   clusterWays,
   nisMunicipality,

@@ -175,7 +175,7 @@ describe('streets that share a name', () => {
         nameNorm: 'vojvode putnika',
         altNorms: [],
         municipality: 'Палилула - Ниш',
-        settlement: 'Сточни трг',
+        settlement: 'Палилула',
       },
       {
         id: 16,
@@ -205,11 +205,10 @@ describe('streets that share a name', () => {
     expect(hits.map((p) => p.id).sort()).toEqual([15, 16]);
     expect(hits.every((p) => p.repeated)).toBe(true);
     const trupale = hits.find((p) => p.id === 16) as Place;
-    expect(placeDetail(trupale, 'latn')).toBe('Trupale · Crveni krst');
-    expect(placeDetail(trupale, 'cyrl')).toBe('Трупале · Црвени крст');
-    expect(placeDetail(hits.find((p) => p.id === 15) as Place, 'latn')).toBe(
-      'Stočni trg · Palilula - Niš',
-    );
+    expect(placeDetail(trupale, 'latn')).toBe('Trupale');
+    expect(placeDetail(trupale, 'cyrl')).toBe('Трупале');
+    // a street in the city is named after its municipality
+    expect(placeDetail(hits.find((p) => p.id === 15) as Place, 'latn')).toBe('Palilula');
   });
 
   it('shows only the municipality for a name that is not shared', () => {

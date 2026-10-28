@@ -1,4 +1,6 @@
 import type { GazStreet } from './gazetteer.ts';
+import { areaAt, type SettlementArea } from './areas.ts';
+import { NIS_MUNICIPALITY_KEYS, nisMunicipality, type NisMunicipality } from './municipality.ts';
 import { normalizeName } from './normalize.ts';
 import { haversineMeters } from './similarity.ts';
 
@@ -31,26 +33,7 @@ export interface MunicipalitySnapshot {
   places: OsmPlace[];
 }
 
-export const NIS_MUNICIPALITY_KEYS = [
-  'medijana',
-  'palilula',
-  'pantelej',
-  'crveni krst',
-  'niska banja',
-] as const;
-export type NisMunicipality = (typeof NIS_MUNICIPALITY_KEYS)[number];
-
-/**
- * Maps a municipality name, as EDS writes it ("Палилула - Ниш", "Нишка бања") or as OSM names it
- * ("Gradska opština Palilula"), to one of the five Niš city municipalities, else null.
- */
-export function nisMunicipality(name: string): NisMunicipality | null {
-  const n = normalizeName(name)
-    .replace(/^gradska opstina /, '')
-    .replace(/ nis$/, '')
-    .trim();
-  return (NIS_MUNICIPALITY_KEYS as readonly string[]).includes(n) ? (n as NisMunicipality) : null;
-}
+export { NIS_MUNICIPALITY_KEYS, nisMunicipality, type NisMunicipality };
 
 // Same-named OSM ways are one street only when they are connected or this close (single linkage).
 // Farther apart they are different streets that happen to share a name (Војводе Путника in the
@@ -217,6 +200,34 @@ function nearestSettlement(
 }
 
 /**
+ * The settlement most of the street's ways lie in, by name: a village's own name, or the city
+ * municipality for ways in the city. Null when no boundary covers any way.
+ */
+function settlementByArea(
+  ways: readonly OsmStreetWay[],
+  areas: readonly SettlementArea[],
+): string | null {
+  if (areas.length === 0) return null;
+  const counts = new Map<string, number>();
+  for (const w of ways) {
+    const g = w.geometry;
+    const mid = g?.[Math.floor(g.length / 2)];
+    if (!mid) continue;
+    const label = areaAt(areas, mid.lat, mid.lon)?.label;
+    if (label) counts.set(label, (counts.get(label) ?? 0) + 1);
+  }
+  let best: string | null = null;
+  let bestCount = 0;
+  for (const [label, n] of [...counts].sort(([a], [b]) => a.localeCompare(b))) {
+    if (n > bestCount) {
+      best = label;
+      bestCount = n;
+    }
+  }
+  return best;
+}
+
+/**
  * Builds the street list. Ways that share a normalized name are one street only when they are
  * connected or close (`SAME_STREET_GAP_METERS`); otherwise they are separate streets with the same
  * name, told apart by their settlement (BRIEF §3). Records which of the five municipalities each
@@ -226,6 +237,9 @@ function nearestSettlement(
 export function buildNisGazetteer(
   ways: readonly OsmStreetWay[],
   municipalities: readonly MunicipalitySnapshot[],
+  // The boundaries of the settlements, when known: a street is then named after the settlement it
+  // lies in (a village's own name, or the city municipality for a street in the city).
+  areas: readonly SettlementArea[] = [],
 ): NisGazetteer {
   const munOfWay = new Map<number, Set<NisMunicipality>>();
   for (const m of municipalities) {
@@ -328,9 +342,33 @@ export function buildNisGazetteer(
         }
       }
       street.centroid = n > 0 ? [lat / n, lon / n] : null;
-      street.settlement = nearestSettlement(street.centroid, settlements);
+      street.settlement =
+        settlementByArea(group, areas) ?? nearestSettlement(street.centroid, settlements);
       streets.push(street);
     }
   }
+  disambiguateLabels(streets, settlements);
   return { streets, settlements };
+}
+
+/**
+ * Two streets of one name that come out with the same label (both in the same urban part of the
+ * city, say) are told apart by the nearest place name: "Црвени Крст (Нова железничка колонија)".
+ */
+function disambiguateLabels(streets: NisStreet[], settlements: readonly NisSettlement[]): void {
+  const byName = new Map<string, NisStreet[]>();
+  for (const s of streets) byName.set(s.nameNorm, [...(byName.get(s.nameNorm) ?? []), s]);
+  for (const list of byName.values()) {
+    if (list.length < 2) continue;
+    const count = new Map<string | null, number>();
+    for (const s of list) count.set(s.settlement, (count.get(s.settlement) ?? 0) + 1);
+    let n = 0;
+    for (const s of list) {
+      if ((count.get(s.settlement) ?? 0) < 2 || !s.settlement) continue;
+      n++;
+      const near = nearestSettlement(s.centroid, settlements);
+      s.settlement =
+        near && near !== s.settlement ? `${s.settlement} (${near})` : `${s.settlement} (${n})`;
+    }
+  }
 }

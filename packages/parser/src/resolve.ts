@@ -142,6 +142,13 @@ export class Resolver {
     // 4. Deterministic rewrites; accepted only when exactly one street results.
     const heuristic = this.heuristic(segNorm);
     if (heuristic) return this.accept('heuristic', heuristic, 0.8, ctx);
+    // The segment is only a word or two of another street's name ("мишића", "топлице"): that is a
+    // proposal, not an answer. It is accepted only when the row's other streets confirm it spatially;
+    // otherwise it goes on as a candidate (scoring, review queue, "Moguće").
+    const part = this.partOfName(segNorm);
+    if (part && this.partAccepted(segNorm, part, ctx)) {
+      return this.accept('heuristic', part, 0.8, ctx);
+    }
 
     // 5. Candidate scoring with spatial context.
     for (const c of this.index.candidates(segNorm, SCORING.candidateLimit))
@@ -293,8 +300,63 @@ export class Resolver {
       const swapped = oneName(found);
       if (swapped) return swapped;
     }
-    // Missing first name or title: every token of the segment is in exactly one street (name).
-    return oneName(this.containing(segNorm));
+    return null;
+  }
+
+  // Missing first name or title: every token of the segment is in exactly one street (name). Only a
+  // proposal (see `resolve`).
+  private partOfName(segNorm: string): NisStreet[] | null {
+    const list = [...new Set(this.containing(segNorm))];
+    return list.length > 0 && distinctNames(list) === 1 ? list : null;
+  }
+
+  // May a segment that is only some words of a street's name be accepted? Only when the row confirms
+  // it spatially, and (1) not too many street names contain those words (a generic word such as
+  // "прилаз" is no place), and, when it is the only name that contains them, (2) no street of
+  // another name sounds like the segment itself (a typo of "Топличка" is not "Милана Топлице").
+  private partAccepted(
+    segNorm: string,
+    streets: readonly NisStreet[],
+    ctx: ResolveContext,
+  ): boolean {
+    const name = streets[0]?.nameNorm;
+    if (name === undefined) return false;
+    const containing = this.containing(segNorm);
+    if (distinctNames(containing) > SCORING.partialMaxNames) return false;
+    if (distinctNames(containing) <= 1) {
+      const grams = trigrams(segNorm);
+      for (const other of this.streets) {
+        if (other.nameNorm === name) continue;
+        if (this.bestSimilarity(grams, other) >= SCORING.candidateMinSimilarity) return false;
+      }
+    }
+    return this.confirmedBy(streets, ctx);
+  }
+
+  // Does the row confirm the proposal: is the street within reach of a street already resolved in it?
+  private confirmedBy(streets: readonly NisStreet[], ctx: ResolveContext): boolean {
+    const anchors = ctx.anchors ?? [];
+    if (anchors.length === 0) return false;
+    return streets.some(
+      (s) =>
+        this.distanceTo(
+          s,
+          anchors.filter((a) => a !== s),
+        ) <= SCORING.partialConfirmMeters,
+    );
+  }
+
+  // The segment is only some of the words of the street's name (not the name in any form).
+  private isPartialName(segNorm: string, street: NisStreet): boolean {
+    if ((this.allNorms.get(street) ?? []).includes(segNorm)) return false;
+    const have = this.stemSets.get(street);
+    const segStems = stems(segNorm).filter((t) => t.length >= 3);
+    return (
+      have !== undefined &&
+      segStems.length > 0 &&
+      segStems.every((t) => have.has(t)) &&
+      have.size > segStems.length
+    );
   }
 
   // Streets whose words include every word of the segment ("мишића" is in "Војводе Мишића").
@@ -395,6 +457,13 @@ export class Resolver {
       best.score >= SCORING.acceptScore &&
       (!rival || best.score - rival.score >= SCORING.minMargin)
     ) {
+      // Only some words of the street's name: a proposal that the row has to confirm.
+      if (
+        this.isPartialName(segNorm, best.street) &&
+        !this.partAccepted(segNorm, this.siblings.get(best.street.nameNorm) ?? [best.street], ctx)
+      ) {
+        return { by: 'unresolved', street: null, score: null, candidates: top5 };
+      }
       // The best street may share its name with others: which of them is a question of place.
       const same = this.siblings.get(best.street.nameNorm);
       if (same) return this.place(same, ctx);

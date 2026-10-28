@@ -7,6 +7,7 @@ import { fileURLToPath } from 'node:url';
 import {
   addressNumbersByStreet,
   buildNisGazetteer,
+  buildSettlementAreas,
   decodePage,
   parsePage,
   type MunicipalitySnapshot,
@@ -43,6 +44,7 @@ const municipalities: MunicipalitySnapshot[] = readdirSync(osm)
 const gazetteer = buildNisGazetteer(
   readJson(join(osm, 'nis-streets.json')).elements,
   municipalities,
+  buildSettlementAreas(readJson(join(osm, 'nis-settlement-areas.json')).elements),
 );
 const addressNumbers = addressNumbersByStreet(
   readJson(join(osm, 'nis-address-points.json')).elements,

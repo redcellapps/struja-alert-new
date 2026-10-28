@@ -6,6 +6,7 @@ import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import {
   buildNisGazetteer,
+  buildSettlementAreas,
   generateForms,
   Resolver,
   type MunicipalitySnapshot,
@@ -36,7 +37,11 @@ const muns: MunicipalitySnapshot[] = readdirSync(osm)
       places: [],
     };
   });
-const gaz = buildNisGazetteer(readJson(join(osm, 'nis-streets.json')).elements, muns);
+const gaz = buildNisGazetteer(
+  readJson(join(osm, 'nis-streets.json')).elements,
+  muns,
+  buildSettlementAreas(readJson(join(osm, 'nis-settlement-areas.json')).elements),
+);
 const resolver = new Resolver(gaz.streets);
 
 // Deterministic pseudo-random numbers so runs are comparable.
@@ -85,6 +90,29 @@ for (const junk of [
   cases.push({ kind: 'nonsense', input: junk, truth: null });
 }
 
+// --with-context: the row also names a street next to the true one (what a real EDS row does: one row is
+// one area), so the steps that need the row's confirmation can use it. Without it, each name is alone.
+const withContext = process.argv.includes('--with-context');
+const neighbours = new Map<NisStreet, NisStreet>();
+function neighbourOf(street: NisStreet): NisStreet {
+  let n = neighbours.get(street);
+  if (n) return n;
+  let best = Infinity;
+  for (const o of gaz.streets) {
+    if (o.nameNorm === street.nameNorm || !o.centroid || !street.centroid) continue;
+    const d = Math.hypot(
+      o.centroid[0] - street.centroid[0],
+      (o.centroid[1] - street.centroid[1]) * 0.73,
+    );
+    if (d < best) {
+      best = d;
+      n = o;
+    }
+  }
+  neighbours.set(street, (n ??= street));
+  return n;
+}
+
 const stats = new Map<Kind, { n: number; accepted: number; correct: number; wrong: number }>();
 const byStep = new Map<string, { accepted: number; correct: number }>();
 const wrongExamples: string[] = [];
@@ -103,7 +131,10 @@ for (const c of cases) {
     collisions++;
     continue;
   }
-  const r = resolver.resolve(c.input, { municipality: c.truth?.municipality ?? null });
+  const r = resolver.resolve(c.input, {
+    municipality: c.truth?.municipality ?? null,
+    anchors: withContext && c.truth ? [neighbourOf(c.truth)] : undefined,
+  });
   const st = stats.get(c.kind) ?? { n: 0, accepted: 0, correct: 0, wrong: 0 };
   st.n++;
   // a name several streets share and the municipality alone cannot place: none accepted, all offered
@@ -149,6 +180,9 @@ console.log(
   JSON.stringify(
     {
       note: 'SYNTHETIC, not real EDS data',
+      context: withContext
+        ? 'a neighbouring street of the truth is named in the row'
+        : 'none: each name alone',
       streets: gaz.streets.length,
       totalCases: tn,
       acceptedRate: pct(ta, tn),

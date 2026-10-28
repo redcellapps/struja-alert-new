@@ -92,8 +92,30 @@ describe('Resolver ladder', () => {
       street: nikole,
     });
   });
-  it('4 heuristic: missing first name (token containment), when unique', () => {
-    expect(resolver.resolve(norm('Пашића'))).toMatchObject({ by: 'heuristic', street: nikole });
+  it('4 heuristic: missing first name (token containment) is only a proposal on its own', () => {
+    const r = resolver.resolve(norm('Пашића'));
+    expect(r.by).toBe('unresolved');
+    expect(r.street).toBeNull();
+    expect(r.candidates[0]?.street).toBe(nikole); // kept as a candidate for review
+  });
+  it('4 heuristic: ... accepted when a street of the same row, nearby, confirms it', () => {
+    expect(resolver.resolve(norm('Пашића'), { anchors: [misica] })).toMatchObject({
+      by: 'heuristic',
+      street: nikole,
+    });
+  });
+  it('4 heuristic: ... but not when the row is somewhere else', () => {
+    // Мишићева is 20 km away from Николе Пашића
+    const r = resolver.resolve(norm('Пашића'), { anchors: [misicaFar] });
+    expect(r.by).toBe('unresolved');
+    expect(r.street).toBeNull();
+  });
+  it('4 heuristic: a word that is part of another street name is never accepted alone (typo of a third street)', () => {
+    // "топлице" is a word of "Милана Топлице", not a street of its own
+    const toplice = street('Милана Топлице', { mun: ['medijana'], at: [43.33, 21.92] });
+    const r = new Resolver([toplice, cegarska]).resolve(norm('Топлице'));
+    expect(r.street).toBeNull();
+    expect(r.candidates.length).toBeGreaterThan(0);
   });
   it('4 heuristic: stray бб', () => {
     expect(resolver.resolve(norm('Чегарска бб'))).toMatchObject({ street: cegarska });

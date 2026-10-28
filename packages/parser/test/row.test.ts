@@ -63,6 +63,23 @@ describe('resolveRow', () => {
     expect(r?.candidates.map((c) => c.name).sort()).toEqual(['Војводе Мишића', 'Живојина Мишића']);
   });
 
+  it('accepts a segment that is only some words of a street name when a street of the row confirms it', () => {
+    // "Пашића" alone is a proposal; next to "Војводе Мишића" (300 m away) it is Николе Пашића
+    const rows = resolveRow(splitUlice('Војводе Мишића, Пашића'), deps);
+    expect(rows[0]).toMatchObject({ by: 'exact', street: near });
+    expect(rows[1]).toMatchObject({ by: 'heuristic', street: anchor });
+  });
+
+  it('leaves it a proposal (unresolved, with the candidate) when nothing in the row confirms it', () => {
+    const [r] = resolveRow(splitUlice('Пашића'), deps);
+    expect(r?.by).toBe('unresolved');
+    expect(r?.street).toBeNull();
+    expect(r?.candidates[0]?.name).toBe('Николе Пашића');
+    // a row whose only other street is far away does not confirm it either
+    const away = resolveRow(splitUlice('Живојина Мишића, Пашића'), deps);
+    expect(away[1]?.by).toBe('unresolved');
+  });
+
   it('resolves village segments against the settlements', () => {
     const [r] = resolveRow(splitUlice('Део села Трупале'), deps);
     expect(r).toMatchObject({ kind: 'village', by: 'exact', settlement: trupale, street: null });

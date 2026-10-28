@@ -22,6 +22,12 @@ export const NIS_QUERIES: readonly SnapshotQuery[] = [
     query: `[out:json][timeout:180];${AREA}(node(area.a)["addr:street"]["addr:housenumber"];way(area.a)["addr:street"]["addr:housenumber"];);out tags center;`,
   },
   {
+    // The settlements (admin_level 9: the villages, and the four urban parts "Ниш (Палилула)", ...)
+    // with their boundaries: which settlement a street lies in.
+    name: 'nis-settlement-areas',
+    query: `[out:json][timeout:180];${AREA}rel(area.a)["boundary"="administrative"]["admin_level"="9"];out geom;`,
+  },
+  {
     name: 'nis-admin-areas',
     query: `[out:json][timeout:180];${AREA}rel(area.a)["boundary"="administrative"]["admin_level"];out tags bb;`,
   },

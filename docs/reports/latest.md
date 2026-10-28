@@ -1,92 +1,60 @@
-# Same-named streets are different streets (priority fix, found through the map)
+# Follow-ups to the same-name fix: settlement labels, and "token of another street" only proposes
 
-Date: 2026-10-28. Branch `main`. Stopped for review after this fix, as asked; the map zoom (item 2) and step 11 (item 3) are **not started**.
+Date: 2026-10-28. Branch `main`. `2909f18` (the same-name fix) is pushed; these follow-ups are one commit after it, **not pushed**.
 
-## Git
+## 1. Settlement labels people recognise
 
-`04d8aa7` (step 10) and `11f0e61` are pushed. This fix is one commit after them, **not pushed**.
+**Before:** the label was the nearest OSM place node, so the city "Војводе Путника" was "Сточни трг" (a neighbourhood). **Now:** a village's own name, or the **city municipality** for a street in the city: "Vojvode Putnika · Palilula", "Vojvode Putnika · Trupale".
 
-## The problem, measured
+How: the repo's Overpass seed tool fetched one more snapshot, `fixtures/osm/nis-settlement-areas.json` (the 74 OSM settlement boundaries, admin_level 9: about 70 villages, Нишка Бања, and the four urban parts "Ниш (Палилула)", "Ниш (Медијана)", "Ниш (Пантелеј)", "Ниш (Црвени Крст)"; 3.2 MB; one query, polite user agent, nothing else requested). `packages/parser/src/areas.ts` assembles the boundary rings and finds the settlement a point lies in (the smallest when boundaries overlap). A street is named after the settlement most of its ways lie in; an urban part is named after its municipality. Where two streets of one name would still get the same label, a place or an ordinal is added in brackets (2 of the 136 names: "Црвени Крст (Доњи Комрен) / Црвени Крст (2)", "Пантелеј (1) / Пантелеј (Беверли Хилс)"). No street is left without a label. The app shows just the label under a repeated name (previously the label and the municipality); the dev database is re-imported.
 
-`buildNisGazetteer` merged every OSM way with the same `name_norm` into one street (BRIEF §3 said "deduplicate by `name_norm`"). On the saved Niš data: 4,838 named ways, 2,251 names, **805 names with more than one way**; with a 500 m gap rule **136 names fall apart into streets that are kilometres from each other** (your figure: 130 with parts more than 3 km apart). Examples: Војводе Путника is 48 ways in two places (47 in the city, 1 in Трупале, centroids about 7 km apart); Маршала Тита is in eight villages; Чегарска in four places; Студеничка in three. Matching used only `street_id`, so a saved address on one of them was alerted for an outage on its namesake, and the map drew all of them.
+**The list to check:** all 136 repeated names with their labels are in **`docs/repeated-street-names.md`** (regenerate with `pnpm --filter @struja/scripts repeated-streets`). The ones that matter most:
 
-## What changed
+| name             | streets | told apart by                                                                                |
+| ---------------- | ------: | -------------------------------------------------------------------------------------------- |
+| Војводе Путника  |       2 | Палилула · Трупале                                                                           |
+| Маршала Тита     |       8 | Доња Трнава · Бубањ · Доња Топоница · Суви До · Кравље · Мезграја · Медошевац · Палиграце    |
+| Чегарска         |       4 | Пантелеј · Нишка Бања · Горњи Матејевац · Каменица                                           |
+| Студеничка       |       3 | Пантелеј · Девети мај · Горњи Матејевац                                                      |
+| Горњоматејевачка |       2 | Пантелеј · Каменица                                                                          |
+| Цара Душана      |       4 | Медијана · Горња Топоница · Вртиште · Горње Међурово                                         |
+| Бранка Бјеговића |       2 | Црвени Крст · Доње Међурово                                                                  |
+| Првомајска       |       9 | Медијана · Габровац · Кравље · Трупале · Чокот · Бубањ · Мезграја · Горња Топоница · Вртиште |
+| Требињска        |       1 | (not repeated: Палилула)                                                                     |
 
-**One name is not one street (parser, `osm.ts`).** Ways with one name are one street only when connected or within **500 m** of each other (chained). I tested the settlement as a merge condition too: with only village points to go on (the data has no polygons) it split continuous city streets between neighbouring villages (136 names split by distance alone, 225 with "nearest village" added), so the settlement is the **label**, not a merge rule. Each street has a stable `clusterKey` (its smallest OSM way id), its own geometry and municipalities, and a `settlement` (the nearest place, in Cyrillic). 2,250 streets became **2,452**.
+Tests: boundary assembly and point lookup (synthetic), the real boundaries (four urban parts, about 70 villages, every ring closed, the fortress is in the city, Трупале in its own village), and on the real data: the two Војводе Путника are "Палилула" and "Трупале", every street has a label, and no two streets of a name share one.
 
-**Resolving a name that belongs to several streets (`resolve.ts`, `row.ts`).**
+## 2. The "token of another street" heuristic only proposes
 
-1. By the **municipality of the EDS row** (one street of that name in it: placed).
-2. Then by the **distance to the row's other streets**: the nearest wins if it is within 3 km and at least 1.5 km nearer than the next (`SCORING.placeMaxMeters` / `placeLeadMeters`, provisional like the other constants). Names of one row that are all still ambiguous lean on each other's candidates (a third round).
-3. Otherwise **no street is chosen and every candidate gets "Moguće"** (new steps `placed` and `ambiguous`).
-   The swap, "missing word", "stray бб" and fuzzy steps, the scoring step and an alias of such a name all go through the same placement instead of failing on the conflict.
+**Rule (resolver, BRIEF §3 step 4 updated):** a segment that is only some words of another street's name is a **proposal**, accepted only when
 
-**Server.** Migration `0010_same_name_streets` (additive: `cluster_key`, `settlement_name`, `UNIQUE(city, name_norm, cluster_key)`, enum values `placed`, `ambiguous`). The importer upserts by `(city, name_norm, cluster_key)`, gives each OSM address point to the nearest street of its `addr:street` name, and **replaces the old name-merged rows**: whatever pointed at one (a saved address, an outage row, an alias) moves to the split street of that name with the most geometry, then the old row is deleted. The matcher tells **every candidate of an ambiguous segment "Moguće"** (new reason `same_name`, with its own push text) and nobody else; the planner and the on-screen list look the candidates up too (all of them are stored, not the top five). A placed segment concerns only its own street. New dev command `pnpm --filter @struja/server dev:import-gazetteer` (local database only); the server also imports at start with `IMPORT_GAZETTEER=true` when old rows exist.
+1. the street lies within **1.5 km of a street already resolved in the same EDS row** (the row confirms it spatially; `SCORING.partialConfirmMeters`), and
+2. no more than **three** street names contain those words (a generic word such as "прилаз" is no place; `SCORING.partialMaxNames`), and
+3. when it is the only name that contains them, **no street of another name sounds like the segment** (the typo of "Топличка" is not "Милана Топлице").
+   Otherwise it stays a candidate: the scoring step lists it, the review queue and the safety net ("Moguće") can use it. The same rule covers the scoring step, which could also accept a partial name by itself. Rewrites that are not partial names (stray бб, swapped order, dates in words) are unchanged.
 
-**API and app.** The gazetteer gives every street a `settlement`; each outage segment gives its `streetId` (so "Prati" follows exactly that street); an ambiguous name is drawn on the map as every candidate (`properties.candidate`, dashed and lighter). Search shows the settlement and municipality under names that repeat ("Vojvode Putnika · Stočni trg"), and the detail says "Više ulica nosi ovo ime, a obaveštenje ne kaže koja je. Zato javljamo svima na tim ulicama."
+**Synthetic test (SYNTHETIC, not a measurement), re-run:**
 
-**BRIEF §3** (Gazetteer, and the `street` data model line) now says all of this; the first version's "deduplicate by `name_norm`" is named as the mistake.
+|                                           | before the same-name fix | after it | **now, each name alone**           | **now, a neighbouring street named in the row** |
+| ----------------------------------------- | ------------------------ | -------- | ---------------------------------- | ----------------------------------------------- |
+| accepted                                  | 81.8%                    | 78.0%    | **67.5%**                          | **87.3%**                                       |
+| wrong accepts                             | 0                        | 2        | **0**                              | **0**                                           |
+| ambiguous cases (every candidate offered) | n/a                      | 305      | 288 (none without the true street) | 43                                              |
+| dropFirst accepted                        | 50.7%                    | 49.3%    | 1.0%                               | 56.5%                                           |
 
-## The dev database (migrated)
+"Each name alone" is the test as it was: the partial names ("dropFirst") are now only proposals, so they fall from 50% to 1%, and the typo and word-order cases are unchanged. The last column is a new `--with-context` mode: the row also names the nearest street of the true one, which is what a real EDS row does (one row is one area) and what the second pass of `resolveRow` uses; there the partial names are accepted again when the row confirms them (56.5%), and the typo cases reach 91%. Wrong accepts are 0 in both. The strict figure is the one to hold against the gate: a lot of EDS segments are partial names, so how many are accepted automatically on real rows depends on the other streets of the row; the labels will tell once there are enough of them.
 
-|                                  | before                       | after                                                                                    |
-| -------------------------------- | ---------------------------- | ---------------------------------------------------------------------------------------- |
-| street rows / distinct names     | 2,250 / 2,250                | **2,452** / 2,250                                                                        |
-| old merged rows left             |                              | 0 (2,250 replaced)                                                                       |
-| subscriptions                    | Цара Душана 80, Требињска 34 | moved to the split street with the most geometry (Нова железничка колонија, Паси Пољана) |
-| outage rows pointing at a street | 108                          | 108, moved the same way (history only: dev data)                                         |
-| address points                   | 63,419                       | 63,419, now per street (Војводе Путника: 144 in the city, 12 in Трупале)                 |
-| gazetteer version                | 1                            | 2                                                                                        |
+Row tests: a partial name next to a street of its row 300 m away is accepted; alone, or in a row whose only other street is far away, it stays unresolved with the candidate listed. Resolver tests for the same, and for the "топлице" case.
 
-Checked live: a Палилула row naming Војводе Путника is `placed` in the city street; "делови Горњоматејевачке и Студеничке" in Пантелеј is `ambiguous`.
+## Phase 1 labels
 
-## Phase 1 labels and the synthetic test: what changed
-
-**Labels (`label-sample`, the 10 reviewed in-scope segments).** Four rows changed, nothing else:
-
-| segment                     | before                  | after                                      |
-| --------------------------- | ----------------------- | ------------------------------------------ |
-| Горњоматејевачке (Пантелеј) | form → Горњоматејевачка | **ambiguous**: Виник or Каменица           |
-| Студеничке (Пантелеј)       | form → Студеничка       | **ambiguous**: Пантелеј or Горњи Матејевац |
-| Војводе Путника (Палилула)  | exact                   | **placed in Сточни трг**                   |
-| Чегарске (Нишка бања)       | form                    | **placed in Нишка Бања**                   |
-
-The ambiguous pairs are real, not a weakness: Студеничка (Пантелеј) touches Горњоматејевачка (Виник) at 0 m, and Студеничка (Горњи Матејевац) lies 1.4 km from Горњоматејевачка (Каменица): two consistent readings, so both are told "Moguće". The reviewer's `ok` was about the name and is kept.
-**Gate on this sample:** automatic resolution **100% → 80%** (8/10; the two ambiguous ones are not counted as resolved, and are reported separately), auto-accept precision **100% → 100%** (8/8), new step `placed` 2/2. Still `INSUFFICIENT_SAMPLE` (10 of the 200 needed). `gate-report` now counts `placed` as an automatic accept and prints the ambiguous count. Aliases unchanged (8 reviewed); `label-sample` lists settlements for ambiguous candidates and "placed in …" for placed rows.
-
-**Synthetic test (SYNTHETIC, not a measurement).**
-
-|                                          | before                                                 | after                                                                   |
-| ---------------------------------------- | ------------------------------------------------------ | ----------------------------------------------------------------------- |
-| streets / cases                          | 2,250 / 7,126                                          | 2,452 / 7,690                                                           |
-| accepted                                 | 81.8%                                                  | **78.0%**                                                               |
-| precision of accepted                    | 100.0% (0 wrong)                                       | 99.97% (**2 wrong of 5,997**)                                           |
-| genitive / typo / dropFirst / swap       | 99.4 / 77.1 / 50.7 / 99.7 %                            | 93.4 / 73.5 / 49.3 / 95.9 %                                             |
-| by step                                  | form 2,237 · heuristic 1,865 · scored 1,673 · fuzzy 51 | form 2,105 · heuristic 1,780 · scored 1,582 · fuzzy 51 · **placed 483** |
-| ambiguous cases (all candidates offered) | n/a                                                    | **305, 0 of them without the true street**                              |
-
-The accept rate falls because a name that several streets share, given only a municipality, is no longer "accepted": 305 cases stay ambiguous (and none misses the true street). The two wrong accepts ("toplica" for Топличка → Милана Топлице; "vaska" for Влашка → Васка Попе) are an old weakness of the "token of another street" heuristic: I resolved the same inputs against a merged gazetteer and both are accepted there too; the changed street list only changed which typos the fixed random sequence produced. Worth a look before the Phase 5 freeze.
-
-## Tests added or changed
-
-- Parser (`same-name-streets.test.ts`, 17 tests): the clustering (touching, within the gap, chained, farther apart, stable order); placement by municipality, by distance, none when nothing decides, narrowing to the municipality's streets, an alias of a shared name, the mutual round; **real data: Војводе Путника is two streets (city and Трупале), Маршала Тита is in at least eight places none within the gap of another, a Палилула row means the city street**.
-- Server (`same-name.test.ts`, 14 tests, real Postgres): the matcher (a placed segment does not reach the namesake; an ambiguous segment is "Moguće" for every candidate and nobody else; all eight candidates, not five); **an address on the other same-named street is not alerted** (Палилула row → city street only, Црвени крст row → Трупале only); ambiguous Чегарска → every Пантелеј candidate, not the Нишка бања one; the on-screen list and the detail (segment `streetId`, candidates drawn); the importer (one row per street with its settlement, address points to the nearest street, ids stable on re-import, **old row replaced and the saved address moved**), and the gazetteer API.
-- Existing tests moved to the new model (rows that named Студеничка or Чегарска in a municipality where several exist now name one where it is one street; the real-pages tests accept an ambiguous result only if all its candidates carry the right name). App: search and the settlement line, following by street id, the `same_name` note. Scripts: labels and the gate.
+`label-sample` re-run: the same four changed rows as before, now with the new labels in the candidate column ("Горњоматејевачка · Пантелеј (1.00); Горњоматејевачка · Каменица (1.00)", "placed in Палилула"). Gate on the 10 reviewed segments unchanged: resolution 80% (2 ambiguous), precision 100% (8/8), still `INSUFFICIENT_SAMPLE`.
 
 ## Gate
 
-`pnpm lint` 0 warnings · `pnpm typecheck` green · `pnpm test` green. Tests: mobile **324** jest + 29 contract (6 live skip) · server **256** · parser **165** (162 + 3 todo) · shared **23** · scripts **62**. The live contract against the real local server also passes (6 tests, including two Војводе Путника streets with different settlements). Screenshots: `docs/screens/android/step10b/` (git-ignored working set).
+`pnpm lint` 0 warnings · `pnpm typecheck` green · `pnpm test` green. Tests: mobile **324** jest + 29 contract (6 live skip) · server **256** · parser **177** (174 + 3 todo) · shared 23 · scripts 62. (Running all packages at once can lose a server test worker under memory pressure, as before; the server suite alone passes.)
 
-## Limits and notes
+## Left for later
 
-- The settlement label is the nearest place point, so a city street is named after a neighbourhood ("Stočni trg"); the app shows it with the municipality. Good enough to tell two streets apart; no polygons to do better.
-- The 500 m gap, and 3 km / 1.5 km for placement, are provisional like `SCORING`; re-check with real labels (only 10 in-scope ones so far).
-- The OSM house-number feature of the scoring is still keyed by name (all streets of the name together): weak and conservative.
-- The old outages in the dev database were moved to "the split street with the most geometry": right for the one checked (Војводе Путника → city), approximate in general; no real data was affected.
-- An ambiguous segment is shown in the street list by its raw EDS text (Cyrillic), as unresolved segments always were.
-- The correct commit hash of the step 8 follow-up (`6ce2cf0`) and step 9 are unchanged and pushed.
-
-## Decisions needed
-
-1. OK to push this fix?
-2. Then item 2 (map zoom to the house, or to the person's street, with "Celo isključenje") and item 3 (step 11, install Maestro)?
+- The partial-name thresholds (1.5 km, three names) are provisional like the other scoring constants; tune them on real labels.
+- Next, as asked: the map zoom, then step 11 (Maestro, the phone-session preparation).

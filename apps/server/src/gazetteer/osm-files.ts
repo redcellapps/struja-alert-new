@@ -1,7 +1,8 @@
-import { readdirSync, readFileSync } from 'node:fs';
+import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import {
   buildNisGazetteer,
+  buildSettlementAreas,
   type MunicipalitySnapshot,
   type NisGazetteer,
   type OsmLatLon,
@@ -45,10 +46,14 @@ export function readNisSnapshots(osmDir: string): NisSnapshots {
         places: els.filter((e: { tags?: { place?: string } }) => e.tags?.place),
       };
     });
+  // The settlement boundaries (admin_level 9), when saved: streets are named after the settlement they lie in.
+  const areasFile = join(osmDir, 'nis-settlement-areas.json');
+  const areas = existsSync(areasFile) ? buildSettlementAreas(readJson(areasFile).elements) : [];
   return {
     gazetteer: buildNisGazetteer(
       readJson(join(osmDir, 'nis-streets.json')).elements,
       municipalities,
+      areas,
     ),
     addresses: readJson(join(osmDir, 'nis-address-points.json')).elements,
   };

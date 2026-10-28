@@ -37,7 +37,7 @@ export const gazetteer: GazetteerResponse = {
     // two streets of one name, in different places: the search tells them apart by the settlement
     {
       ...street(6, 'Војводе Путника', 'Vojvode Putnika', 'vojvode putnika', 'Палилула - Ниш'),
-      settlement: 'Сточни трг',
+      settlement: 'Палилула',
     },
     {
       ...street(7, 'Војводе Путника', 'Vojvode Putnika', 'vojvode putnika', 'Црвени крст'),

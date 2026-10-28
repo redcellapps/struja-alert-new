@@ -2,6 +2,7 @@ import { readdirSync, readFileSync } from 'node:fs';
 import { beforeAll, describe, expect, it } from 'vitest';
 import {
   buildNisGazetteer,
+  buildSettlementAreas,
   clusterWays,
   haversineMeters,
   normalizeName,
@@ -221,7 +222,11 @@ beforeAll(() => {
         places: els.filter((e: { tags?: { place?: string } }) => e.tags?.place),
       };
     });
-  gaz = buildNisGazetteer(json('nis-streets.json').elements, muns);
+  gaz = buildNisGazetteer(
+    json('nis-streets.json').elements,
+    muns,
+    buildSettlementAreas(json('nis-settlement-areas.json').elements),
+  );
   resolver = new Resolver(gaz.streets);
 });
 
@@ -233,11 +238,29 @@ describe('same-named streets in the real Niš data', () => {
     const list = entries('Војводе Путника');
     expect(list).toHaveLength(2);
     expect(apart(list[0]!, list[1]!)).toBeGreaterThan(5000);
-    expect(list.map((s) => s.settlement)).toContain('Трупале');
+    expect(list.map((s) => s.settlement).sort()).toEqual(['Палилула', 'Трупале']);
     // the one in Трупале belongs to Црвени Крст, the city one to Палилула and Медијана
     const trupale = list.find((s) => s.settlement === 'Трупале')!;
     expect(trupale.municipalities).toEqual(['crveni krst']);
     expect(list.find((s) => s !== trupale)!.municipalities).toContain('palilula');
+  });
+
+  it('streets are named after the settlement they lie in: a village by its own name, the city by its municipality', () => {
+    const [city, trupale] = entries('Војводе Путника').sort((a, b) =>
+      a.settlement === 'Трупале' ? 1 : b.settlement === 'Трупале' ? -1 : 0,
+    );
+    expect(city?.settlement).toBe('Палилула'); // not the nearest place node ("Сточни трг")
+    expect(trupale?.settlement).toBe('Трупале');
+    expect(entries('Требињска')[0]?.settlement).toBe('Палилула');
+    // every street has a label, and no two streets of one name share one
+    for (const s of gaz.streets) expect(s.settlement, s.name).not.toBeNull();
+    const byName = new Map<string, string[]>();
+    for (const s of gaz.streets) {
+      byName.set(s.nameNorm, [...(byName.get(s.nameNorm) ?? []), s.settlement ?? '']);
+    }
+    for (const [name, labels] of byName) {
+      expect(new Set(labels).size, `${name}: ${labels.join(', ')}`).toBe(labels.length);
+    }
   });
 
   it('Маршала Тита is in eight places, none within a gap of another', () => {

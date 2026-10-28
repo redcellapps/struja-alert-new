@@ -2,6 +2,7 @@ import { readdirSync, readFileSync } from 'node:fs';
 import { beforeAll, describe, expect, it } from 'vitest';
 import {
   buildNisGazetteer,
+  buildSettlementAreas,
   decodePage,
   nisMunicipality,
   parsePage,
@@ -42,7 +43,11 @@ beforeAll(() => {
         places: els.filter((e: { tags?: { place?: string } }) => e.tags?.place),
       };
     });
-  gaz = buildNisGazetteer(json('nis-streets.json').elements, muns);
+  gaz = buildNisGazetteer(
+    json('nis-streets.json').elements,
+    muns,
+    buildSettlementAreas(json('nis-settlement-areas.json').elements),
+  );
   resolver = new Resolver(gaz.streets);
 });
 

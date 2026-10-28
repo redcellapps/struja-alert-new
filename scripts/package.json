@@ -16,7 +16,8 @@
     "home-scenarios": "node src/home-scenarios.ts",
     "list-screens": "node src/list-screens.ts",
     "settings-screens": "node src/settings-screens.ts",
-    "a11y-screens": "node src/a11y-screens.ts"
+    "a11y-screens": "node src/a11y-screens.ts",
+    "repeated-streets": "node src/repeated-streets.ts"
   },
   "dependencies": {
     "@struja/parser": "workspace:*"

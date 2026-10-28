@@ -4,6 +4,7 @@ import { fileURLToPath } from 'node:url';
 import { beforeAll, describe, expect, it } from 'vitest';
 import {
   buildNisGazetteer,
+  buildSettlementAreas,
   decodePage,
   parsePage,
   type MunicipalitySnapshot,
@@ -50,7 +51,11 @@ beforeAll(() => {
         places: els.filter((e: { tags?: { place?: string } }) => e.tags?.place),
       };
     });
-  gazetteer = buildNisGazetteer(readJson(join(osm, 'nis-streets.json')).elements, muns);
+  gazetteer = buildNisGazetteer(
+    readJson(join(osm, 'nis-streets.json')).elements,
+    muns,
+    buildSettlementAreas(readJson(join(osm, 'nis-settlement-areas.json')).elements),
+  );
   pages = [];
   for (const slot of readdirSync(eds)
     .filter((d) => d.startsWith('manual-'))

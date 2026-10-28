@@ -104,17 +104,14 @@ export const placeMunicipality = (place: Place, script: 'latn' | 'cyrl'): string
       : cyrillicToLatin(place.municipality);
 
 /**
- * The line under a result: the municipality, and for a street whose name repeats the settlement first
- * ("Vojvode Putnika · Trupale"), so the right one can be picked. Streets of one name are also told
- * apart by the municipality when the settlement is the same.
+ * The line under a result: the municipality, and for a street whose name repeats the settlement it lies
+ * in instead ("Vojvode Putnika · Trupale", "Vojvode Putnika · Palilula"): a village's own name, or
+ * the city municipality for a street in the city, so the right one can be picked.
  */
 export function placeDetail(place: Place, script: 'latn' | 'cyrl'): string | null {
   const municipality = placeMunicipality(place, script);
   if (place.kind !== 'street' || !place.repeated || !place.settlement) return municipality;
-  const settlement = script === 'cyrl' ? place.settlement : cyrillicToLatin(place.settlement);
-  return municipality && municipality !== settlement
-    ? `${settlement} · ${municipality}`
-    : settlement;
+  return script === 'cyrl' ? place.settlement : cyrillicToLatin(place.settlement);
 }
 
 /** The street with this id, if the gazetteer has it. */
