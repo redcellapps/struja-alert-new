@@ -29,6 +29,13 @@ export const configSchema = z.object({
   ALERT_EMAIL_FROM: z.string().optional(),
   ALERT_EMAIL_TO: z.string().optional(),
   ADMIN_PUSH_TOKENS: z.string().optional(),
+  // `expo`: real delivery through Expo's push service (FCM V1 / APNs). `log`: only log what would be
+  // sent (the default outside production, and the safe choice without the credentials).
+  PUSH_PROVIDER: z.enum(['log', 'expo']).optional(),
+  // Optional: an Expo access token, so that only this server may push with the project's tokens.
+  EXPO_ACCESS_TOKEN: z.string().optional(),
+  // Development only: register real Expo push tokens (the owner's phone) and push to them.
+  ALLOW_REAL_PUSH_IN_DEV: bool.default(false),
   BACKUP_DIR: z.string().default('./backups'),
   // Development convenience: load the saved OSM snapshots when the database has no streets yet.
   IMPORT_GAZETTEER: bool.default(false),

@@ -1,11 +1,13 @@
 import { focusManager } from '@tanstack/react-query';
 import { PersistQueryClientProvider } from '@tanstack/react-query-persist-client';
-import { Stack } from 'expo-router';
+import { Stack, useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { AppState } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { ThemeProvider, useTheme } from '../src/design/theme';
-import { initI18n, setLocale } from '../src/i18n';
+import { i18next, initI18n, setLocale } from '../src/i18n';
+import { installForegroundHandler, setupNotifications } from '../src/notifications/channels';
+import { useNotificationResponses } from '../src/notifications/respond';
 import { CACHE_MAX_AGE_MS, mmkvPersister } from '../src/query/client';
 import { queryClient } from '../src/query/instance';
 import { useDeviceSync } from '../src/settings/sync';
@@ -17,9 +19,14 @@ focusManager.setEventListener((handleFocus) => {
   return () => sub.remove();
 });
 
+// A notification that arrives while the app is open is shown (the server decided it is due).
+installForegroundHandler();
+
 // Inside the theme provider, so every screen (and the sheet) gets the page background at once.
 function RootStack() {
   const { colors } = useTheme();
+  // A tap on a notification, or on "Detalji" / "Dodaj u kalendar", opens the outage detail.
+  useNotificationResponses(useRouter());
   return (
     <Stack
       screenOptions={{
@@ -78,6 +85,11 @@ export default function RootLayout() {
       cancelled = true;
     };
   }, [language, script, ready]);
+
+  // The Android channels and the action buttons, named in the current language and script.
+  useEffect(() => {
+    if (ready) void setupNotifications(i18next.t.bind(i18next)).catch(() => {});
+  }, [ready, language, script]);
 
   if (!ready) return null;
   return (

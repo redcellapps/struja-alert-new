@@ -32,3 +32,28 @@ export const CITIES: readonly CityInfo[] = [
 // production server rejects it. It is never an ExponentPushToken.
 export const DEV_PUSH_TOKEN_PREFIX = 'dev-token:';
 export const isDevPushToken = (token: string): boolean => token.startsWith(DEV_PUSH_TOKEN_PREFIX);
+// A real token from Expo's push service (`ExponentPushToken[...]` or `ExpoPushToken[...]`).
+export const isExpoPushToken = (token: string): boolean =>
+  /^Expo(nent)?PushToken\[[^\]]+\]$/.test(token);
+
+// Android notification channels (BRIEF §5): one per kind, "hitno" for the urgent ones. The ids are
+// what the server puts in the push and what the app creates on the device; they never change
+// (Android fixes a channel's importance at creation: a different importance needs a new id).
+export const NOTIFICATION_CHANNELS = [
+  'new',
+  'evening_before',
+  'changed',
+  'cancelled',
+  'hitno',
+] as const;
+export type NotificationChannelId = (typeof NOTIFICATION_CHANNELS)[number];
+/** The channel of a kind that is not urgent: `reinstated` shares the "Izmena" channel. */
+export const channelForKind = (
+  kind: 'new' | 'evening_before' | 'changed' | 'cancelled' | 'reinstated',
+): NotificationChannelId => (kind === 'reinstated' ? 'changed' : kind);
+export const URGENT_CHANNEL: NotificationChannelId = 'hitno';
+
+// The notification category with the two actions (BRIEF §5): the server names it in the push, the app
+// registers it with the buttons.
+export const OUTAGE_CATEGORY = 'outage';
+export const NOTIFICATION_ACTIONS = { details: 'detalji', calendar: 'kalendar' } as const;

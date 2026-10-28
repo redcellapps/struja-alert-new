@@ -274,6 +274,26 @@ export const sr = {
     feedbackThanks: 'Hvala na poruci.',
     feedbackFailed: 'Poruka nije poslata. Pokušajte ponovo.',
   },
+  push: {
+    channel: {
+      new: { name: 'Nova isključenja', description: 'Novo najavljeno isključenje za vašu adresu.' },
+      evening_before: {
+        name: 'Podsetnik uveče',
+        description: 'Podsetnik dan ranije: sutra bez struje.',
+      },
+      changed: {
+        name: 'Izmene',
+        description: 'Promena vremena isključenja, ili otkazano isključenje koje ipak važi.',
+      },
+      cancelled: { name: 'Otkazano', description: 'Isključenje je otkazano.' },
+      hitno: {
+        name: 'Hitno',
+        description: 'Isključenje počinje za manje od 2 sata. Stiže i u tihim satima.',
+      },
+    },
+    actionDetails: 'Detalji',
+    actionCalendar: 'Dodaj u kalendar',
+  },
   banner: {
     offline: 'Prikazujem sačuvane podatke',
     notificationsOff: 'Obaveštenja su isključena',

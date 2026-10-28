@@ -31,6 +31,8 @@ export interface AppOptions {
   trustProxy?: boolean;
   // Accept the app's development push tokens (NODE_ENV=development only; see main.ts).
   allowDevTokens?: boolean;
+  // A development server also accepts real Expo push tokens (ALLOW_REAL_PUSH_IN_DEV=true).
+  allowRealTokens?: boolean;
 }
 
 // `deps` is optional so the health check can run (and be tested) without a database.

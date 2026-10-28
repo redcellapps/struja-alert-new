@@ -19,6 +19,7 @@
     "@struja/parser": "workspace:*",
     "@struja/shared": "workspace:*",
     "drizzle-orm": "0.45.4",
+    "expo-server-sdk": "^8.0.0",
     "fastify": "5.12.7",
     "nodemailer": "^10.2.0",
     "pg": "8.23.1",

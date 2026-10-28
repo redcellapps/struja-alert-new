@@ -7,6 +7,7 @@ import { SIDE_MARGIN, STATUS_KEYS, type StatusKey } from '../src/design/tokens';
 import { Cards, Feedback, Heroes } from '../src/gallery/Components';
 import { Controls } from '../src/gallery/Controls';
 import { HomePreview } from '../src/gallery/HomePreview';
+import { NotificationsLab } from '../src/gallery/NotificationsLab';
 import { Specimen } from '../src/gallery/Specimen';
 
 // Development-only gallery for the design review (adb screenshots, light and dark).
@@ -15,7 +16,8 @@ import { Specimen } from '../src/gallery/Specimen';
 //   strujaalert://gallery?section=controls   radio, checkbox, switch, segmented, buttons, chips
 //   strujaalert://gallery?section=components heroes, address cards, banners and states
 //   strujaalert://gallery?section=components&status=active   one hero state
-const SECTIONS = ['specimen', 'components', 'home', 'controls'] as const;
+//   strujaalert://gallery?section=notifications  local notifications shaped like the server's pushes
+const SECTIONS = ['specimen', 'components', 'home', 'controls', 'notifications'] as const;
 type Section = (typeof SECTIONS)[number];
 
 export default function Gallery() {
@@ -55,6 +57,7 @@ export default function Gallery() {
       )}
       {which === 'home' && <HomePreview />}
       {which === 'controls' && <Controls />}
+      {which === 'notifications' && <NotificationsLab />}
     </ScrollView>
   );
 }

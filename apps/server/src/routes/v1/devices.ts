@@ -3,6 +3,7 @@ import type { FastifyInstance } from 'fastify';
 import {
   deviceSchema,
   isDevPushToken,
+  isExpoPushToken,
   NOTIFICATION_KINDS,
   patchDeviceRequestSchema,
   registerDeviceRequestSchema,
@@ -52,12 +53,22 @@ async function eraseDevice(tx: Tx, where: ReturnType<typeof eq>): Promise<void> 
 }
 
 // A development token is for development servers; a production server says so instead of storing it.
+// The other way round too: a development server takes a real Expo token only when told to
+// (ALLOW_REAL_PUSH_IN_DEV), so a local stack never pushes to someone's phone by accident.
 function checkToken(token: string | undefined, opts: AppOptions): void {
-  if (token !== undefined && isDevPushToken(token) && !opts.allowDevTokens) {
+  if (token === undefined) return;
+  if (isDevPushToken(token) && !opts.allowDevTokens) {
     throw new ApiError(
       400,
       'dev_token_not_allowed',
       'Development push tokens are accepted only by a development server',
+    );
+  }
+  if (isExpoPushToken(token) && opts.allowDevTokens && !opts.allowRealTokens) {
+    throw new ApiError(
+      400,
+      'real_token_not_allowed',
+      'This development server accepts real push tokens only with ALLOW_REAL_PUSH_IN_DEV=true',
     );
   }
 }

@@ -1,7 +1,9 @@
 import { and, eq, inArray, or, sql } from 'drizzle-orm';
 import { belgradeLocal, cyrillicToLatin } from '@struja/parser';
 import {
+  channelForKind,
   renderMessage,
+  URGENT_CHANNEL,
   type NotificationKind,
   type PossibleReason,
   type Script,
@@ -76,15 +78,6 @@ const add = (a: PlanResult, b: PlanResult) => {
 // A notification the person has (or will, once delivered) been told about: pushed, queued, or seen
 // on screen when they added the address.
 const TOLD_STATUSES = ['pending', 'sending', 'sent', 'in_app'];
-
-const CHANNEL: Record<NotificationKind, string> = {
-  new: 'new',
-  evening_before: 'evening_before',
-  changed: 'changed',
-  cancelled: 'cancelled',
-  // Shares the "Izmena" channel.
-  reinstated: 'changed',
-};
 
 // ---------------------------------------------------------------- loading
 
@@ -345,7 +338,7 @@ async function emit(
       payload: {
         title: message.title,
         body: message.body,
-        channelId: delivery.urgent ? 'hitno' : CHANNEL[e.kind],
+        channelId: delivery.urgent ? URGENT_CHANNEL : channelForKind(e.kind),
         groupKey: `address-${e.sub.streetId ?? `p${e.sub.settlementId}`}`,
         urgent: delivery.urgent,
         data: {

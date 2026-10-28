@@ -231,7 +231,7 @@ describe('devices and authentication', () => {
     ).toBe(0);
   });
 
-  it('a development server accepts it (and still takes real tokens)', async () => {
+  it('a development server accepts it, and takes a real token only when told to', async () => {
     const dev = buildApp(
       { db: w.t.db, gazetteers: new GazetteerService(w.t.db) },
       { allowDevTokens: true, logger: false },
@@ -247,13 +247,28 @@ describe('devices and authentication', () => {
     expect(
       await count(sql`SELECT count(*)::int AS n FROM device WHERE push_token = ${token}`),
     ).toBe(1);
+    // a real phone's token is refused by default (a local stack must not push to a phone by accident)
     const real = await dev.inject({
       method: 'POST',
       url: '/v1/devices',
       payload: { pushToken: `ExponentPushToken[dev${seq}]`, platform: 'android' },
     });
-    expect(real.statusCode).toBe(201);
+    expect(real.statusCode).toBe(400);
+    expect(errorSchema.parse(real.json()).error.code).toBe('real_token_not_allowed');
     await dev.close();
+    // ... and accepted with ALLOW_REAL_PUSH_IN_DEV=true (the owner's phone session)
+    const devReal = buildApp(
+      { db: w.t.db, gazetteers: new GazetteerService(w.t.db) },
+      { allowDevTokens: true, allowRealTokens: true, logger: false },
+    );
+    await devReal.ready();
+    const accepted = await devReal.inject({
+      method: 'POST',
+      url: '/v1/devices',
+      payload: { pushToken: `ExponentPushToken[dev${seq}]`, platform: 'android' },
+    });
+    expect(accepted.statusCode).toBe(201);
+    await devReal.close();
   });
 
   it('rate limits registrations per IP', async () => {

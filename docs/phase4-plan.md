@@ -147,12 +147,14 @@ Every test is logged in the step report with the time of the push, the time of a
 - The iOS smoke-build proposal.
 - Lint, typecheck and tests green; a Phase 4 report; then a stop.
 
-## 8. Open questions for this review
+## 8. Decisions (28 Oct, resolved by the owner)
 
-1. **Google Analytics off** in the Firebase project (A.3): agreed? (It is not needed for push and we promise no tracking.)
-2. **Who runs `eas init` and the key upload (C)**: you, or I with you logged in (it binds the repo to your Expo account)?
-3. **"Dodaj u kalendar" from the notification opens the app first** (the calendar needs an activity): acceptable, or drop the action from the notification and keep it on the detail only?
-4. **Local alarms as fallback 1**: they duplicate the server's signal on purpose (whichever comes first, the other is a no-op). OK that the phone may show the "Bez struje" notification from the alarm a few seconds before or after the push would have?
-5. **The MagicOS card wording and placement** (banner on Početna once, or Podešavanja only): decide after the first-run measurement in §5, or now?
-6. **Hitno and Do Not Disturb:** the plan respects DND (no `bypassDnd`). Agreed?
-7. Step 7, the iOS proposal: a document only, or skip it until Phase 6?
+1. **Google Analytics off** in the Firebase project.
+2. **Credentials:** the owner runs `eas login`; I run `eas init` with the owner present; the owner uploads the FCM key on expo.dev himself. **The key never goes through me or the repository.**
+3. **"Dodaj u kalendar" stays in the notification**; it opens the app first (the calendar needs an activity).
+4. **The local alarm** may show "Bez struje" a few seconds before or after the push would have: fine.
+5. **The MagicOS card:** wording and placement decided after the first-run measurement on the owner's phone.
+6. **"Hitno" respects Do Not Disturb**, no `bypassDnd`.
+7. **The iOS smoke-build proposal waits for Phase 6**; no document in this phase (step 7 is dropped).
+
+The first milestone is the stop after step 2 (the first real push to the phone, once A to D and `eas init` are done).

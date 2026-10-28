@@ -27,6 +27,23 @@ jest.mock('react-native-reanimated', () => {
   };
 });
 
+// expo-notifications is native; the tests record what the app asks of it.
+jest.mock('expo-notifications', () => ({
+  AndroidImportance: { DEFAULT: 5, HIGH: 6 },
+  AndroidNotificationVisibility: { PUBLIC: 1 },
+  DEFAULT_ACTION_IDENTIFIER: 'expo.modules.notifications.actions.DEFAULT',
+  setNotificationChannelAsync: jest.fn(async () => null),
+  setNotificationCategoryAsync: jest.fn(async () => ({})),
+  setNotificationHandler: jest.fn(),
+  addNotificationResponseReceivedListener: jest.fn(() => ({ remove: jest.fn() })),
+  getLastNotificationResponseAsync: jest.fn(async () => null),
+  getExpoPushTokenAsync: jest.fn(async () => ({ data: 'ExponentPushToken[test]', type: 'expo' })),
+  SchedulableTriggerInputTypes: { TIME_INTERVAL: 'timeInterval', DATE: 'date' },
+  scheduleNotificationAsync: jest.fn(async () => 'local-1'),
+  cancelAllScheduledNotificationsAsync: jest.fn(async () => undefined),
+  dismissAllNotificationsAsync: jest.fn(async () => undefined),
+}));
+
 // expo-crypto is native; the tests use Node's.
 jest.mock('expo-crypto', () => ({ randomUUID: () => require('node:crypto').randomUUID() }));
 

@@ -18,7 +18,8 @@ import {
   PushAlertSink,
   type AlertSink,
 } from './monitor/sinks.ts';
-import { LogPushProvider } from './notify/provider.ts';
+import { ExpoPushProvider } from './notify/expo.ts';
+import { LogPushProvider, type PushProvider } from './notify/provider.ts';
 
 const repoRoot = fileURLToPath(new URL('../../../', import.meta.url));
 const pkg = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8'));
@@ -65,13 +66,19 @@ const app = buildApp(
   {
     trustProxy: config.TRUST_PROXY,
     allowDevTokens: config.NODE_ENV === 'development',
+    allowRealTokens: config.NODE_ENV !== 'development' || config.ALLOW_REAL_PUSH_IN_DEV,
   },
 );
 
 let stopJobs: (() => Promise<void>) | null = null;
 if (config.RUN_JOBS) {
   const boss = await startBoss(config.DATABASE_URL);
-  const provider = new LogPushProvider();
+  // Real delivery when asked for (production, or a development stack that pushes to the owner's phone).
+  const pushProvider = config.PUSH_PROVIDER ?? (config.NODE_ENV === 'production' ? 'expo' : 'log');
+  const provider: PushProvider =
+    pushProvider === 'expo'
+      ? new ExpoPushProvider({ accessToken: config.EXPO_ACCESS_TOKEN })
+      : new LogPushProvider();
   const log = (message: string, extra?: Record<string, unknown>) =>
     app.log.info(extra ?? {}, message);
   const list = (s?: string) =>
@@ -96,7 +103,6 @@ if (config.RUN_JOBS) {
   await registerJobs(boss, {
     db,
     gazetteers,
-    // Real delivery is Phase 4; until then the push provider and the start/end signals only log.
     provider,
     alerts: new MultiAlertSink(sinks),
     adminUrl: config.ADMIN_BASE_URL,

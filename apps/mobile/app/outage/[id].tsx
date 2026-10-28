@@ -1,5 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import { useLocalSearchParams, useRouter } from 'expo-router';
+import { useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { MAX_ADDRESSES } from '@struja/shared';
 import { api } from '../../src/api/runtime';
@@ -22,7 +23,11 @@ import { useSettings } from '../../src/store/settings';
 
 // A modal sheet: one outage, and how it concerns the person's saved addresses.
 export default function OutageSheet() {
-  const { id, addressId } = useLocalSearchParams<{ id?: string; addressId?: string }>();
+  const { id, addressId, calendar } = useLocalSearchParams<{
+    id?: string;
+    addressId?: string;
+    calendar?: string;
+  }>();
   const { t } = useTranslation();
   const router = useRouter();
   const now = useMinuteNow();
@@ -67,6 +72,15 @@ export default function OutageSheet() {
           .map((seg) => seg.name?.[script === 'cyrl' ? 'cyrillic' : 'latin'] ?? seg.raw)
           .join(', ')
     : '';
+
+  // "Dodaj u kalendar" pressed on the notification: the detail opens and the system add-event screen
+  // comes up over it, once, as soon as the outage is known.
+  const calendarOpened = useRef(false);
+  useEffect(() => {
+    if (calendar !== '1' || !detail || !calendarAvailable || calendarOpened.current) return;
+    calendarOpened.current = true;
+    void addToCalendar(calendarEvent(detail, where, script, t)).catch(() => {});
+  }, [calendar, detail, where, script, t]);
 
   return (
     <OutageDetailView

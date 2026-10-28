@@ -270,6 +270,26 @@ export const en: Deep<Messages> = {
     feedbackThanks: 'Thank you for the message.',
     feedbackFailed: 'The message was not sent. Try again.',
   },
+  push: {
+    channel: {
+      new: { name: 'New outages', description: 'A newly announced outage for your address.' },
+      evening_before: {
+        name: 'Evening reminder',
+        description: 'The day before: no power tomorrow.',
+      },
+      changed: {
+        name: 'Changes',
+        description: 'A changed outage time, or a cancelled outage that is on after all.',
+      },
+      cancelled: { name: 'Cancelled', description: 'The outage was cancelled.' },
+      hitno: {
+        name: 'Urgent',
+        description: 'The outage starts in less than 2 hours. Delivered in quiet hours too.',
+      },
+    },
+    actionDetails: 'Details',
+    actionCalendar: 'Add to calendar',
+  },
   banner: {
     offline: 'Showing saved data',
     notificationsOff: 'Notifications are off',
