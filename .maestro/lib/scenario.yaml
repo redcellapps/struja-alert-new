@@ -1,4 +1,4 @@
-appId: rs.example.strujaalert
+appId: rs.strujaalert.app
 ---
 - runScript:
     file: set-scenario.js

@@ -1,5 +1,5 @@
 # Najave, Istorija and Podešavanja, and the add-address sheet.
-appId: rs.example.strujaalert
+appId: rs.strujaalert.app
 ---
 - runFlow: lib/open-app.yaml
 - runFlow:

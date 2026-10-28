@@ -19,7 +19,7 @@ const value = (name: string): string | undefined => {
   const i = args.indexOf(`--${name}`);
   return i >= 0 ? args[i + 1] : undefined;
 };
-const APP_ID = 'rs.example.strujaalert';
+const APP_ID = 'rs.strujaalert.app';
 const apk =
   value('apk') ??
   join(

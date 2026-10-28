@@ -4,7 +4,7 @@ import { execFileSync } from 'node:child_process';
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 
-export const APP_ID = 'rs.example.strujaalert';
+export const APP_ID = 'rs.strujaalert.app';
 const MOCK = process.env.MOCK_URL ?? 'http://localhost:3000';
 
 export const adb = (...args: string[]): Buffer =>

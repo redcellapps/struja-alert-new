@@ -1,5 +1,5 @@
 # Početna in every scenario of the mock API, then notifications off.
-appId: rs.example.strujaalert
+appId: rs.strujaalert.app
 ---
 - runFlow: lib/open-app.yaml
 - extendedWaitUntil:

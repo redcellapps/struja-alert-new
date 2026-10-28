@@ -1,6 +1,6 @@
 # Opens the debug build on the Metro dev server (reached over `adb reverse tcp:8081 tcp:8081`: the emulator and a
 # phone on USB both reach it as localhost:8081). A plain launch cannot find the bundle in a debug build.
-appId: rs.example.strujaalert
+appId: rs.strujaalert.app
 ---
 - openLink: ${DEV_URL}
 - extendedWaitUntil:

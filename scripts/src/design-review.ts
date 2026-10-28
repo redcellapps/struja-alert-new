@@ -10,7 +10,7 @@ import { mkdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-const APP_ID = 'rs.example.strujaalert';
+const APP_ID = 'rs.strujaalert.app';
 const root = fileURLToPath(new URL('../../', import.meta.url));
 const outDir = process.argv[2] ?? join(root, 'docs', 'screens', 'android', 'design-review-v2');
 

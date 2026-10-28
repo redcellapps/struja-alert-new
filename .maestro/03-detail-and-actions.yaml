@@ -1,5 +1,5 @@
 # The outage detail (an outage in progress), its map, and the system actions it hands over to.
-appId: rs.example.strujaalert
+appId: rs.strujaalert.app
 ---
 - runFlow: lib/open-app.yaml
 - runFlow:

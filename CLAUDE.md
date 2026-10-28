@@ -4,7 +4,8 @@ Expo (Android first, iOS later) + Fastify/Postgres app that pushes a notificatio
 
 ## Commands
 
-- `pnpm install` · `pnpm lint` · `pnpm typecheck` · `pnpm test` (all must be green before a phase is done)
+- `pnpm install` · `pnpm lint` · `pnpm typecheck` · `pnpm test` (all must be green before a phase is done). `pnpm test` runs two packages at a time (`turbo --concurrency=2`): with all five at once a server test worker crashed on Windows (exit 3221226505). The app's `typecheck` also compiles the iOS paths (`tsconfig.ios.json`); `pnpm --filter @struja/mobile bundle:ios` bundles the app for iOS (no Mac needed). iOS stubs are marked **[MAC]** and listed in `docs/ios-mac.md`.
+- App id (Android and iOS): `rs.strujaalert.app`.
 - `docker compose -f docker/compose.yaml up -d` — local Postgres/PostGIS
 - `pnpm --filter @struja/server dev` — API on :3000 (`/healthz`)
 - `cd apps/mobile && npx expo run:android` — dev build on emulator/phone
@@ -45,7 +46,7 @@ Expo (Android first, iOS later) + Fastify/Postgres app that pushes a notificatio
 
 ## Windows note (Android native builds)
 
-Ninja/CMake fail when native build paths exceed 260 characters. Keep the repo at a **short path** (e.g. `C:\sa`, not `C:\Users\<name>\...`); `apps/mobile/plugins/with-short-cxx-dir.js` also moves the CMake staging dir to `C:/b` on Windows (override: `STRUJA_CXX_DIR`). `pnpm-workspace.yaml` uses `nodeLinker: hoisted` for the same reason. Debug builds on Android 17 need the `ACCESS_LOCAL_NETWORK` permission to reach Metro (debug manifest only): `adb shell pm grant rs.example.strujaalert android.permission.ACCESS_LOCAL_NETWORK`, then `adb reverse tcp:8081 tcp:8081`.
+Ninja/CMake fail when native build paths exceed 260 characters. Keep the repo at a **short path** (e.g. `C:\sa`, not `C:\Users\<name>\...`); `apps/mobile/plugins/with-short-cxx-dir.js` also moves the CMake staging dir to `C:/b` on Windows (override: `STRUJA_CXX_DIR`). `pnpm-workspace.yaml` uses `nodeLinker: hoisted` for the same reason. Debug builds on Android 17 need the `ACCESS_LOCAL_NETWORK` permission to reach Metro (debug manifest only): `adb shell pm grant rs.strujaalert.app android.permission.ACCESS_LOCAL_NETWORK`, then `adb reverse tcp:8081 tcp:8081`.
 
 ## Approvals
 

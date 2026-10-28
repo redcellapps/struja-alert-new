@@ -39,10 +39,10 @@
     ],
     "ios": {
       "supportsTablet": false,
-      "bundleIdentifier": "rs.example.strujaalert"
+      "bundleIdentifier": "rs.strujaalert.app"
     },
     "android": {
-      "package": "rs.example.strujaalert",
+      "package": "rs.strujaalert.app",
       "adaptiveIcon": {
         "backgroundColor": "#E6F4FE",
         "foregroundImage": "./assets/android-icon-foreground.png",

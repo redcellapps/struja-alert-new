@@ -1,5 +1,5 @@
 # One scenario of the mock API on Početna: switch it, pull down to refresh, screenshot.
-appId: rs.example.strujaalert
+appId: rs.strujaalert.app
 ---
 - runFlow:
     file: scenario.yaml

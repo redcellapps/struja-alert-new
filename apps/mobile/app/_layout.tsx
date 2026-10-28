@@ -29,6 +29,9 @@ function RootStack() {
     >
       <Stack.Screen name="onboarding" />
       <Stack.Screen name="(tabs)" />
+      {/* [MAC] The sheets below take one detent each (a fixed height, which is also how Android shows them). */}
+      {/* On iOS the detents are the native sheet: grabber, two detents (medium and large) and the Liquid Glass */}
+      {/* sheet background on iOS 26 are decided with the iOS smoke build (docs/ios-mac.md). */}
       <Stack.Screen
         name="add-address"
         options={{

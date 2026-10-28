@@ -8,7 +8,7 @@
   "scripts": {
     "lint": "eslint . --max-warnings 0",
     "typecheck": "turbo run typecheck",
-    "test": "turbo run test",
+    "test": "turbo run test --concurrency=2",
     "format": "prettier --write ."
   },
   "devDependencies": {

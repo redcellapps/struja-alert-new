@@ -1,5 +1,5 @@
 # The three onboarding steps and the first address, from a clean install.
-appId: rs.example.strujaalert
+appId: rs.strujaalert.app
 ---
 - launchApp:
     clearState: true

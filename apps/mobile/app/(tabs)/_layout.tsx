@@ -3,14 +3,14 @@ import { NativeTabs } from 'expo-router/native-tabs';
 import { useTranslation } from 'react-i18next';
 import { useFontScale } from '../../src/design/largeText';
 import { useTheme } from '../../src/design/theme';
+import { tabsChrome } from '../../src/design/tabsChrome';
 import { useSettings } from '../../src/store/settings';
 
 const TAB_LABEL_MAX_SCALE = 1.1;
 
 export default function TabsLayout() {
   const { t } = useTranslation();
-  const { colors, fonts } = useTheme();
-  const c = colors.chrome;
+  const theme = useTheme();
   const fontScale = useFontScale();
   // Nothing but onboarding is shown until it is finished.
   const onboarded = useSettings((s) => s.onboarded);
@@ -18,20 +18,9 @@ export default function TabsLayout() {
   // The bar labels grow with the system font only up to 110 % (Material caps bottom navigation labels too), or
   // four words no longer fit side by side; the rest of the app scales in full.
   const fontSize = (12 * Math.min(fontScale, TAB_LABEL_MAX_SCALE)) / fontScale;
-  // The bar follows the design system: the card colour, a lime indicator with a dark icon, and the
-  // label of every tab always visible. No Material You tint.
+  // The bar follows the design system (colours per platform: src/design/tabsChrome.ts).
   return (
-    <NativeTabs
-      backgroundColor={c.card}
-      indicatorColor={c.accent}
-      rippleColor={c.raised}
-      iconColor={{ default: c.textSecondary, selected: c.onAccent }}
-      labelVisibilityMode="labeled"
-      labelStyle={{
-        default: { color: c.textSecondary, fontFamily: fonts.text['500'], fontSize },
-        selected: { color: c.text, fontFamily: fonts.text['700'], fontSize },
-      }}
-    >
+    <NativeTabs {...tabsChrome(theme, fontSize)}>
       <NativeTabs.Trigger name="index">
         <NativeTabs.Trigger.Label>{t('tabs.home')}</NativeTabs.Trigger.Label>
         <NativeTabs.Trigger.Icon sf="bolt.fill" md="bolt" />
