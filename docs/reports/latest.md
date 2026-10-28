@@ -1,46 +1,35 @@
-# Phase 3, step 11 (emulator part): Maestro design QA, and the phone session prepared
+# Phone session (step 11): the automated part, run on the real phone
 
-Date: 2026-10-28. Branch `main`. `2909f18` is pushed; after it, three commits are **not pushed**: `4cdb935` (labels, partial names), `792449e` (map zoom) and this step's commit. Stopped here, **before the phone session**, as asked.
+Date: 2026-10-28, 13:50 to 14:05. HONOR Magic6 Lite 5G, Android 15, arm64, USB. The debug APK of step 11 (arm64), Metro on :8081 and the real local API on :3000, both through `adb reverse`. Data: the saved Niš pages shifted by 120 minutes so that an outage was in progress (`dev:fixtures --shift=120 --repeat-today`, then `dev:scrape`). Driven over adb (taps, `uiautomator dump`, screenshots); **TalkBack and the "feel" items are left for the owner** (checklist in `docs/phone-session.md`, sections 5 and 6).
 
-## Maestro
+Nothing was saved to the phone's calendar, nothing was shared with anyone, notifications were declined in the onboarding, and airplane mode is off again.
 
-Installed as you approved: Maestro **2.12.0**, from the release zip of `mobile-dev-inc/maestro` (350 MB; the zip is deleted, its entries were checked for unsafe paths before extracting), in **`C:\tools\maestro`**. Java 17 was already there. Your global PATH is **unchanged**: the scripts take `MAESTRO_BIN=C:/tools/maestro/bin/maestro.bat` (or `maestro` on the PATH if you add it). Nothing was uploaded: `MAESTRO_CLI_NO_ANALYTICS=1`, no cloud.
+## Results against the checklist
 
-**Flows** (`.maestro/`, against the development mock API; the mock scenario is switched from inside a flow through a small script):
+| # | Item | Result |
+| --- | --- | --- |
+| setup | install, tunnels, bundle | OK. `phone-session --install` installed the APK, set both tunnels, the app loaded the bundle from Metro and the data from the local API. |
+| onboarding | three steps, street search, house number, save | Works, but see **Finding 1** (keyboard). Saved "Trebinjska 34"; Početna shows "Bez struje, Trebinjska 34, Povratak za 2 h 1 min, Moguće pogođeno" (the house number is not in the listed ranges, so "possible" is right). |
+| 1 Calendar | "Dodaj u kalendar" | **OK.** The system "New event" screen (Honor Calendar) opens with **no permission prompt**; title "Isključenje struje", Oct 28 **11:00 to 16:00** (same as the detail), location "Trebinjska 34", notes "Trebinjska 34, Izvor: Elektrodistribucija Srbije" and the EDS link. "Discard" returns to the same detail screen. Note: the notes name only the person's own address, not every street of the outage. |
+| 2 Share | "Podeli" | **OK.** System share sheet. Text: "Planirano isključenje struje: sreda, 28. oktobar (Danas) 11:00–16:00. Trebinjska 34. Izvor: Elektrodistribucija Srbije, https://elektrodistribucija.rs/…/Nis_Dan_0_Iskljucenja.htm". Nothing about other addresses. Back cancels and returns to the app. Same remark: only the person's street. |
+| 3 Otvori izvor | "Otvori izvor (EDS)" | **OK.** Opens the EDS page in **Chrome** (the phone's browser, not a webview); Back returns to the app. This tap makes the phone request the live EDS page once, as a person's browser (not the scraper). The "unofficial app" wording in Podešavanja was not re-checked on the phone. |
+| 4 Map | start, button, credits, scroll | **OK.** The map appears within seconds, starts on the house (lime dot), labels readable (Latin, dark theme); "Celo isključenje" shows the whole outage and becomes "Moja adresa" and back; credits "© OpenStreetMap · © OpenMapTiles · OpenFreeMap" stay in view and **open the OSM copyright page in the browser**; a finger swipe on the map **scrolls the sheet and the map does not pan**. Not checked: light theme, Ćirilica, the shared-name outage (Pantelej). |
+| 4 Map, offline | airplane mode | **Not OK, Finding 2.** |
+| 5 TalkBack, 6 other | | Owner. |
 
-| flow | what it visits |
-| --- | --- |
-| `01-onboarding` | clean install; the three steps; street search; the confirm form; the first address saved; Početna |
-| `02-home-scenarios` | Početna in `clear`, `upcoming`, `imminent`, `active`, `cancelled`, `possible`, `three`; `active` then `offline` (saved data and the offline notice); `fail` (every request answers 500) |
-| `03-detail-and-actions` | the outage detail of an outage in progress: top, the map, the street list, the actions, the raw EDS text, and the system share sheet |
-| `04-tabs-and-settings` | Najave (list, scrolled, search), Istorija, Podešavanja (four screens), the add-address sheet with a search |
+## Findings
 
-**Driver:** `pnpm --filter @struja/scripts qa-screens [--configs ...] [--flows ...]`. For each of **four configurations** it sets the theme and the font scale with adb (light and dark, font 1.0 and 2.0), runs the flows and collects the screenshots; it puts the theme and the font back at the end. `MAESTRO_BIN` and `adb reverse tcp:8081` are the only setup besides Metro, the mock API and the debug build.
+1. **Onboarding step 3: the keyboard covers the street field and its results.** Tapping "Ulica ili naselje" raises the keyboard (SwiftKey, with a number row, about 40 % of the screen) and the screen does not move: the field (y 1444 to 1626 of 2652) is under it, so you cannot see what you type or the results. After closing the keyboard the typed text and the result are there. This is the phone only: in the emulator the Maestro flow passes because it does not need to see the field. Likely fix: scroll the field into view when it gets focus (or a `KeyboardAvoidingView` / `scrollToEnd` on focus) in the onboarding screen. The same may apply to the add-address sheet: not checked on the phone.
+2. **The map is not dropped when only coarse tiles are cached.** In airplane mode, opening an outage in an area the map had never shown (Čegarska, Niška banja) gave a dark box with the red line, two pale green land areas and the credits: **no roads, no labels**, still there after 25 seconds (the 8 s timeout did not drop it). Cause (in the code): `BASE_LAYER_IDS` in `src/map/style.ts` counts `park` and `landcover`, and the map cache held coarse tiles that draw those, so "ready" was reached. The rule "never shown blank" is not kept in this state. Proposed fix: count only `road-*` and `building` as proof that the tiles arrived (an outage always has streets), keep the 8 s timeout, add a test. Not done: the app was running on the phone.
+3. The result row shows the municipality as a raw lowercase key ("palilula"): already known; it should read "Palilula".
+4. `scripts/package.json` was missing the `phone-session` entry (the report of the emulator part said it existed); it is added in this commit.
 
-**Result: all four flows passed in all four configurations, 128 screenshots** (32 per configuration). Full-size working set in `docs/screens/android/step11/<config>/` (git-ignored, as before); the **final QA set is committed, compressed** (half size, JPEG 72, 7.5 MB) in **`docs/screens/android/qa/<config>/`**: `light-font1`, `dark-font1`, `light-font2`, `dark-font2`.
+## Not done
 
-Things I had to find out and handle (they are in the flows and the driver): Maestro 2.12 only allows screenshots inside its output folder (`--test-output-dir`); the debug build must be opened with its Metro link (`openLink`), a plain launch cannot find the bundle; `launchApp` clears the data and grants the permissions (the Android 17 local-network prompt of the debug build); at 200 % the keyboard covers the results of the address search, so the flow hides it before choosing; after a failed step a stray swipe could pull down the notification shade and break every later flow, so the driver now collapses it and goes home before each flow.
-
-## What the QA shows (and what it does not cover)
-
-- **200 % and dark hold.** Every screen reads and scrolls at font 2.0 in both themes (the earlier step 8 fixes, and the new map button and credits, behave). The map is in both themes; the "Celo isključenje" pill and the credits wrap but stay legible.
-- **A real finding:** at 200 % the **add-address search leaves room for one result** above the keyboard (the title and the three city chips take most of the screen); the list scrolls, so nothing is lost, but with a name like "Vojvode Putnika" the second result is hidden. Worth a fix: collapse the title and chips while typing at a large font. Not done: tell me if you want it.
-- **The dev toast.** Some frames show "Open debugger to view warnings". It is the development build's "Looks like you have configured linking in multiple places" error, raised when Metro re-opens the running dev build (the known debug-only warning, step 8); a release build does not show it.
-- **Not in the Maestro flows** (they are in the earlier adb screenshot sets, steps 4 to 8, and in the jest tests): the notifications-off banner, the house-number form, the delete-my-data confirmation, the empty Najave and Istorija, the first-launch states with a slow or failed gazetteer. The system actions that leave the app (calendar, "Otvori izvor", TalkBack) are for the phone.
-
-## The phone session, prepared (not started)
-
-- **`docs/phone-session.md`:** the setup (USB debugging, the commands to start the local stack with data for today, Metro bundled for the tunnel) and **your checklist: calendar, share, "Otvori izvor", the map, TalkBack**, each with what to look for and a box to tick.
-- **`pnpm --filter @struja/scripts phone-session [--install]`:** checks that one phone (not an emulator) is attached and authorised, that the API and Metro answer, sets `adb reverse` for `:8081` and `:3000` (so the phone reaches the local server as `localhost:3000`), installs the APK, grants the debug build's local-network permission and opens the app.
-- **The debug APK for the phone is built:** `apps/mobile/android/app/build/outputs/apk/debug/app-debug.apk`, **arm64-v8a only** (98.4 MB; it contains MapLibre; checked: no x86 libraries), built with `gradlew assembleDebug -PreactNativeArchitectures=arm64-v8a` in 1 min 42 s (the build is rebuilt by the same command, it is not committed). The app reaches the API at `http://localhost:3000` when Metro is started with `EXPO_PUBLIC_API_URL=http://localhost:3000` (the debug build allows cleartext; a release build would need https: unchanged).
-- Push is not part of the session (dev tokens: the server logs `push:not-sent`; real delivery is Phase 4).
-
-## Gate
-
-`pnpm lint` 0 warnings (the `.maestro` scripts get Maestro's globals in `eslint.config.mjs`) · `pnpm typecheck` green · `pnpm test` green. Tests: mobile **328** jest + 29 contract (6 live skip) · server **256** · parser **177** (174 + 3 todo) · shared 23 · scripts 62.
+TalkBack (checklist section 5), sunlight and speed impressions (section 6), the light theme and Ćirilica on the map, the shared-name outage in Pantelej.
 
 ## Decisions needed
 
-1. OK to push the three commits (`4cdb935`, `792449e`, this one)?
-2. Fix the large-font add-address search (collapse the title and chips while typing)?
-3. Start the phone session when you are ready: connect the phone and follow `docs/phone-session.md`; tell me when it is attached, or send the results.
+1. Fix Finding 1 (keyboard in onboarding and in the add-address sheet) and Finding 2 (map readiness test), with tests? Both are small.
+2. Push `4cdb935`, `792449e`, `3d7147c` and this commit?
+3. TalkBack: you do section 5 on the phone (the stack is still running: server, Metro, tunnels), or I stop it.

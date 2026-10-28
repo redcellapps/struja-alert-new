@@ -18,7 +18,8 @@
     "settings-screens": "node src/settings-screens.ts",
     "a11y-screens": "node src/a11y-screens.ts",
     "repeated-streets": "node src/repeated-streets.ts",
-    "qa-screens": "node src/qa-screens.ts"
+    "qa-screens": "node src/qa-screens.ts",
+    "phone-session": "node src/phone-session.ts"
   },
   "dependencies": {
     "@struja/parser": "workspace:*"
