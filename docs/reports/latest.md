@@ -52,3 +52,11 @@ From a font scale of 1.5, focusing the street search hides the city chips (in th
 1. Reconnect the phone (above) so that I can finish the airplane-mode re-test and set the app up for TalkBack.
 2. The share text without the person's own address: OK?
 3. Push this step's commit?
+
+## Addendum (14:57): offline map re-tested on the phone
+
+After the phone came back: online, the Trebinjska map was opened (also the whole-outage view, so coarse tiles were cached); then airplane mode on and the Čegarska outage (Niška banja, never loaded) opened. At 3 s a plain placeholder where the map goes; **after 15 s the map is gone completely: "Pogođene ulice" goes straight to the street list**, no blank box and no stray line (before the fix: the red line on bare land, still there after 25 s). Airplane mode is off again, Wi-Fi is back, the tunnels (:8081, :3000) are up. Trebinjska 34 is saved again (the app was at onboarding after the data was cleared for the onboarding check; the notifications permission was skipped, so Početna shows the "Obaveštenja su isključena" banner).
+
+The phone dropped off adb three times in this session (always after 10 to 20 minutes); not an app problem.
+
+Still to do before step 11 closes (asked): run the two changed Maestro flows (`01-onboarding`, `04-tabs-and-settings`) against the mock, after the phone session.
