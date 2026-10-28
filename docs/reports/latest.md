@@ -1,35 +1,54 @@
-# Phone session (step 11): the automated part, run on the real phone
+# Phone-session fixes: keyboard, offline map, municipality names, calendar and share text, large font
 
-Date: 2026-10-28, 13:50 to 14:05. HONOR Magic6 Lite 5G, Android 15, arm64, USB. The debug APK of step 11 (arm64), Metro on :8081 and the real local API on :3000, both through `adb reverse`. Data: the saved Niš pages shifted by 120 minutes so that an outage was in progress (`dev:fixtures --shift=120 --repeat-today`, then `dev:scrape`). Driven over adb (taps, `uiautomator dump`, screenshots); **TalkBack and the "feel" items are left for the owner** (checklist in `docs/phone-session.md`, sections 5 and 6).
+Date: 2026-10-28. Branch `main`. `4cdb935`, `792449e`, `3d7147c` and `1e93292` are pushed (approved). This step's commit is **not pushed**.
 
-Nothing was saved to the phone's calendar, nothing was shared with anyone, notifications were declined in the onboarding, and airplane mode is off again.
+The five fixes asked for after the automated phone session, each with tests. The three that show on the screen were checked on the real phone (HONOR Magic6 Lite 5G) through Metro and Fast Refresh; the **offline map could not be re-tested on the phone: it dropped off USB** (see the end).
 
-## Results against the checklist
+## 1. Keyboard in onboarding step 3 and in the Add address sheet
 
-| # | Item | Result |
-| --- | --- | --- |
-| setup | install, tunnels, bundle | OK. `phone-session --install` installed the APK, set both tunnels, the app loaded the bundle from Metro and the data from the local API. |
-| onboarding | three steps, street search, house number, save | Works, but see **Finding 1** (keyboard). Saved "Trebinjska 34"; Početna shows "Bez struje, Trebinjska 34, Povratak za 2 h 1 min, Moguće pogođeno" (the house number is not in the listed ranges, so "possible" is right). |
-| 1 Calendar | "Dodaj u kalendar" | **OK.** The system "New event" screen (Honor Calendar) opens with **no permission prompt**; title "Isključenje struje", Oct 28 **11:00 to 16:00** (same as the detail), location "Trebinjska 34", notes "Trebinjska 34, Izvor: Elektrodistribucija Srbije" and the EDS link. "Discard" returns to the same detail screen. Note: the notes name only the person's own address, not every street of the outage. |
-| 2 Share | "Podeli" | **OK.** System share sheet. Text: "Planirano isključenje struje: sreda, 28. oktobar (Danas) 11:00–16:00. Trebinjska 34. Izvor: Elektrodistribucija Srbije, https://elektrodistribucija.rs/…/Nis_Dan_0_Iskljucenja.htm". Nothing about other addresses. Back cancels and returns to the app. Same remark: only the person's street. |
-| 3 Otvori izvor | "Otvori izvor (EDS)" | **OK.** Opens the EDS page in **Chrome** (the phone's browser, not a webview); Back returns to the app. This tap makes the phone request the live EDS page once, as a person's browser (not the scraper). The "unofficial app" wording in Podešavanja was not re-checked on the phone. |
-| 4 Map | start, button, credits, scroll | **OK.** The map appears within seconds, starts on the house (lime dot), labels readable (Latin, dark theme); "Celo isključenje" shows the whole outage and becomes "Moja adresa" and back; credits "© OpenStreetMap · © OpenMapTiles · OpenFreeMap" stay in view and **open the OSM copyright page in the browser**; a finger swipe on the map **scrolls the sheet and the map does not pan**. Not checked: light theme, Ćirilica, the shared-name outage (Pantelej). |
-| 4 Map, offline | airplane mode | **Not OK, Finding 2.** |
-| 5 TalkBack, 6 other | | Owner. |
+**The cause:** the window is not resized by the keyboard (edge to edge, Android 15), so a field low on the screen stayed under it.
 
-## Findings
+**The fix** (`src/design/components/Screen.tsx`, `AddAddressForm.tsx`):
+- `Screen` leaves the keyboard's height free at the bottom while it is up (so the content scrolls in the part in view), and offers `useScreenReveal()`.
+- The street field asks to be revealed when it gets focus: the scroll waits for the keyboard and puts the field at the top of what is in view. It asks again when the results change, because they arrive after the keyboard and make the screen longer (found on the phone: the first version stopped too early). The house number field is revealed the same way.
 
-1. **Onboarding step 3: the keyboard covers the street field and its results.** Tapping "Ulica ili naselje" raises the keyboard (SwiftKey, with a number row, about 40 % of the screen) and the screen does not move: the field (y 1444 to 1626 of 2652) is under it, so you cannot see what you type or the results. After closing the keyboard the typed text and the result are there. This is the phone only: in the emulator the Maestro flow passes because it does not need to see the field. Likely fix: scroll the field into view when it gets focus (or a `KeyboardAvoidingView` / `scrollToEnd` on focus) in the onboarding screen. The same may apply to the add-address sheet: not checked on the phone.
-2. **The map is not dropped when only coarse tiles are cached.** In airplane mode, opening an outage in an area the map had never shown (Čegarska, Niška banja) gave a dark box with the red line, two pale green land areas and the credits: **no roads, no labels**, still there after 25 seconds (the 8 s timeout did not drop it). Cause (in the code): `BASE_LAYER_IDS` in `src/map/style.ts` counts `park` and `landcover`, and the map cache held coarse tiles that draw those, so "ready" was reached. The rule "never shown blank" is not kept in this state. Proposed fix: count only `road-*` and `building` as proof that the tiles arrived (an outage always has streets), keep the 8 s timeout, add a test. Not done: the app was running on the phone.
-3. The result row shows the municipality as a raw lowercase key ("palilula"): already known; it should read "Palilula".
-4. `scripts/package.json` was missing the `phone-session` entry (the report of the emulator part said it existed); it is added in this commit.
+**On the phone:** Add address sheet: the field is at the top of the visible area with two results ("Čegarska · Pantelej", "Čegarska · Niška Banja") fully visible above the keyboard (before: the field was hidden). Onboarding step 3 (from a cleared app): the field and "Trebinjska · Palilula" are above the keyboard.
 
-## Not done
+**Tests:** `keyboard.test.tsx` (the screen leaves the keyboard's room and gives it back; reveal before and after the keyboard is up). **Maestro:** `01-onboarding` and `04-tabs-and-settings` no longer hide the keyboard before choosing a result: they tap the result with the keyboard up and assert that the house number field appears; a result under the keyboard could not be tapped, so the flow fails if the field is hidden again. **These two flows were changed but not run** (the emulator is not up and the mock API cannot share :3000 with the real server that the phone uses): they run in the next `qa-screens`.
 
-TalkBack (checklist section 5), sunlight and speed impressions (section 6), the light theme and Ćirilica on the map, the shared-name outage in Pantelej.
+## 2. Offline map: only streets and buildings count as "loaded"
+
+`BASE_LAYER_IDS` is now `building`, `road-minor`, `road-mid`, `road-major` (`src/map/style.ts`). Land, park and water are no longer proof that the tiles arrived; without a street the 8 s fallback to the street list applies. Tests: a map where only land, park and water have features is dropped after the timeout; the map asks only about streets and buildings. **Not yet re-tested in airplane mode on the phone.**
+
+## 3. Municipality name
+
+The gazetteer carries the municipality as a key ("palilula", "niska banja", "crveni krst", "medijana", "pantelej"); `placeMunicipality` now maps them to "Palilula", "Niška banja", "Crveni krst", "Medijana", "Pantelej" (and the Cyrillic names). On the phone: "Trebinjska · Palilula". Test in `gazetteer.test.ts`, all five names in both scripts.
+
+## 4. Calendar notes and share text
+
+`src/outage/actions.ts`: `affectedStreets` lists every street of the outage once (the outage's own segments, in the chosen script).
+- **Share text:** "Planirano isključenje struje: <day, window>. <every street of the outage>. Izvor: …". It no longer contains the person's saved address (before: "Trebinjska 34"); never the other addresses either.
+- **Calendar:** the notes list every street with its ranges ("Vojvode Mišića: neparni 1–41, 50–60", "Studenička: delovi ulice", "Kosmajska: cela ulica", unresolved text as written) and the source; the **location** is still the person's own address that the outage concerns (it is their own calendar).
+- **Decision for you:** the share text drops the person's house number on purpose (it goes to other people). If you want your own address in it, say so.
+
+Tests (`outage.test.tsx`): every street, once each, with ranges; Cyrillic; the share text has no saved address.
+
+## 5. Large font: the title and the city chips collapse while typing
+
+From a font scale of 1.5, focusing the street search hides the city chips (in the form) and the title (in the Add address sheet and in onboarding step 3); they return when the field loses focus. Tests in `address-typing.test.tsx` (normal font keeps them; 200 % hides them, keeps the field and the results, and brings them back). Not seen on the phone at 200 %.
+
+## Gate
+
+`pnpm lint` 0 warnings · `pnpm typecheck` green · mobile **337** jest tests (was 328; +9: 2 keyboard, 2 typing, 2 map, 1 municipality, 2 actions) · server, parser, shared and scripts unchanged and not re-run in this step.
+
+## The phone
+
+- **No reinstall was needed:** every change is JavaScript; the debug APK on the phone loads it from Metro (the same APK installed earlier). A native rebuild would only waste time.
+- **The phone dropped off USB** in the middle of the checks: Windows still lists "HONOR Magic6 Lite 5G" (as a media device) but `adb devices` is empty, the state seen before the first session (USB debugging off, or the USB mode changed). The local server and Metro are still running; the `adb reverse` tunnels went with the connection. **To bring it back:** in Developer options turn USB debugging off and on, set the USB mode to "File transfer", accept the prompt; then tell me. I will run `phone-session` (tunnels and the app), do the airplane-mode re-test of fix 2 and hand the phone over for TalkBack.
+- The phone's app data was cleared for the onboarding check: the app is at onboarding step 2, no address saved. Save Trebinjska 34 again before TalkBack (I will do it if you want).
 
 ## Decisions needed
 
-1. Fix Finding 1 (keyboard in onboarding and in the add-address sheet) and Finding 2 (map readiness test), with tests? Both are small.
-2. Push `4cdb935`, `792449e`, `3d7147c` and this commit?
-3. TalkBack: you do section 5 on the phone (the stack is still running: server, Metro, tunnels), or I stop it.
+1. Reconnect the phone (above) so that I can finish the airplane-mode re-test and set the app up for TalkBack.
+2. The share text without the person's own address: OK?
+3. Push this step's commit?

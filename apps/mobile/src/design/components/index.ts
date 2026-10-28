@@ -14,7 +14,7 @@ export { MessageForm, type MessageFormProps } from './MessageForm';
 export { OutageCard, type OutageCardProps, type OutageCardTag } from './OutageCard';
 export { RangeChips, type RangeChip, type RangeChipsProps } from './RangeChips';
 export { RemainingText, type RemainingTextProps } from './RemainingText';
-export { Screen, type ScreenProps } from './Screen';
+export { Screen, useScreenReveal, type ScreenProps } from './Screen';
 export { SheetHeader } from './SheetHeader';
 export { SearchField, type SearchFieldProps } from './SearchField';
 export { SectionHeader, type SectionHeaderProps } from './SectionHeader';

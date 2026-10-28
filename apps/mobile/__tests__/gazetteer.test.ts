@@ -217,6 +217,42 @@ describe('streets that share a name', () => {
     expect(placeDetail(kosmajska, 'latn')).toBe('Palilula - Niš');
   });
 
+  it('shows the proper name of a municipality the gazetteer carries as a key', () => {
+    // the real gazetteer: "palilula", "niska banja", "crveni krst" (lowercase, without diacritics)
+    const named = (
+      id: number,
+      name: string,
+      key: string,
+    ): GazetteerResponse['streets'][number] => ({
+      id,
+      nameCyrillic: name,
+      nameLatin: name.toLowerCase(),
+      nameNorm: name.toLowerCase(),
+      altNorms: [],
+      municipality: key,
+      settlement: 'Ниш',
+    });
+    const keys = buildIndex({
+      ...g,
+      streets: [
+        named(1, 'Aaa', 'palilula'),
+        named(2, 'Bbb', 'niska banja'),
+        named(3, 'Ccc', 'crveni krst'),
+        named(4, 'Ddd', 'medijana'),
+        named(5, 'Eee', 'pantelej'),
+      ],
+    });
+    const detail = (name: string, script: 'latn' | 'cyrl') =>
+      placeDetail(search(keys, name)[0] as Place, script);
+    expect(detail('aaa', 'latn')).toBe('Palilula');
+    expect(detail('bbb', 'latn')).toBe('Niška banja');
+    expect(detail('ccc', 'latn')).toBe('Crveni krst');
+    expect(detail('ddd', 'latn')).toBe('Medijana');
+    expect(detail('eee', 'latn')).toBe('Pantelej');
+    expect(detail('bbb', 'cyrl')).toBe('Нишка бања');
+    expect(detail('ccc', 'cyrl')).toBe('Црвени крст');
+  });
+
   it('finds a street by its id, so following an outage follows exactly that street', () => {
     expect(findStreetById(index, 16)?.settlement).toBe('Трупале');
     expect(findStreetById(index, 999)).toBeUndefined();

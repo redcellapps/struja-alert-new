@@ -46,5 +46,9 @@ appId: rs.example.strujaalert
 - waitForAnimationToEnd:
     timeout: 2000
 - takeScreenshot: add-address-2-search
-- hideKeyboard
+# the result is chosen with the keyboard up: it must be above it
+- assertVisible: 'Čegarska.*'
+- tapOn: 'Čegarska.*'
+- assertVisible: 'Kućni broj.*'
+- takeScreenshot: add-address-3-picked
 - pressKey: back

@@ -189,7 +189,7 @@ describe('actions', () => {
   });
 
   it('builds the calendar event from the outage', () => {
-    const e = calendarEvent(detail(), 'Vojvode Mišića 35', t);
+    const e = calendarEvent(detail(), 'Vojvode Mišića 35', 'latn', t);
     expect(e).toMatchObject({
       title: 'Isključenje struje',
       begin: Date.parse('2026-11-03T07:30:00Z'),
@@ -199,10 +199,22 @@ describe('actions', () => {
     expect(e.description).toContain('https://example.test/eds');
   });
 
+  it('lists every street of the outage in the calendar notes, with ranges, once each', () => {
+    const d = detail({ segments: [...detail().segments, ...detail().segments] });
+    const notes = calendarEvent(d, 'Vojvode Mišića 35', 'latn', t).description.split('\n');
+    expect(notes).toContain('Vojvode Mišića: neparni 1–41, 50–60');
+    expect(notes).toContain('Studenička: delovi ulice');
+    expect(notes).toContain('Kosmajska: cela ulica');
+    expect(notes).toContain('неки део');
+    expect(notes.filter((l) => l.startsWith('Kosmajska'))).toHaveLength(1);
+    // in Cyrillic when the person reads Cyrillic
+    expect(calendarEvent(d, 'x', 'cyrl', t).description).toContain('Космајска: cela ulica');
+  });
+
   it('opens the system add-event screen through an intent (no calendar permission)', async () => {
     jest.replaceProperty(Platform, 'OS', 'android');
     mockStart.mockResolvedValue({});
-    await addToCalendar(calendarEvent(detail(), 'Vojvode Mišića 35', t));
+    await addToCalendar(calendarEvent(detail(), 'Vojvode Mišića 35', 'latn', t));
     expect(mockStart).toHaveBeenCalledWith('android.intent.action.INSERT', {
       data: 'content://com.android.calendar/events',
       extra: expect.objectContaining({
@@ -213,11 +225,24 @@ describe('actions', () => {
     });
   });
 
-  it('shares when, where and the source', () => {
-    const m = shareMessage(detail(), 'Vojvode Mišića 35', '2026-11-03', t);
+  it('shares when, every street of the outage and the source', () => {
+    const m = shareMessage(detail(), '2026-11-03', 'latn', t);
     expect(m).toContain('utorak, 3. novembar (Danas) 08:30–12:30');
-    expect(m).toContain('Vojvode Mišića 35');
+    expect(m).toContain('Vojvode Mišića, Studenička, Kosmajska, неки део');
     expect(m).toContain('Elektrodistribucija Srbije, https://example.test/eds');
+  });
+
+  it('never puts the saved addresses of the person into the share text', () => {
+    // the person follows Vojvode Mišića 35 and Neka druga 7: the text names streets of the outage only
+    const m = shareMessage(
+      detail({ mine: [{ subscriptionId: 1, match: 'affected', reason: null, point: null }] }),
+      '2026-11-03',
+      'latn',
+      t,
+    );
+    expect(m).not.toContain('35');
+    expect(m).not.toContain('Neka druga');
+    expect(m).toContain('Vojvode Mišića');
   });
 });
 

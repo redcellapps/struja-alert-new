@@ -1,9 +1,10 @@
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
 import { Linking } from 'react-native';
-import { StyleSheet, View } from 'react-native';
+import { StyleSheet, useWindowDimensions, View } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import { AddAddressContainer } from '../src/addresses/AddAddressContainer';
+import { COLLAPSE_FONT_SCALE } from '../src/addresses/AddAddressForm';
 import { AppText, Banner, BoltWatermark, Button, IconTile, Screen } from '../src/design/components';
 import { useTheme } from '../src/design/theme';
 import { CARD_PADDING } from '../src/design/tokens';
@@ -38,6 +39,10 @@ export default function Onboarding() {
   const { t } = useTranslation();
   const { colors, radius } = useTheme();
   const [step, setStep] = useState(0);
+  // At a large font the title makes way for the street search while the person types.
+  const [typing, setTyping] = useState(false);
+  const { fontScale } = useWindowDimensions();
+  const collapseTitle = typing && fontScale >= COLLAPSE_FONT_SCALE;
   const permission = useSettings((s) => s.notificationPermission);
   const set = useSettings((s) => s.set);
   const router = useRouter();
@@ -107,15 +112,17 @@ export default function Onboarding() {
 
       {step === 2 ? (
         <>
-          <View style={{ gap: 8 }}>
-            <AppText variant="headline" accessibilityRole="header">
-              {t('onboarding.addressTitle')}
-            </AppText>
-            <AppText variant="body" color="textSecondary">
-              {t('onboarding.addressBody')}
-            </AppText>
-          </View>
-          <AddAddressContainer onSaved={finish} />
+          {collapseTitle ? null : (
+            <View style={{ gap: 8 }}>
+              <AppText variant="headline" accessibilityRole="header">
+                {t('onboarding.addressTitle')}
+              </AppText>
+              <AppText variant="body" color="textSecondary">
+                {t('onboarding.addressBody')}
+              </AppText>
+            </View>
+          )}
+          <AddAddressContainer onSaved={finish} onTypingChange={setTyping} />
           <Button label={t('onboarding.later')} variant="text" fullWidth onPress={finish} />
           {permission === 'denied' ? (
             <Banner

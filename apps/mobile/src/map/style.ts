@@ -80,16 +80,12 @@ const TIERS = [
   ['major', ['motorway', 'trunk', 'primary'], [1.5, 8, 24]],
 ] as const;
 
-/** The layers that draw the base map from tiles: if none of them has a feature in view, no tile arrived. */
-export const BASE_LAYER_IDS = [
-  'water',
-  'park',
-  'landcover',
-  'building',
-  'road-minor',
-  'road-mid',
-  'road-major',
-];
+/**
+ * The layers that prove the street tiles arrived: if none of them has a feature in view, the map is not
+ * shown. Land, park and water are not here on purpose: they come from coarse tiles that the cache can hold
+ * while the street tiles are missing (offline), and a map of the outage on bare land is blank.
+ */
+export const BASE_LAYER_IDS = ['building', 'road-minor', 'road-mid', 'road-major'];
 
 const SRC = 'openmaptiles';
 const inClass = (classes: readonly string[]) => ['in', ['get', 'class'], ['literal', [...classes]]];

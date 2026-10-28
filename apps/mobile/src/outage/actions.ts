@@ -3,6 +3,7 @@ import { Linking, Platform, Share } from 'react-native';
 import type { OutageDetailDto } from '@struja/shared';
 import { belgradeDate, hhmm } from '../format/time';
 import { dayCaption, weekdayKey, type T } from '../home/format';
+import { streetLine } from './ranges';
 
 /** "utorak, 3. novembar": the long date of a Belgrade calendar day. */
 export function dateLong(isoDate: string, t: T): string {
@@ -22,13 +23,44 @@ export interface CalendarEvent {
   location: string;
 }
 
-/** The event the system "add event" screen is opened with. */
-export function calendarEvent(detail: OutageDetailDto, where: string, t: T): CalendarEvent {
+/**
+ * Every street of the outage, once, in the chosen script: the outage's own list, never the person's saved
+ * addresses (what is shared or put in a calendar must not say where else they live or follow).
+ */
+export function affectedStreets(
+  detail: Pick<OutageDetailDto, 'segments'>,
+  script: 'latn' | 'cyrl',
+  t: T,
+): { title: string; detail: string | null }[] {
+  const seen = new Set<string>();
+  return detail.segments
+    .map((segment) => streetLine(segment, script, t))
+    .filter((line) => {
+      const key = `${line.title}|${line.detail ?? ''}`;
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+}
+
+/**
+ * The event the system "add event" screen is opened with. `where` is the person's address this outage
+ * concerns (the event is in their own calendar); the notes list every street of the outage with its ranges.
+ */
+export function calendarEvent(
+  detail: OutageDetailDto,
+  where: string,
+  script: 'latn' | 'cyrl',
+  t: T,
+): CalendarEvent {
+  const streets = affectedStreets(detail, script, t)
+    .map((s) => (s.detail ? `${s.title}: ${s.detail}` : s.title))
+    .join('\n');
   return {
     title: t('detail.calendarTitle'),
     begin: Date.parse(detail.startsAt),
     end: Date.parse(detail.endsAt),
-    description: `${where}\n${t('home.source')}\n${detail.source.url}`,
+    description: `${streets}\n${t('home.source')}\n${detail.source.url}`,
     location: where,
   };
 }
@@ -55,12 +87,19 @@ export async function addToCalendar(event: CalendarEvent): Promise<void> {
 
 export const calendarAvailable = Platform.OS === 'android';
 
-/** The text shared from the detail sheet: when, where, and the source. */
-export function shareMessage(detail: OutageDetailDto, where: string, today: string, t: T): string {
+/** The text shared from the detail sheet: when, every street of the outage, and the source. */
+export function shareMessage(
+  detail: OutageDetailDto,
+  today: string,
+  script: 'latn' | 'cyrl',
+  t: T,
+): string {
   const day = dayCaption(detail.outageDate, today, t);
   return t('detail.shareText', {
     when: `${dateLong(detail.outageDate, t)} (${day}) ${windowText(detail)}`,
-    where,
+    where: affectedStreets(detail, script, t)
+      .map((s) => s.title)
+      .join(', '),
     source: `${detail.source.name}, ${detail.source.url}`,
   });
 }

@@ -234,6 +234,26 @@ describe('OutageMap', () => {
     expect(screen.queryByTestId('outage-map')).toBeNull();
   });
 
+  it('renders nothing when only coarse tiles (land, park, water) are cached and no street arrives', async () => {
+    // offline in an area seen before at a low zoom: the land is drawn, the streets are not
+    mockMap.query.mockImplementation(async (options: { layers: string[] }) =>
+      options.layers.some((l) => ['landcover', 'park', 'water'].includes(l)) ? [{ id: 1 }] : [],
+    );
+    await show(<OutageMap {...props} />);
+    await act(async () => mockMap.props['onDidFinishLoadingStyle']?.());
+    await tick(MAP_CONFIG.timeoutMs + 1000);
+    expect(screen.queryByTestId('outage-map')).toBeNull();
+  });
+
+  it('asks only about streets and buildings when it decides that the tiles arrived', async () => {
+    mockMap.query.mockResolvedValue([{ id: 1 }]);
+    await show(<OutageMap {...props} />);
+    await act(async () => mockMap.props['onDidFinishLoadingStyle']?.());
+    await tick(700);
+    const asked = (mockMap.query.mock.calls[0]?.[0] as { layers: string[] }).layers;
+    expect([...asked].sort()).toEqual(['building', 'road-major', 'road-mid', 'road-minor']);
+  });
+
   describe('where the view starts', () => {
     const line = (streetId: number, a: [number, number], b: [number, number]): GeoJSON.Feature => ({
       type: 'Feature',

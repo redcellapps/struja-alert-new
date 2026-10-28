@@ -95,13 +95,23 @@ export function search(index: GazetteerIndex, input: string, limit = MAX_RESULTS
   return scored.slice(0, limit).map((x) => x.place);
 }
 
-/** The municipality (the gazetteer stores it in Cyrillic) in the chosen script. */
-export const placeMunicipality = (place: Place, script: 'latn' | 'cyrl'): string | null =>
-  place.municipality === null
-    ? null
-    : script === 'cyrl'
-      ? place.municipality
-      : cyrillicToLatin(place.municipality);
+// The gazetteer of Niš carries the municipality as a key (the parser's lowercase, diacritic-free name):
+// these are the names a person knows them by.
+const MUNICIPALITY_NAMES: Record<string, { latn: string; cyrl: string }> = {
+  palilula: { latn: 'Palilula', cyrl: 'Палилула' },
+  medijana: { latn: 'Medijana', cyrl: 'Медијана' },
+  pantelej: { latn: 'Pantelej', cyrl: 'Пантелеј' },
+  'crveni krst': { latn: 'Crveni krst', cyrl: 'Црвени крст' },
+  'niska banja': { latn: 'Niška banja', cyrl: 'Нишка бања' },
+};
+
+/** The municipality in the chosen script, by its proper name ("Palilula", not the key "palilula"). */
+export const placeMunicipality = (place: Place, script: 'latn' | 'cyrl'): string | null => {
+  if (place.municipality === null) return null;
+  const known = MUNICIPALITY_NAMES[place.municipality];
+  if (known) return known[script];
+  return script === 'cyrl' ? place.municipality : cyrillicToLatin(place.municipality);
+};
 
 /**
  * The line under a result: the municipality, and for a street whose name repeats the settlement it lies

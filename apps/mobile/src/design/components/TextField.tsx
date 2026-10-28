@@ -15,6 +15,8 @@ export interface TextFieldProps extends Pick<
   | 'maxLength'
   | 'onSubmitEditing'
   | 'autoFocus'
+  | 'onFocus'
+  | 'onBlur'
 > {
   label: string;
   // A quiet line under the field, when there is no error.

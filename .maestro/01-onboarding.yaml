@@ -23,10 +23,11 @@ appId: rs.example.strujaalert
 - tapOn: 'Ukucajte naziv ulice'
 - inputText: 'vojvode misica'
 - takeScreenshot: onboarding-4-search
-# at a large font the keyboard covers the results
-- hideKeyboard
-- assertVisible: 'Vojvode Mišića'
-- tapOn: 'Vojvode Mišića'
+# The field and its results stay above the keyboard while typing: the result is chosen with the keyboard
+# still up (a result hidden behind it could not be tapped, and the house number field would never appear).
+- assertVisible: 'Vojvode Mišića.*'
+- tapOn: 'Vojvode Mišića.*'
+- assertVisible: 'Kućni broj.*'
 - scrollUntilVisible:
     element: 'Sačuvaj adresu'
 - takeScreenshot: onboarding-5-confirm

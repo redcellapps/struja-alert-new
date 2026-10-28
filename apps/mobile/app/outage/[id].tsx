@@ -101,12 +101,12 @@ export default function OutageSheet() {
       }
       onCalendar={
         calendarAvailable && detail
-          ? () => void addToCalendar(calendarEvent(detail, where, t)).catch(() => {})
+          ? () => void addToCalendar(calendarEvent(detail, where, script, t)).catch(() => {})
           : undefined
       }
       onShare={() => {
         if (detail)
-          void shareOutage(shareMessage(detail, where, todayInBelgrade(), t)).catch(() => {});
+          void shareOutage(shareMessage(detail, todayInBelgrade(), script, t)).catch(() => {});
       }}
       onOpenSource={() => {
         if (detail) void openSource(detail.source.url).catch(() => {});

@@ -1,5 +1,5 @@
-import { useEffect, useMemo, useState } from 'react';
-import { Pressable, StyleSheet, View } from 'react-native';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { Pressable, StyleSheet, useWindowDimensions, View, type HostInstance } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import { MAX_ADDRESSES, type CreateSubscriptionRequest } from '@struja/shared';
 import {
@@ -12,6 +12,7 @@ import {
   SectionHeader,
   SkeletonCard,
   TextField,
+  useScreenReveal,
 } from '../design/components';
 import { haptics } from '../design/haptics';
 import { useTheme } from '../design/theme';
@@ -49,7 +50,12 @@ export interface AddAddressFormProps {
   onSaved: () => void;
   // A street or settlement to start with ("Prati" in Najave and in the outage detail).
   initial?: { kind: 'street' | 'settlement'; id: number };
+  // True while the street search has the keyboard: a screen above the form can collapse its title.
+  onTypingChange?: (typing: boolean) => void;
 }
+
+// From this font scale on, the title and the city chips make way for the street search while typing.
+export const COLLAPSE_FONT_SCALE = 1.5;
 
 /**
  * Add an address: city, an instant offline street search, an optional house number (with a suffix such
@@ -65,9 +71,20 @@ export function AddAddressForm({
   save,
   onSaved,
   initial,
+  onTypingChange,
 }: AddAddressFormProps) {
   const { t } = useTranslation();
   const { colors, radius } = useTheme();
+  const reveal = useScreenReveal();
+  const { fontScale } = useWindowDimensions();
+  const searchRef = useRef<HostInstance>(null);
+  const houseRef = useRef<HostInstance>(null);
+  const [typing, setTyping] = useState(false);
+  const collapse = typing && fontScale >= COLLAPSE_FONT_SCALE;
+  const setTypingBoth = (value: boolean) => {
+    setTyping(value);
+    onTypingChange?.(value);
+  };
   const [query, setQuery] = useState('');
   const [picked, setPicked] = useState<Place | null>(null);
   const [initialApplied, setInitialApplied] = useState(false);
@@ -94,6 +111,14 @@ export function AddAddressForm({
     () => (index && !picked ? search(index, query) : []),
     [index, query, picked],
   );
+  // The results arrive after the keyboard is up and make the screen longer: keep the field at the top of
+  // what is in view, with the results under it.
+  useEffect(() => {
+    if (!typing || results.length === 0) return;
+    // after the new results are laid out
+    const timer = setTimeout(() => reveal(searchRef.current), 80);
+    return () => clearTimeout(timer);
+  }, [typing, results.length, reveal]);
   const parsedHouse = parseHouseNumber(house);
   const houseInvalid = parsedHouse === 'invalid';
   const isStreet = picked?.kind === 'street';
@@ -144,21 +169,23 @@ export function AddAddressForm({
 
   return (
     <View style={styles.form}>
-      <View style={{ gap: 12 }}>
-        <SectionHeader title={t('address.city')} />
-        <View style={styles.chips}>
-          {CITY_CHOICES.map((c) => (
-            <Chip
-              key={c.id}
-              label={c.active ? c.name : `${c.name} · ${t('address.comingSoon')}`}
-              selected={c.active}
-              disabled={!c.active}
-              onPress={c.active ? () => {} : undefined}
-              accessibilityLabel={c.active ? c.name : `${c.name}, ${t('address.comingSoon')}`}
-            />
-          ))}
+      {collapse ? null : (
+        <View style={{ gap: 12 }}>
+          <SectionHeader title={t('address.city')} />
+          <View style={styles.chips}>
+            {CITY_CHOICES.map((c) => (
+              <Chip
+                key={c.id}
+                label={c.active ? c.name : `${c.name} · ${t('address.comingSoon')}`}
+                selected={c.active}
+                disabled={!c.active}
+                onPress={c.active ? () => {} : undefined}
+                accessibilityLabel={c.active ? c.name : `${c.name}, ${t('address.comingSoon')}`}
+              />
+            ))}
+          </View>
         </View>
-      </View>
+      )}
 
       {picked ? (
         <View style={{ gap: 12 }}>
@@ -189,15 +216,22 @@ export function AddAddressForm({
         </View>
       ) : (
         <View style={{ gap: 12 }}>
-          <TextField
-            label={t('address.street')}
-            value={query}
-            onChangeText={setQuery}
-            placeholder={t('address.searchHint')}
-            autoCapitalize="none"
-            autoCorrect={false}
-            returnKeyType="search"
-          />
+          <View ref={searchRef} collapsable={false}>
+            <TextField
+              label={t('address.street')}
+              value={query}
+              onChangeText={setQuery}
+              placeholder={t('address.searchHint')}
+              autoCapitalize="none"
+              autoCorrect={false}
+              returnKeyType="search"
+              onFocus={() => {
+                setTypingBoth(true);
+                reveal(searchRef.current);
+              }}
+              onBlur={() => setTypingBoth(false)}
+            />
+          </View>
           {!index && indexStatus === 'loading' ? (
             <SkeletonCard lines={1} accessibilityLabel={t('address.streetsLoading')} />
           ) : null}
@@ -243,18 +277,21 @@ export function AddAddressForm({
       {picked ? (
         <>
           {isStreet ? (
-            <TextField
-              label={t('address.houseNumber')}
-              autoFocus={prefilled}
-              hint={t('address.numberHint')}
-              value={house}
-              onChangeText={setHouse}
-              placeholder="34"
-              autoCapitalize="none"
-              autoCorrect={false}
-              maxLength={8}
-              error={houseInvalid ? t('address.houseInvalid') : undefined}
-            />
+            <View ref={houseRef} collapsable={false}>
+              <TextField
+                label={t('address.houseNumber')}
+                autoFocus={prefilled}
+                onFocus={() => reveal(houseRef.current)}
+                hint={t('address.numberHint')}
+                value={house}
+                onChangeText={setHouse}
+                placeholder="34"
+                autoCapitalize="none"
+                autoCorrect={false}
+                maxLength={8}
+                error={houseInvalid ? t('address.houseInvalid') : undefined}
+              />
+            </View>
           ) : null}
 
           <View style={{ gap: 12 }}>

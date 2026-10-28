@@ -11,9 +11,11 @@ import { saveAddress } from './save';
 export function AddAddressContainer({
   onSaved,
   initial,
+  onTypingChange,
 }: {
   onSaved: () => void;
   initial?: { kind: 'street' | 'settlement'; id: number };
+  onTypingChange?: (typing: boolean) => void;
 }) {
   const { index, status, retry } = useGazetteer('nis');
   const script = useSettings((s) => s.script);
@@ -37,6 +39,7 @@ export function AddAddressContainer({
       }}
       onSaved={onSaved}
       initial={initial}
+      onTypingChange={onTypingChange}
     />
   );
 }
