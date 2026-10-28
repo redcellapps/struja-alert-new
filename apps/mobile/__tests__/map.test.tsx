@@ -15,7 +15,8 @@ import { BASE_LAYER_IDS, buildMapStyle, labelField, mapColors } from '../src/map
 const mockMap: {
   props: Record<string, (...a: unknown[]) => void>;
   query: jest.Mock;
-} = { props: {}, query: jest.fn() };
+  camera: { props: Record<string, unknown>; fitBounds: jest.Mock };
+} = { props: {}, query: jest.fn(), camera: { props: {}, fitBounds: jest.fn() } };
 jest.mock('@maplibre/maplibre-react-native', () => {
   const React = require('react');
   const { View } = require('react-native');
@@ -30,7 +31,11 @@ jest.mock('@maplibre/maplibre-react-native', () => {
   return {
     __esModule: true,
     Map,
-    Camera: Stub,
+    Camera: React.forwardRef((props: Record<string, unknown>, ref: unknown) => {
+      mockMap.camera.props = props;
+      React.useImperativeHandle(ref, () => ({ fitBounds: mockMap.camera.fitBounds }));
+      return null;
+    }),
     GeoJSONSource: Stub,
     Layer: Stub,
     LogManager: { onLog: () => undefined },
@@ -227,6 +232,80 @@ describe('OutageMap', () => {
     expect(screen.getByTestId('outage-map')).toBeTruthy(); // still waiting: a placeholder, not a blank map
     await tick(2000);
     expect(screen.queryByTestId('outage-map')).toBeNull();
+  });
+
+  describe('where the view starts', () => {
+    const line = (streetId: number, a: [number, number], b: [number, number]): GeoJSON.Feature => ({
+      type: 'Feature',
+      properties: { streetId, name: `street ${streetId}` },
+      geometry: { type: 'MultiLineString', coordinates: [[a, b]] },
+    });
+    // street 1 is the person's; street 2 is 5 km away: the outage is both
+    const own = line(1, [21.9, 43.3], [21.904, 43.304]);
+    const other = line(2, [21.96, 43.35], [21.964, 43.354]);
+    const outage = geometry([own, other]);
+    const house = { lng: 21.902, lat: 43.302 };
+    const ready = async () => {
+      mockMap.query.mockResolvedValue([{ id: 1 }]);
+      await act(async () => mockMap.props['onDidFinishLoadingStyle']?.());
+      await tick(700);
+    };
+    const startBounds = () =>
+      (mockMap.camera.props['initialViewState'] as { bounds: [number, number, number, number] })
+        .bounds;
+    const width = (b: number[]) => (b[2] as number) - (b[0] as number);
+
+    beforeEach(() => mockMap.camera.fitBounds.mockReset());
+
+    it('starts on the person’s house, with a button for the whole outage', async () => {
+      await show(<OutageMap {...props} geometry={outage} house={house} ownStreetIds={[1]} />);
+      // about 400 m around the house, not the 6 km of the outage
+      expect(width(startBounds())).toBeCloseTo(0.004, 3);
+      expect((startBounds()[0] + startBounds()[2]) / 2).toBeCloseTo(house.lng, 4);
+      await ready();
+      await act(async () => fireEvent.press(screen.getByText('Celo isključenje')));
+      const whole = mockMap.camera.fitBounds.mock.calls[0]?.[0] as number[];
+      expect(whole[0]).toBeLessThanOrEqual(21.9);
+      expect(whole[2]).toBeGreaterThanOrEqual(21.964); // street 2 is in view now
+      // and back to the house
+      expect(screen.getByText('Moja adresa')).toBeTruthy();
+      await act(async () => fireEvent.press(screen.getByText('Moja adresa')));
+      const back = mockMap.camera.fitBounds.mock.calls[1]?.[0] as number[];
+      expect(width(back)).toBeCloseTo(0.004, 3);
+    });
+
+    it('without a house number starts on the street of the address, not on the candidates of another name', async () => {
+      const candidate = { ...line(3, [21.5, 43.1], [21.52, 43.12]) };
+      (candidate.properties as Record<string, unknown>)['candidate'] = true;
+      await show(
+        <OutageMap
+          {...props}
+          geometry={geometry([own, other, candidate])}
+          house={null}
+          ownStreetIds={[1, 3]}
+        />,
+      );
+      const b = startBounds();
+      expect(b[0]).toBeGreaterThan(21.89);
+      expect(b[2]).toBeLessThan(21.92); // street 1 only
+      await ready();
+      expect(screen.getByText('Celo isključenje')).toBeTruthy();
+    });
+
+    it('shows the whole outage, and no button, when the person has no address in it', async () => {
+      await show(<OutageMap {...props} geometry={outage} house={null} ownStreetIds={[]} />);
+      expect(startBounds()[2]).toBeGreaterThanOrEqual(21.964);
+      await ready();
+      expect(screen.queryByText('Celo isključenje')).toBeNull();
+    });
+
+    it('has no button when the view would hardly change (a single small street)', async () => {
+      await show(
+        <OutageMap {...props} geometry={geometry([own])} house={house} ownStreetIds={[1]} />,
+      );
+      await ready();
+      expect(screen.queryByText('Celo isključenje')).toBeNull();
+    });
   });
 
   it('renders nothing when the style never loads', async () => {

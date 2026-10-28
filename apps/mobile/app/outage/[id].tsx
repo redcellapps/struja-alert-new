@@ -52,6 +52,7 @@ export default function OutageSheet() {
         street: sub.name,
         name: `${street}${sub.houseNumber ? ` ${sub.houseNumber}${sub.houseSuffix ?? ''}` : ''}`,
         houseNumber: sub.houseNumber,
+        streetId: sub.streetId,
         match: m.match,
         reason: m.reason,
       },

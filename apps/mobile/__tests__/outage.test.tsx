@@ -88,6 +88,7 @@ const detail = (over: Partial<OutageDetailDto> = {}): OutageDetailDto => ({
 
 const mine = (over: Partial<DetailAddress> = {}): DetailAddress => ({
   subscriptionId: 1,
+  streetId: 1,
   label: 'Kuća',
   street: { latin: 'Vojvode Mišića', cyrillic: 'Војводе Мишића' },
   name: 'Vojvode Mišića 35',

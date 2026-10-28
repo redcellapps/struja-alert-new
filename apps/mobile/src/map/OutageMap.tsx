@@ -1,4 +1,11 @@
-import { Camera, GeoJSONSource, Layer, Map, type MapRef } from '@maplibre/maplibre-react-native';
+import {
+  Camera,
+  GeoJSONSource,
+  Layer,
+  Map,
+  type CameraRef,
+  type MapRef,
+} from '@maplibre/maplibre-react-native';
 import type { OutageDetailDto } from '@struja/shared';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Linking, Pressable, View } from 'react-native';
@@ -6,7 +13,7 @@ import { useTranslation } from 'react-i18next';
 import { AppText } from '../design/components';
 import { useTheme } from '../design/theme';
 import { MAP_CONFIG } from './config';
-import { boundsOf, drawable, type LngLatPoint } from './geo';
+import { boundsOf, boxArea, drawable, featuresOfStreets, type LngLatPoint } from './geo';
 import { installMapLogging } from './logging';
 import { BASE_LAYER_IDS, buildMapStyle, mapColors, type Script } from './style';
 
@@ -30,7 +37,14 @@ export interface OutageMapProps {
   // The colour of the affected streets: the status colour of the outage.
   color: string;
   script: Script;
+  // The person's own streets (ids of their saved addresses that this outage concerns): the view starts on
+  // their house, else on their street, with a button for the whole outage.
+  ownStreetIds?: readonly number[];
 }
+
+const PADDING = { top: 32, right: 32, bottom: 40, left: 32 };
+// The whole outage must be at least this much larger than the focus for the button to be worth showing.
+const WORTH_A_BUTTON = 1.4;
 
 type Phase = 'loading' | 'ready' | 'failed';
 
@@ -41,15 +55,27 @@ type Phase = 'loading' | 'ready' | 'failed';
  * failing tile host, or no tile in view in time) it renders nothing, so the street list under it stands
  * alone. Nothing is downloaded for offline use.
  */
-export function OutageMap({ geometry, house, color, script }: OutageMapProps) {
+export function OutageMap({ geometry, house, color, script, ownStreetIds = [] }: OutageMapProps) {
   const { t } = useTranslation();
   const theme = useTheme();
   const ref = useRef<MapRef>(null);
+  const camera = useRef<CameraRef>(null);
+  const [showAll, setShowAll] = useState(false);
   const [phase, setPhase] = useState<Phase>('loading');
   const [styleLoaded, setStyleLoaded] = useState(false);
 
   const shapes = useMemo(() => drawable(geometry), [geometry]);
+  // The whole outage, and the part the person cares about: their house if the address has a number
+  // OSM knows, else their street's part of the outage. null when there is nothing to focus on.
   const bounds = useMemo(() => boundsOf(shapes, house), [shapes, house]);
+  const focus = useMemo(() => {
+    if (house) return boundsOf([], house);
+    const own = featuresOfStreets(shapes, ownStreetIds);
+    return own.length > 0 ? boundsOf(own, null) : null;
+  }, [shapes, house, ownStreetIds]);
+  // A button only when the focus is clearly smaller than the whole outage.
+  const canToggle = !!bounds && !!focus && boxArea(bounds) > boxArea(focus) * WORTH_A_BUTTON;
+  const start = canToggle && focus ? focus : bounds;
   const style = useMemo(
     () => buildMapStyle(mapColors(theme.colors, theme.name), script),
     [theme.colors, theme.name, script],
@@ -125,10 +151,8 @@ export function OutageMap({ geometry, house, color, script }: OutageMapProps) {
           onDidFailLoadingMap={() => setPhase('failed')}
         >
           <Camera
-            initialViewState={{
-              bounds,
-              padding: { top: 32, right: 32, bottom: 40, left: 32 },
-            }}
+            ref={camera}
+            initialViewState={{ bounds: start as NonNullable<typeof start>, padding: PADDING }}
             maxZoom={17}
           />
           <GeoJSONSource id="outage-shapes" data={data}>
@@ -237,6 +261,39 @@ export function OutageMap({ geometry, house, color, script }: OutageMapProps) {
           </AppText>
         </Pressable>
       )}
+
+      {phase === 'ready' && canToggle ? (
+        // The view starts on the person's house or street; this goes to the whole outage and back.
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={showAll ? t('detail.mapMine') : t('detail.mapWhole')}
+          hitSlop={6}
+          onPress={() => {
+            const next = !showAll;
+            setShowAll(next);
+            camera.current?.fitBounds((next ? bounds : focus) as NonNullable<typeof bounds>, {
+              padding: PADDING,
+              duration: 400,
+            });
+          }}
+          style={({ pressed }) => ({
+            position: 'absolute',
+            left: 8,
+            top: 8,
+            minHeight: 40,
+            justifyContent: 'center',
+            paddingHorizontal: 14,
+            borderRadius: theme.radius.full,
+            backgroundColor: pressed ? chrome.raised : chrome.card,
+            borderWidth: 1,
+            borderColor: chrome.outline,
+          })}
+        >
+          <AppText variant="label" maxFontSizeMultiplier={1.3}>
+            {showAll ? t('detail.mapMine') : t('detail.mapWhole')}
+          </AppText>
+        </Pressable>
+      ) : null}
     </View>
   );
 }

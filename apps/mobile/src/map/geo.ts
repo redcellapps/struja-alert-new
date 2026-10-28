@@ -22,6 +22,20 @@ export function drawable(geometry: OutageDetailDto['geometry']): GeoJSON.Feature
   );
 }
 
+/** The features of the given streets (by street id), not the candidates of an ambiguous name. */
+export function featuresOfStreets(
+  features: readonly GeoJSON.Feature[],
+  streetIds: readonly number[],
+): GeoJSON.Feature[] {
+  return features.filter((f) => {
+    const p = (f.properties ?? {}) as { streetId?: number; candidate?: boolean };
+    return p.candidate !== true && typeof p.streetId === 'number' && streetIds.includes(p.streetId);
+  });
+}
+
+/** The area of a box in square degrees, to compare how much of the outage a view shows. */
+export const boxArea = (b: Bounds): number => (b[2] - b[0]) * (b[3] - b[1]);
+
 /**
  * The box around the shapes and the person's house, never smaller than about 400 m so a single point
  * (a village) is not zoomed to a rooftop.

@@ -38,6 +38,8 @@ export interface DetailAddress {
   street: { latin: string; cyrillic: string };
   name: string;
   houseNumber: number | null;
+  // The street of the saved address (to zoom the map to its part of the outage).
+  streetId: number | null;
   match: 'affected' | 'possible';
   reason: 'no_number' | 'partial' | 'unresolved' | 'same_name' | null;
 }
@@ -249,6 +251,7 @@ export function OutageDetailView(props: OutageDetailViewProps) {
             house={detail.mine.find((m) => m.point)?.point ?? null}
             color={s.mark}
             script={script}
+            ownStreetIds={props.addresses.flatMap((a) => (a.streetId === null ? [] : [a.streetId]))}
           />
         )}
         <Card gap={12}>

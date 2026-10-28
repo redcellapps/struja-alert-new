@@ -89,6 +89,8 @@ export const en: Deep<Messages> = {
     affectedStreets: 'Affected streets',
     possibleSameName:
       'Several streets have this name and the notice does not say which. We tell everyone on them.',
+    mapWhole: 'Whole outage',
+    mapMine: 'My address',
     mapSource: 'Map sources: OpenStreetMap, OpenMapTiles, OpenFreeMap. Opens the copyright page.',
     rawText: 'Original text from EDS',
     addToCalendar: 'Add to calendar',

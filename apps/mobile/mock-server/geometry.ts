@@ -12,7 +12,7 @@ const street = (streetId: number, name: string, geometry: unknown): Feature => (
 export const MOCK_GEOMETRY: OutageDetailDto['geometry'] = {
   type: 'FeatureCollection',
   features: [
-    street(18, 'Војводе Мишића', {
+    street(1, 'Војводе Мишића', {
       type: 'MultiLineString',
       coordinates: [
         [
@@ -94,7 +94,7 @@ export const MOCK_GEOMETRY: OutageDetailDto['geometry'] = {
         ],
       ],
     }),
-    street(318, 'Студеничка', {
+    street(2, 'Студеничка', {
       type: 'MultiLineString',
       coordinates: [
         [
@@ -123,7 +123,7 @@ export const MOCK_GEOMETRY: OutageDetailDto['geometry'] = {
         ],
       ],
     }),
-    street(0, 'Булевар Немањића', {
+    street(4, 'Булевар Немањића', {
       type: 'MultiLineString',
       coordinates: [
         [

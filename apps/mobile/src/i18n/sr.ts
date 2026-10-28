@@ -92,6 +92,8 @@ export const sr = {
     affectedStreets: 'Pogođene ulice',
     possibleSameName:
       'Više ulica nosi ovo ime, a obaveštenje ne kaže koja je. Zato javljamo svima na tim ulicama.',
+    mapWhole: 'Celo isključenje',
+    mapMine: 'Moja adresa',
     mapSource:
       'Izvor mape: OpenStreetMap, OpenMapTiles, OpenFreeMap. Otvara stranicu o autorskim pravima.',
     rawText: 'Originalni tekst iz EDS',
