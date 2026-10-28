@@ -59,7 +59,7 @@ describe('zero rows on every page, two fetches in a row', () => {
 
     await w.ingestRaw(
       urls[0] as string,
-      edsPage('25.11.2026.', [['Пантелеј', '08:00 - 09:00', 'Студеничке']]),
+      edsPage('25.11.2026.', [['Палилула - Ниш', '08:00 - 09:00', 'Студеничке']]),
     );
     await run();
     expect(await open('zero_rows')).toBe(0);

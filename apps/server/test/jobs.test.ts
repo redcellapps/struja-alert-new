@@ -213,7 +213,7 @@ describe('outage start and end signals', () => {
   });
 
   it('releases the claim when the sink fails, so the next tick retries', async () => {
-    await w.page('20.12.2026.', [['Пантелеј', '10:00 - 11:00', 'Студеничке']]);
+    await w.page('20.12.2026.', [['Палилула - Ниш', '10:00 - 11:00', 'Студеничке']]);
     const at = new Date('2026-12-20T09:00:30Z'); // 10:00:30 local (winter)
     let failOnce = true;
     const flaky: BoundarySink = {
@@ -231,7 +231,7 @@ describe('outage start and end signals', () => {
   });
 
   it('does not signal a stale boundary (the job runner was down for hours)', async () => {
-    await w.page('21.12.2026.', [['Пантелеј', '10:00 - 11:00', 'Чегарске']]);
+    await w.page('21.12.2026.', [['Нишка бања', '10:00 - 11:00', 'Чегарске']]);
     const sink = new FakeBoundarySink();
     const r = await boundaryTick(w.t.db, sink, new Date('2026-12-21T14:00:00Z')); // 4 hours later
     expect(r.started).toBe(0);

@@ -26,6 +26,7 @@ const street = (id: number, cyr: string, lat: string, norm: string, municipality
   nameNorm: norm,
   altNorms: [],
   municipality,
+  settlement: null as string | null,
 });
 
 export const gazetteer: GazetteerResponse = {
@@ -33,6 +34,15 @@ export const gazetteer: GazetteerResponse = {
   version: 1,
   etag: 'mock-1',
   streets: [
+    // two streets of one name, in different places: the search tells them apart by the settlement
+    {
+      ...street(6, 'Војводе Путника', 'Vojvode Putnika', 'vojvode putnika', 'Палилула - Ниш'),
+      settlement: 'Сточни трг',
+    },
+    {
+      ...street(7, 'Војводе Путника', 'Vojvode Putnika', 'vojvode putnika', 'Црвени крст'),
+      settlement: 'Трупале',
+    },
     street(1, 'Војводе Мишића', 'Vojvode Mišića', 'vojvode misica', 'Медијана'),
     street(2, 'Студеничка', 'Studenička', 'studenicka', 'Пантелеј'),
     street(3, 'Космајска', 'Kosmajska', 'kosmajska', 'Палилула - Ниш'),
@@ -80,6 +90,7 @@ const SEGMENTS: OutageDetailDto['segments'] = [
     raw: 'Војводе Мишића (непарни од 1 до 25, од 26 до 40)',
     kind: 'street',
     name: { latin: 'Vojvode Mišića', cyrillic: 'Војводе Мишића' },
+    streetId: 1,
     partial: false,
     ranges: [
       { raw: 'непарни од 1 до 25', from: 1, to: 25, parity: 'odd' },
@@ -90,6 +101,7 @@ const SEGMENTS: OutageDetailDto['segments'] = [
     raw: 'Булевар Немањића (парни од 2 до 40)',
     kind: 'street',
     name: { latin: 'Bulevar Nemanjića', cyrillic: 'Булевар Немањића' },
+    streetId: 4,
     partial: false,
     ranges: [{ raw: 'парни од 2 до 40', from: 2, to: 40, parity: 'even' }],
   },
@@ -97,6 +109,7 @@ const SEGMENTS: OutageDetailDto['segments'] = [
     raw: 'делови Студеничке',
     kind: 'street',
     name: { latin: 'Studenička', cyrillic: 'Студеничка' },
+    streetId: 2,
     partial: true,
     ranges: [],
   },
@@ -104,6 +117,7 @@ const SEGMENTS: OutageDetailDto['segments'] = [
     raw: 'Космајска',
     kind: 'street',
     name: { latin: 'Kosmajska', cyrillic: 'Космајска' },
+    streetId: 3,
     partial: false,
     ranges: [],
   },
@@ -156,6 +170,7 @@ export function detailFor(id: number, subscriptionId: number, now: Date): Outage
         raw: 'Војводе Мишића (непарни од 1 до 41)',
         kind: 'street',
         name: { latin: 'Vojvode Mišića', cyrillic: 'Војводе Мишића' },
+        streetId: 1,
         partial: false,
         ranges: [{ raw: 'непарни од 1 до 41', from: 1, to: 41, parity: 'odd' }],
       },
@@ -163,6 +178,7 @@ export function detailFor(id: number, subscriptionId: number, now: Date): Outage
         raw: 'делови Студеничке',
         kind: 'street',
         name: { latin: 'Studenička', cyrillic: 'Студеничка' },
+        streetId: 2,
         partial: true,
         ranges: [],
       },

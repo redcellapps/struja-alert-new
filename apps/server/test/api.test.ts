@@ -387,7 +387,7 @@ describe('a new address: shown on screen, not pushed (decision of 22 Oct)', () =
   const keep: [string, string, string] = ['Палилула - Ниш', '20:00 - 21:00', 'Требињске'];
 
   it('returns the already published outages, records them as told in the app, and pushes nothing', async () => {
-    await w.page(date, [['Пантелеј', '08:00 - 10:00', 'Студеничке'], keep]);
+    await w.page(date, [['Палилула - Ниш', '08:00 - 10:00', 'Студеничке'], keep]);
     const c = await register();
     const res = await call(c, 'POST', '/v1/subscriptions', { streetId: sid('studenicka') });
     const body = subscriptionWithOutagesSchema.parse(res.json());
@@ -395,7 +395,7 @@ describe('a new address: shown on screen, not pushed (decision of 22 Oct)', () =
     expect(body.outages[0]).toMatchObject({
       match: 'affected',
       status: 'active',
-      municipality: 'Пантелеј',
+      municipality: 'Палилула - Ниш',
     });
     expect(body.outages[0]?.startsAt).toBe('2026-11-10T07:00:00.000Z'); // 08:00 CET
 
@@ -412,7 +412,7 @@ describe('a new address: shown on screen, not pushed (decision of 22 Oct)', () =
   it('later changes still reach the person: "Izmena" for a changed time', async () => {
     const c = await register();
     await call(c, 'POST', '/v1/subscriptions', { streetId: sid('studenicka') });
-    await w.page(date, [['Пантелеј', '09:00 - 11:00', 'Студеничке'], keep]); // EDS moves it
+    await w.page(date, [['Палилула - Ниш', '09:00 - 11:00', 'Студеничке'], keep]); // EDS moves it
     await w.plan();
     await w.deliver();
     expect(delivered(c.token)).toHaveLength(1);
@@ -423,7 +423,7 @@ describe('a new address: shown on screen, not pushed (decision of 22 Oct)', () =
     const d = '11.11.2026.';
     const k: [string, string, string] = ['Палилула - Ниш', '20:00 - 21:00', 'Требињске'];
     const k2: [string, string, string] = ['Палилула - Ниш', '21:00 - 22:00', 'Космајске'];
-    await w.page(d, [['Пантелеј', '08:00 - 10:00', 'Чегарске'], k, k2]);
+    await w.page(d, [['Нишка бања', '08:00 - 10:00', 'Чегарске'], k, k2]);
     const c = await register();
     await call(c, 'POST', '/v1/subscriptions', { streetId: sid('cegarska') });
     await w.page(d, [k, k2]);
@@ -521,7 +521,7 @@ describe('outages for the app', () => {
 
   it('outage detail: parsed streets and ranges, the raw text verbatim, geometry, the source', async () => {
     const d3 = '16.11.2026.';
-    const raw = 'Чегарске (непарни бр. 9-53, парни бр. 30-44), Студеничке';
+    const raw = 'Чегарске (непарни бр. 9-53, парни бр. 30-44), Космајске';
     const page = await w.page(d3, [['Нишка бања', '12:00 - 14:00', raw], keep]);
     expect(page.inserted).toBe(2);
     const id = Number(
@@ -534,7 +534,9 @@ describe('outages for the app', () => {
       (await app.inject({ method: 'GET', url: `/v1/outages/${id}` })).json(),
     );
     expect(anon.rawStreets).toBe(raw);
-    expect(anon.segments.map((s) => s.name?.cyrillic)).toEqual(['Чегарска', 'Студеничка']);
+    expect(anon.segments.map((s) => s.name?.cyrillic)).toEqual(['Чегарска', 'Космајска']);
+    // each street segment says which street it is, so the app can follow exactly that one
+    expect(anon.segments.map((s) => s.streetId)).toEqual([sid('cegarska'), sid('kosmajska')]);
     expect(anon.segments[0]?.ranges).toEqual([
       { raw: 'непарни бр. 9-53', from: 9, to: 53, parity: 'odd' },
       { raw: 'парни бр. 30-44', from: 30, to: 44, parity: 'even' },

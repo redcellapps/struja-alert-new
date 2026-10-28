@@ -128,19 +128,20 @@ describe('other constraints', () => {
     const none = t.db.insert(subscription).values({ deviceId: x.device.id });
     await expect(none).rejects.toSatisfy((e) => pgCode(e) === '23514');
   });
-  it('street names are unique per city, aliases unique by normalized text', async () => {
+  it('a street is unique per city, name and cluster; aliases unique by normalized text', async () => {
+    const base = { city: 'Nis', nameCyrillic: 'Чегарска', nameNorm: 'cegarska' };
     const s = await t.db
       .insert(street)
-      .values({ city: 'Nis', nameCyrillic: 'Чегарска', nameNorm: 'cegarska' })
+      .values({ ...base, clusterKey: '100' })
       .returning();
-    await expect(
-      t.db.insert(street).values({ city: 'Nis', nameCyrillic: 'Чегарска', nameNorm: 'cegarska' }),
-    ).rejects.toSatisfy((e) => pgCode(e) === '23505');
+    await expect(t.db.insert(street).values({ ...base, clusterKey: '100' })).rejects.toSatisfy(
+      (e) => pgCode(e) === '23505',
+    );
+    // The same name in another place of the same city is a different street (BRIEF §3).
+    await expect(t.db.insert(street).values({ ...base, clusterKey: '200' })).resolves.toBeDefined();
     // The same name in another city is a different street.
     await expect(
-      t.db
-        .insert(street)
-        .values({ city: 'Kraljevo', nameCyrillic: 'Чегарска', nameNorm: 'cegarska' }),
+      t.db.insert(street).values({ ...base, city: 'Kraljevo', clusterKey: '100' }),
     ).resolves.toBeDefined();
     await t.db.insert(streetAlias).values({
       streetId: s[0]!.id,

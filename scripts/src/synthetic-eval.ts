@@ -90,6 +90,8 @@ const byStep = new Map<string, { accepted: number; correct: number }>();
 const wrongExamples: string[] = [];
 const names = new Set(gaz.streets.flatMap((s) => [s.nameNorm, ...(s.altNorms ?? [])]));
 let collisions = 0;
+let ambiguous = 0;
+let ambiguousMissingTruth = 0;
 for (const c of cases) {
   // The perturbed input is literally another real street's name: unanswerable by construction.
   if (
@@ -104,6 +106,11 @@ for (const c of cases) {
   const r = resolver.resolve(c.input, { municipality: c.truth?.municipality ?? null });
   const st = stats.get(c.kind) ?? { n: 0, accepted: 0, correct: 0, wrong: 0 };
   st.n++;
+  // a name several streets share and the municipality alone cannot place: none accepted, all offered
+  if (r.by === 'ambiguous') {
+    ambiguous++;
+    if (c.truth && !r.candidates.some((x) => x.street === c.truth)) ambiguousMissingTruth++;
+  }
   if (r.street) {
     st.accepted++;
     const step = byStep.get(r.by) ?? { accepted: 0, correct: 0 };
@@ -147,6 +154,10 @@ console.log(
       acceptedRate: pct(ta, tn),
       precisionOfAccepted: pct(tc, ta),
       excludedCollisions: collisions,
+      // same-name streets: cases left ambiguous (every candidate offered), and how many of those
+      // did not even list the true street (must be 0: that would be a miss)
+      ambiguousCases: ambiguous,
+      ambiguousWithoutTruth: ambiguousMissingTruth,
       byKind: out,
       byStep: Object.fromEntries(
         [...byStep].map(([k, v]) => [

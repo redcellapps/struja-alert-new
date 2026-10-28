@@ -53,7 +53,7 @@ export function addressRanges(
   segment: Segment | undefined,
   houseNumber: number | null,
   match: 'affected' | 'possible',
-  reason: 'no_number' | 'partial' | 'unresolved' | null,
+  reason: 'no_number' | 'partial' | 'unresolved' | 'same_name' | null,
   t: T,
 ): AddressRanges {
   const ranges = segment?.ranges ?? [];
@@ -70,7 +70,12 @@ export function addressRanges(
   if (match === 'possible') {
     return {
       chips,
-      note: reason === 'no_number' ? t('detail.possibleNoNumber') : t('status.possible'),
+      note:
+        reason === 'no_number'
+          ? t('detail.possibleNoNumber')
+          : reason === 'same_name'
+            ? t('detail.possibleSameName')
+            : t('status.possible'),
       askForNumber: reason === 'no_number' && houseNumber === null,
     };
   }

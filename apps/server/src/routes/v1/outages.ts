@@ -74,6 +74,15 @@ export function outageRoutes(app: FastifyInstance, deps: AppDeps): void {
     const streetIds = [
       ...new Set(rows.map((r) => r.streetId).filter((x): x is number => x !== null)),
     ];
+    // A name that several streets share and the row could not place: every one of them is drawn
+    // (as a candidate), so nobody is told it is somewhere it is not.
+    const candidateIds = [
+      ...new Set(
+        rows
+          .filter((r) => r.resolvedBy === 'ambiguous' && Array.isArray(r.candidates))
+          .flatMap((r) => (r.candidates as { id: number | string }[]).map((c) => Number(c.id))),
+      ),
+    ].filter((x) => Number.isInteger(x) && !streetIds.includes(x));
     const settlementIds = [
       ...new Set(rows.map((r) => r.settlementId).filter((x): x is number => x !== null)),
     ];
@@ -94,6 +103,8 @@ export function outageRoutes(app: FastifyInstance, deps: AppDeps): void {
       return {
         raw: r.rawSegment,
         kind: s ? ('street' as const) : p ? ('settlement' as const) : ('unresolved' as const),
+        // The street itself, so the app can follow exactly this one (null when it is not one street).
+        streetId: s ? s.id : null,
         name: named
           ? { latin: latin(named.nameCyrillic, named.nameLatin), cyrillic: named.nameCyrillic }
           : null,
@@ -116,17 +127,23 @@ export function outageRoutes(app: FastifyInstance, deps: AppDeps): void {
 
     // Street geometry (simplified to ~1 m) for the mini map.
     const features: unknown[] = [];
-    if (streetIds.length) {
+    const drawIds = [...streetIds, ...candidateIds];
+    if (drawIds.length) {
       const g = await deps.db.execute(sql`
         SELECT id, name_cyrillic, ST_AsGeoJSON(geom, 5)::json AS geometry
         FROM street WHERE id IN (${sql.join(
-          streetIds.map((x) => sql`${x}`),
+          drawIds.map((x) => sql`${x}`),
           sql`, `,
         )}) AND geom IS NOT NULL`);
       for (const r of g.rows as { id: number; name_cyrillic: string; geometry: unknown }[]) {
         features.push({
           type: 'Feature',
-          properties: { streetId: r.id, name: r.name_cyrillic },
+          properties: {
+            streetId: r.id,
+            name: r.name_cyrillic,
+            // one of several streets the notice may mean
+            candidate: !streetIds.includes(r.id),
+          },
           geometry: r.geometry,
         });
       }

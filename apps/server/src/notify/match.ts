@@ -94,6 +94,18 @@ export function matchSubscription(
       consider(matchSegment(sub, seg));
       continue;
     }
+    // A name that several streets share, and the notice could not say which: every one of those
+    // streets may be meant, so a saved address on any of them is "possibly affected" (a false alarm
+    // over a miss). Not only in the safety net: this is the decision itself.
+    if (
+      first.resolvedBy === 'ambiguous' &&
+      first.streetId === null &&
+      sub.streetId !== null &&
+      (first.candidates ?? []).some((c) => Number(c.id) === sub.streetId)
+    ) {
+      consider({ kind: 'possible', reason: 'same_name' });
+      continue;
+    }
     if (
       opts.safetyNet &&
       first.streetId === null &&

@@ -47,6 +47,10 @@ export const resolvedByEnum = pgEnum('resolved_by', [
   'heuristic',
   'scored',
   'manual',
+  // Several streets share the name: placed by municipality or distance, or left ambiguous (every
+  // one of them is then a candidate).
+  'placed',
+  'ambiguous',
   'unresolved',
 ]);
 export const parityEnum = pgEnum('parity', ['odd', 'even']);
@@ -79,6 +83,11 @@ export const street = pgTable(
     nameLatin: text('name_latin'),
     nameCyrillic: text('name_cyrillic').notNull(),
     nameNorm: text('name_norm').notNull(),
+    // Streets with one name in different places are different streets: the key is the smallest OSM
+    // way id of the street. Null only on rows from before the split (the import replaces them).
+    clusterKey: text('cluster_key'),
+    // The nearest settlement, in Cyrillic: what tells same-named streets apart in the app.
+    settlementName: text('settlement_name'),
     // alt_name / old_name / name:sr-Latn, normalized: extra exact names for the same street.
     altNorms: text('alt_norms')
       .array()
@@ -92,7 +101,7 @@ export const street = pgTable(
     geom: geometry('geom', 'MultiLineString'),
   },
   (t) => [
-    unique('street_city_name_norm_unique').on(t.city, t.nameNorm),
+    unique('street_city_name_norm_cluster_unique').on(t.city, t.nameNorm, t.clusterKey),
     index('street_geom_gix').using('gist', t.geom),
     index('street_name_norm_trgm').using('gin', sql`${t.nameNorm} gin_trgm_ops`),
   ],

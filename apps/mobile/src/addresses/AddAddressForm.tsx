@@ -18,7 +18,7 @@ import { useTheme } from '../design/theme';
 import { CARD_PADDING } from '../design/tokens';
 import {
   parseHouseNumber,
-  placeMunicipality,
+  placeDetail,
   placeName,
   search,
   type GazetteerIndex,
@@ -174,7 +174,7 @@ export function AddAddressForm({
               <AppText variant="label" color="textSecondary">
                 {picked.kind === 'settlement'
                   ? t('address.settlement')
-                  : placeMunicipality(picked, script)}
+                  : placeDetail(picked, script)}
               </AppText>
             </View>
             <Button
@@ -213,7 +213,7 @@ export function AddAddressForm({
             <Pressable
               key={`${p.kind}-${p.id}`}
               accessibilityRole="button"
-              accessibilityLabel={`${placeName(p, script)}, ${p.kind === 'settlement' ? t('address.settlement') : (placeMunicipality(p, script) ?? '')}`}
+              accessibilityLabel={`${placeName(p, script)}, ${p.kind === 'settlement' ? t('address.settlement') : (placeDetail(p, script) ?? '')}`}
               onPress={() => {
                 haptics.selection();
                 setPicked(p);
@@ -228,7 +228,7 @@ export function AddAddressForm({
             >
               <AppText variant="bodyStrong">{placeName(p, script)}</AppText>
               <AppText variant="label" color="textSecondary">
-                {p.kind === 'settlement' ? t('address.settlement') : placeMunicipality(p, script)}
+                {p.kind === 'settlement' ? t('address.settlement') : placeDetail(p, script)}
               </AppText>
             </Pressable>
           ))}

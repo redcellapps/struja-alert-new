@@ -1,7 +1,15 @@
 import type { GazetteerResponse } from '@struja/shared';
 import { gazetteer } from '../mock-server/fixtures';
 import { readCached, refreshGazetteer } from '../src/gazetteer/cache';
-import { buildIndex, parseHouseNumber, placeName, search } from '../src/gazetteer/search';
+import {
+  buildIndex,
+  findStreetById,
+  parseHouseNumber,
+  placeDetail,
+  placeName,
+  search,
+  type Place,
+} from '../src/gazetteer/search';
 import { memoryStorage } from '../src/store/storage';
 
 const index = buildIndex(gazetteer);
@@ -44,6 +52,7 @@ describe('offline street search', () => {
         nameCyrillic: `Нишка ${i}`,
         nameLatin: `Niška ${i}`,
         nameNorm: `niska ${i}`,
+        settlement: null,
         altNorms: [],
         municipality: null,
       })).concat([
@@ -52,6 +61,7 @@ describe('offline street search', () => {
           nameCyrillic: 'Нишка',
           nameLatin: 'Niška',
           nameNorm: 'niska',
+          settlement: null,
           altNorms: [],
           municipality: null,
         },
@@ -80,6 +90,7 @@ describe('offline street search', () => {
           nameCyrillic: 'Војводе Мишића',
           nameLatin: 'Vojvode Mišića',
           nameNorm: 'vojvode misica',
+          settlement: null,
           altNorms: ['dr zorana djindjica'],
           municipality: null,
         },
@@ -150,5 +161,65 @@ describe('gazetteer cache', () => {
         'nis',
       ),
     ).rejects.toThrow('offline');
+  });
+});
+
+describe('streets that share a name', () => {
+  const g: GazetteerResponse = {
+    ...gazetteer,
+    streets: [
+      {
+        id: 15,
+        nameCyrillic: 'Војводе Путника',
+        nameLatin: 'Vojvode Putnika',
+        nameNorm: 'vojvode putnika',
+        altNorms: [],
+        municipality: 'Палилула - Ниш',
+        settlement: 'Сточни трг',
+      },
+      {
+        id: 16,
+        nameCyrillic: 'Војводе Путника',
+        nameLatin: 'Vojvode Putnika',
+        nameNorm: 'vojvode putnika',
+        altNorms: [],
+        municipality: 'Црвени крст',
+        settlement: 'Трупале',
+      },
+      {
+        id: 20,
+        nameCyrillic: 'Космајска',
+        nameLatin: 'Kosmajska',
+        nameNorm: 'kosmajska',
+        altNorms: [],
+        municipality: 'Палилула - Ниш',
+        settlement: 'Паси Пољана',
+      },
+    ],
+    settlements: [],
+  };
+  const index = buildIndex(g);
+
+  it('finds both, and tells them apart by the settlement under the name', () => {
+    const hits = search(index, 'vojvode putnika');
+    expect(hits.map((p) => p.id).sort()).toEqual([15, 16]);
+    expect(hits.every((p) => p.repeated)).toBe(true);
+    const trupale = hits.find((p) => p.id === 16) as Place;
+    expect(placeDetail(trupale, 'latn')).toBe('Trupale · Crveni krst');
+    expect(placeDetail(trupale, 'cyrl')).toBe('Трупале · Црвени крст');
+    expect(placeDetail(hits.find((p) => p.id === 15) as Place, 'latn')).toBe(
+      'Stočni trg · Palilula - Niš',
+    );
+  });
+
+  it('shows only the municipality for a name that is not shared', () => {
+    const kosmajska = search(index, 'kosmajska')[0] as Place;
+    expect(kosmajska.repeated).toBe(false);
+    expect(placeDetail(kosmajska, 'latn')).toBe('Palilula - Niš');
+  });
+
+  it('finds a street by its id, so following an outage follows exactly that street', () => {
+    expect(findStreetById(index, 16)?.settlement).toBe('Трупале');
+    expect(findStreetById(index, 999)).toBeUndefined();
   });
 });

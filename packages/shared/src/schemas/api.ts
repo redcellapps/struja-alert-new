@@ -100,7 +100,7 @@ export const addressOutageSchema = z.object({
   revision: z.number().int(),
   // "possible" = Moguće pogođeno: why we cannot be sure.
   match: z.enum(['affected', 'possible']),
-  reason: z.enum(['no_number', 'partial', 'unresolved']).nullable(),
+  reason: z.enum(['no_number', 'partial', 'unresolved', 'same_name']).nullable(),
 });
 export type AddressOutageDto = z.infer<typeof addressOutageSchema>;
 
@@ -121,6 +121,9 @@ export const outageSegmentSchema = z.object({
   raw: z.string(),
   kind: z.enum(['street', 'settlement', 'unresolved']),
   name: z.object({ latin: z.string(), cyrillic: z.string() }).nullable(),
+  // The street this segment is, to follow exactly that one; null for a settlement, or a name that
+  // several streets share and the notice does not place.
+  streetId: z.number().int().nullable(),
   partial: z.boolean(),
   ranges: z.array(
     z.object({
@@ -155,7 +158,7 @@ export const outageDetailSchema = z.object({
     z.object({
       subscriptionId: z.number().int(),
       match: z.enum(['affected', 'possible']),
-      reason: z.enum(['no_number', 'partial', 'unresolved']).nullable(),
+      reason: z.enum(['no_number', 'partial', 'unresolved', 'same_name']).nullable(),
       // The person's house on the map: only for an address with a number that OSM has a point for.
       point: z.object({ lng: z.number(), lat: z.number() }).nullable(),
     }),

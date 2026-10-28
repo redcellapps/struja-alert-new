@@ -197,7 +197,7 @@ describe('the spot check of auto-accepted matches', () => {
 
   it('"correct" records the review; "wrong" sends the segment back to the queue', async () => {
     const ok = await scoredSegment('22.11.2026.', 'Требињске');
-    const bad = await scoredSegment('23.11.2026.', 'Чегарске');
+    const bad = await scoredSegment('23.11.2026.', 'Бубањске долине');
     const list = (await get('/admin/spot-checks')).json() as { items: { rowIds: number[] }[] };
     const okItem = list.items.find((i) => i.rowIds.includes(ok));
     const badItem = list.items.find((i) => i.rowIds.includes(bad));

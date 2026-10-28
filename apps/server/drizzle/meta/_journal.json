@@ -71,6 +71,13 @@
       "when": 1792700690096,
       "tag": "0009_settlement_alias",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1793179863378,
+      "tag": "0010_same_name_streets",
+      "breakpoints": true
     }
   ]
 }

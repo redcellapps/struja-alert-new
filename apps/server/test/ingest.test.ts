@@ -84,7 +84,10 @@ describe('replaying the real Niš pages (22 Oct 2026)', () => {
     expect(r.rows).toHaveLength(12); // 10 segments; two of them have two ranges
     for (const row of r.rows) {
       expect(row.resolved_by, String(row.raw_segment)).not.toBe('unresolved');
-      expect(row.street, String(row.raw_segment)).not.toBeNull();
+      // a name that several streets share and the row cannot place has no street, but every candidate
+      if (row.resolved_by !== 'ambiguous') {
+        expect(row.street, String(row.raw_segment)).not.toBeNull();
+      }
     }
     const cegarska = r.rows.filter((x) => x.street === 'Чегарска');
     expect(cegarska.map((x) => [x.parity, x.house_from, x.house_to])).toEqual([

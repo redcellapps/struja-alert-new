@@ -24,8 +24,10 @@ export {
 } from './gazetteer.ts';
 export {
   buildNisGazetteer,
+  clusterWays,
   nisMunicipality,
   NIS_MUNICIPALITY_KEYS,
+  SAME_STREET_GAP_METERS,
   type MunicipalitySnapshot,
   type NisGazetteer,
   type NisMunicipality,

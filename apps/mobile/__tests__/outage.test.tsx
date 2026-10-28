@@ -55,6 +55,7 @@ const detail = (over: Partial<OutageDetailDto> = {}): OutageDetailDto => ({
       raw: 'Војводе Мишића (непарни од 1 до 41)',
       kind: 'street',
       name: { latin: 'Vojvode Mišića', cyrillic: 'Војводе Мишића' },
+      streetId: 1,
       partial: false,
       ranges: [
         { raw: 'непарни од 1 до 41', from: 1, to: 41, parity: 'odd' },
@@ -65,6 +66,7 @@ const detail = (over: Partial<OutageDetailDto> = {}): OutageDetailDto => ({
       raw: 'делови Студеничке',
       kind: 'street',
       name: { latin: 'Studenička', cyrillic: 'Студеничка' },
+      streetId: 2,
       partial: true,
       ranges: [],
     },
@@ -72,10 +74,11 @@ const detail = (over: Partial<OutageDetailDto> = {}): OutageDetailDto => ({
       raw: 'Космајска',
       kind: 'street',
       name: { latin: 'Kosmajska', cyrillic: 'Космајска' },
+      streetId: 3,
       partial: false,
       ranges: [],
     },
-    { raw: 'неки део', kind: 'unresolved', name: null, partial: false, ranges: [] },
+    { raw: 'неки део', kind: 'unresolved', name: null, streetId: null, partial: false, ranges: [] },
   ],
   geometry: { type: 'FeatureCollection', features: [] },
   source: { name: 'Elektrodistribucija Srbije', url: 'https://example.test/eds' },
@@ -142,6 +145,14 @@ describe('ranges', () => {
     expect(info.note).toBe('Moguće pogođeno — niste uneli broj');
     expect(info.askForNumber).toBe(true);
     expect(info.chips.every((c) => !c.contains)).toBe(true);
+  });
+
+  it('says plainly that several streets share the name and the notice does not say which', () => {
+    // the segment of an ambiguous name is not one street, so there is nothing to show but the doubt
+    const info = addressRanges(undefined, 12, 'possible', 'same_name', t);
+    expect(info.note).toBe(t('detail.possibleSameName'));
+    expect(info.note).toMatch(/Više ulica/);
+    expect(info.askForNumber).toBe(false);
   });
 
   it('a partial or unresolved doubt does not ask for a number', () => {

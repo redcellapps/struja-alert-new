@@ -111,6 +111,14 @@ describe('"Moguće pogođeno"', () => {
       'nije sa sigurnošću prepoznata',
     );
   });
+  it('says that several streets share the name when the notice does not place it', () => {
+    expect(renderMessage(base({ possible: 'same_name' }), o).body).toContain(
+      'Više ulica nosi ovo ime, a obaveštenje ne kaže koja je.',
+    );
+    expect(
+      renderMessage(base({ possible: 'same_name' }), { script: 'latn', locale: 'en' }).body,
+    ).toContain('Several streets have this name and the notice does not say which.');
+  });
   it('is generated in Cyrillic as well', () => {
     expect(
       renderMessage(base({ possible: 'partial' }), { script: 'cyrl', locale: 'sr' }).title,

@@ -45,10 +45,10 @@ export function rowInScope(city: string, row: PageRow): boolean {
   return city === 'Nis' && nisMunicipality(row.opstina) !== null;
 }
 
-function fmtCandidates(candidates: readonly CandidateRef[]): string {
-  return candidates
-    .slice(0, 3)
-    .map((c) => `${c.name} (${c.score.toFixed(2)})`)
+// Streets that share a name are told apart by their settlement; an ambiguous name lists all of them.
+function fmtCandidates(candidates: readonly CandidateRef[], all = false): string {
+  return (all ? candidates : candidates.slice(0, 3))
+    .map((c) => `${c.name}${c.settlement ? ` · ${c.settlement}` : ''} (${c.score.toFixed(2)})`)
     .join('; ');
 }
 
@@ -103,7 +103,10 @@ export function buildLabels(
           proposed = (res.street ?? res.settlement)?.name ?? '';
           resolvedBy = res.by;
           score = res.score === null ? '' : res.score.toFixed(2);
-          candidates = fmtCandidates(res.candidates);
+          candidates =
+            res.by === 'placed' && res.street?.settlement
+              ? `placed in ${res.street.settlement}`
+              : fmtCandidates(res.candidates, res.by === 'ambiguous');
         }
         rows.set(key, {
           key,
@@ -204,8 +207,12 @@ export function aliasSeed(
   const out = new Map<string, AliasSeedEntry>();
   for (const r of rows) {
     if (!r.in_scope || r.kind !== 'street' || !r.proposed) continue;
-    if (!['form', 'fuzzy', 'heuristic', 'scored'].includes(r.resolved_by)) continue;
+    // `placed`: the spelling of a name that several streets share (the alias names the street, and is
+    // placed like the name itself)
+    if (!['form', 'fuzzy', 'heuristic', 'scored', 'placed'].includes(r.resolved_by)) continue;
     const raw_norm = normalizeName(r.segment_name);
+    // the plain name of a street is no alias (a shared name matched by place is exact in spelling)
+    if (raw_norm === normalizeName(r.proposed)) continue;
     out.set(raw_norm, {
       raw: r.segment_name,
       raw_norm,

@@ -9,7 +9,8 @@ export const GATE = {
   precisionTarget: 0.99,
 } as const;
 
-const AUTO_ACCEPT = new Set(['exact', 'alias', 'form', 'fuzzy', 'heuristic', 'scored']);
+// `placed`: the name belongs to several streets and the row's municipality or its other streets chose one.
+const AUTO_ACCEPT = new Set(['exact', 'alias', 'form', 'fuzzy', 'heuristic', 'scored', 'placed']);
 
 // 95% Wilson interval lower bound: how low the true rate could plausibly be given the sample.
 export function wilsonLower(correct: number, n: number, z = 1.96): number {
@@ -28,6 +29,9 @@ export interface Verdict {
   pendingReview: number;
   // Resolution: share of in-scope street segments that got an automatic answer (n = all in scope).
   resolved: number;
+  // Segments whose name several streets share and nothing in the row chose between them: every
+  // one of those streets is told "Moguće", so nobody is missed, but it is not an automatic answer.
+  ambiguous: number;
   resolutionRate: number | null;
   // Precision: among confirmed auto-accepts, the share whose proposal was right (n = confirmed accepts).
   confirmedAutoAccepts: number;
@@ -60,6 +64,7 @@ export function measureGate(csvText: string): Verdict {
   ].map(col) as [number, number, number, number, number];
   const sample = rows.filter((r) => r[iScope] === 'true' && r[iKind] === 'street');
   const resolved = sample.filter((r) => (r[iProp] ?? '') !== '').length;
+  const ambiguous = sample.filter((r) => (r[iBy] ?? '') === 'ambiguous').length;
   const confirmedRows = sample.filter((r) => (r[iConf] ?? '').trim() !== '');
   const accepts = confirmedRows.filter(
     (r) => AUTO_ACCEPT.has(r[iBy] ?? '') && (r[iProp] ?? '') !== '',
@@ -93,6 +98,7 @@ export function measureGate(csvText: string): Verdict {
     confirmed: confirmedRows.length,
     pendingReview: n - confirmedRows.length,
     resolved,
+    ambiguous,
     resolutionRate,
     confirmedAutoAccepts: accepts.length,
     correctAutoAccepts: correct,
@@ -115,6 +121,7 @@ export function formatVerdict(v: Verdict): string {
     `Phase 1 gate (in-scope Niš street segments only): ${v.status}`,
     `  sample: ${v.inScopeStreetSegments} in-scope segments, ${v.confirmed} confirmed, ${v.pendingReview} pending review`,
     `  automatic resolution: ${pct(v.resolutionRate)} (${v.resolved}/${v.inScopeStreetSegments}); target ≥ ${GATE.resolutionTarget * 100}%`,
+    `  ambiguous (a name several streets share, none chosen, all told "Moguće"): ${v.ambiguous}`,
     `  auto-accept precision: ${pct(v.precision)} (${v.correctAutoAccepts}/${v.confirmedAutoAccepts} confirmed accepts), 95% lower bound ${pct(v.precisionLower95)}; target ≥ ${GATE.precisionTarget * 100}%`,
     `  by step (correct/confirmed): ${steps || 'none yet'}`,
     `  ${v.note}`,

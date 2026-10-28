@@ -67,8 +67,8 @@ describe('a truncated page (HTTP 200, cut off mid-row)', () => {
 describe('an empty-table page when the previous fetch had rows', () => {
   const date = '05.12.2026.';
   const rows: [string, string, string][] = [
-    ['Пантелеј', '08:00 - 09:00', 'Студеничке'],
-    ['Пантелеј', '09:00 - 10:00', 'Чегарске'],
+    ['Палилула - Ниш', '08:00 - 09:00', 'Студеничке'],
+    ['Нишка бања', '09:00 - 10:00', 'Чегарске'],
     ['Медијана', '10:00 - 11:00', 'Космајске'],
     ['Медијана', '11:00 - 12:00', 'Требињске'],
     ['Црвени крст', '12:00 - 13:00', 'Војводе Путника'],
@@ -99,8 +99,8 @@ describe('an empty-table page when the previous fetch had rows', () => {
 
 describe('the boundary: "fewer than half"', () => {
   const base: [string, string, string][] = [
-    ['Пантелеј', '08:00 - 09:00', 'Студеничке'],
-    ['Пантелеј', '09:00 - 10:00', 'Чегарске'],
+    ['Палилула - Ниш', '08:00 - 09:00', 'Студеничке'],
+    ['Нишка бања', '09:00 - 10:00', 'Чегарске'],
     ['Медијана', '10:00 - 11:00', 'Космајске'],
     ['Медијана', '11:00 - 12:00', 'Требињске'],
     ['Црвени крст', '12:00 - 13:00', 'Војводе Путника'],
@@ -130,7 +130,7 @@ describe('the boundary: "fewer than half"', () => {
 describe('small pages follow the normal rule (baseline under 5 rows)', () => {
   it('one outage to an empty table is an ordinary cancellation after two fetches, not a broken page', async () => {
     const date = '11.12.2026.';
-    await w.page(date, [['Пантелеј', '08:00 - 09:00', 'Студеничке']]);
+    await w.page(date, [['Палилула - Ниш', '08:00 - 09:00', 'Студеничке']]);
     expect(await w.page(date, [])).toMatchObject({ health: 'ok', missing: 1, cancelled: 0 });
     expect(await w.page(date, [])).toMatchObject({ health: 'ok', missing: 1, cancelled: 1 });
   });
@@ -199,8 +199,8 @@ describe('a page with no outage table at all', () => {
 describe('flip-flop alert: an outage that switches version more than twice', () => {
   const date = '10.12.2026.';
   const keep: [string, string, string] = ['Палилула - Ниш', '20:00 - 21:00', 'Требињске'];
-  const early: [string, string, string] = ['Пантелеј', '08:00 - 10:00', 'Студеничке'];
-  const late: [string, string, string] = ['Пантелеј', '09:00 - 11:00', 'Студеничке'];
+  const early: [string, string, string] = ['Палилула - Ниш', '08:00 - 10:00', 'Студеничке'];
+  const late: [string, string, string] = ['Палилула - Ниш', '09:00 - 11:00', 'Студеничке'];
 
   it('two switches (A -> B -> A) raise nothing, the third (A -> B -> A -> B) raises one alert', async () => {
     await w.page(date, [early, keep]);
@@ -221,7 +221,7 @@ describe('the previous behaviour that must not change', () => {
       ['Палилула - Ниш', '12:00 - 13:00', 'Требињске'],
       ['Палилула - Ниш', '13:00 - 14:00', 'Космајске'],
     ];
-    await w.page(date, [['Пантелеј', '08:00 - 10:00', 'Студеничке'], ...keep]);
+    await w.page(date, [['Палилула - Ниш', '08:00 - 10:00', 'Студеничке'], ...keep]);
     expect(await w.page(date, keep)).toMatchObject({ health: 'ok', missing: 1, cancelled: 0 });
     expect(await w.page(date, keep)).toMatchObject({ health: 'ok', missing: 1, cancelled: 1 });
   });

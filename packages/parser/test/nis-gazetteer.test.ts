@@ -4,8 +4,9 @@ import {
   buildNisGazetteer,
   decodePage,
   nisMunicipality,
-  normalizeName,
   parsePage,
+  resolveRow,
+  Resolver,
   splitUlice,
   StreetIndex,
   type MunicipalitySnapshot,
@@ -18,7 +19,7 @@ const EDS = new URL('../../../fixtures/eds/manual-20261022T1202Z/', import.meta.
 const json = (name: string) => JSON.parse(readFileSync(new URL(name, OSM), 'utf8'));
 
 let gaz: NisGazetteer;
-let streets: StreetIndex;
+let resolver: Resolver;
 beforeAll(() => {
   const admin = json('nis-admin-areas.json').elements.filter(
     (e: { tags: Record<string, string> }) => e.tags.admin_level === '8',
@@ -42,7 +43,7 @@ beforeAll(() => {
       };
     });
   gaz = buildNisGazetteer(json('nis-streets.json').elements, muns);
-  streets = new StreetIndex(gaz.streets);
+  resolver = new Resolver(gaz.streets);
 });
 
 describe('Niš gazetteer from the real OSM snapshots', () => {
@@ -91,15 +92,31 @@ describe('every in-scope Niš segment in the collected EDS pages', () => {
       ['Друга Нишавска прилаз два', 'Друга Нишавска прилаз 2'],
     ]);
     const seen = new Set<string>();
+    const settlements = new StreetIndex(gaz.settlements);
     for (const row of rows) {
-      for (const seg of splitUlice(row.ulice)) {
-        const res = streets.resolve(normalizeName(seg.name));
+      const resolutions = resolveRow(splitUlice(row.ulice), {
+        resolver,
+        settlements,
+        municipality: nisMunicipality(row.opstina),
+      });
+      for (const res of resolutions) {
+        const seg = res.segment;
         expect(res.by, `${seg.name} (${row.opstina})`).not.toBe('unresolved');
-        expect(res.by, seg.name).not.toBe('ambiguous');
         const want = expected.get(seg.name);
-        if (want) {
+        if (res.by === 'ambiguous') {
+          // Several streets share the name and the row cannot tell which: no street is chosen, and
+          // every candidate is a street of that name (a false alarm over a miss, never a wrong street).
+          expect(res.street, seg.name).toBeNull();
+          expect(res.candidates.length, seg.name).toBeGreaterThan(1);
+          for (const c of res.candidates) expect(c.name, seg.name).toBe(want);
+        } else if (want) {
           expect(res.street?.name, seg.name).toBe(want);
-          seen.add(seg.name);
+        }
+        if (want) seen.add(seg.name);
+        // Vojvode Putnika (Palilula): the city street, not the one in Трупале (Црвени Крст)
+        if (seg.name === 'Војводе Путника') {
+          expect(res.by, row.opstina).toBe('placed');
+          expect(res.street?.municipalities, row.opstina).toContain('palilula');
         }
       }
     }

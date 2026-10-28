@@ -14,6 +14,7 @@ import {
 import { planEveningBefore, planNotifications, planSafetyNet } from '../src/notify/plan.ts';
 import { FakePushProvider } from '../src/notify/provider.ts';
 import { startTestDb, type TestDb } from './helpers/db.ts';
+import { PLACED_IN } from './helpers/world.ts';
 
 // End to end on a real database with the real gazetteer: ingest -> plan -> deliver (fake push).
 // Winter time (UTC+1) applies to all dates used here (after 25 Oct 2026).
@@ -35,7 +36,12 @@ const provider = new FakePushProvider();
 const NOW = new Date('2026-11-02T10:00:00Z'); // 11:00 local, Monday
 let seq = 0;
 
-const sid = (norm: string) => gaz.streets.find((s) => s.nameNorm === norm)?.id as number;
+// Names that several streets share (Студеничка, Чегарска): the street in the municipality the rows name.
+const sid = (norm: string) => {
+  const same = gaz.streets.filter((s) => s.nameNorm === norm);
+  const mun = PLACED_IN[norm];
+  return (mun ? same.find((s) => s.municipalities.includes(mun)) : same[0])?.id as number;
+};
 
 async function addSub(opts: {
   norm: string;
@@ -121,7 +127,7 @@ describe('new outages', () => {
     const a = await addSub({ norm: 'studenicka' });
     const cyr = await addSub({ norm: 'studenicka', script: 'cyrl' });
     const other = await addSub({ norm: 'cegarska' });
-    await page('10.11.2026.', [['Пантелеј', '08:00 - 10:00', 'Студеничке']]);
+    await page('10.11.2026.', [['Палилула - Ниш', '08:00 - 10:00', 'Студеничке']]);
     const r = await plan();
     expect(r.planned).toBeGreaterThanOrEqual(2);
     await deliver();
@@ -191,13 +197,13 @@ describe('rule 1: a changed outage sends only "Izmena" to people already notifie
   it('"Izmena" to the notified, a plain "new" to someone who was not told before, never both', async () => {
     const date = '11.11.2026.';
     const told = await addSub({ norm: 'studenicka' });
-    await page(date, [['Пантелеј', '08:00 - 10:00', 'Студеничке']]);
+    await page(date, [['Палилула - Ниш', '08:00 - 10:00', 'Студеничке']]);
     await plan();
     await deliver();
     expect(titles(told.token)).toHaveLength(1);
 
     const late = await addSub({ norm: 'studenicka' }); // subscribed after the first notice
-    await page(date, [['Пантелеј', '09:00 - 11:00', 'Студеничке']]); // the time changes
+    await page(date, [['Палилула - Ниш', '09:00 - 11:00', 'Студеничке']]); // the time changes
     await plan();
     await deliver();
 
@@ -217,13 +223,13 @@ describe('rule 2: an edited street list notifies only the difference', () => {
     const date = '12.11.2026.';
     const stays = await addSub({ norm: 'studenicka' });
     const added = await addSub({ norm: 'kosmajska' });
-    await page(date, [['Пантелеј', '08:00 - 10:00', 'Студеничке']]);
+    await page(date, [['Палилула - Ниш', '08:00 - 10:00', 'Студеничке']]);
     await plan();
     await deliver();
     expect(titles(stays.token)).toHaveLength(1);
     expect(titles(added.token)).toEqual([]);
 
-    await page(date, [['Пантелеј', '08:00 - 10:00', 'Студеничке, Космајске']]);
+    await page(date, [['Палилула - Ниш', '08:00 - 10:00', 'Студеничке, Космајске']]);
     await plan();
     await deliver();
     expect(titles(stays.token)).toHaveLength(1); // nothing new for an unchanged street
@@ -236,12 +242,12 @@ describe('rule 2: an edited street list notifies only the difference', () => {
     const date = '13.11.2026.';
     const stays = await addSub({ norm: 'studenicka' });
     const removed = await addSub({ norm: 'trebinjska' });
-    await page(date, [['Пантелеј', '08:00 - 10:00', 'Студеничке, Требињске']]);
+    await page(date, [['Палилула - Ниш', '08:00 - 10:00', 'Студеничке, Требињске']]);
     await plan();
     await deliver();
     expect(titles(removed.token)).toHaveLength(1);
 
-    await page(date, [['Пантелеј', '08:00 - 10:00', 'Студеничке']]);
+    await page(date, [['Палилула - Ниш', '08:00 - 10:00', 'Студеничке']]);
     await plan();
     await deliver();
     expect(titles(stays.token)).toHaveLength(1);
@@ -256,14 +262,14 @@ describe('rule 3: ambiguous changes', () => {
     const date = '14.11.2026.';
     const a = await addSub({ norm: 'studenicka' });
     await page(date, [
-      ['Пантелеј', '08:00 - 10:00', 'Студеничке'],
-      ['Пантелеј', '10:00 - 12:00', 'Студеничке'],
+      ['Палилула - Ниш', '08:00 - 10:00', 'Студеничке'],
+      ['Палилула - Ниш', '10:00 - 12:00', 'Студеничке'],
     ]);
     await plan();
     await deliver();
     expect(titles(a.token)).toHaveLength(2); // told about both windows
 
-    await page(date, [['Пантелеј', '09:00 - 11:00', 'Студеничке']]); // equally far from both
+    await page(date, [['Палилула - Ниш', '09:00 - 11:00', 'Студеничке']]); // equally far from both
     const r = await plan();
     await deliver();
     expect(r.planned).toBeGreaterThan(0);
@@ -276,12 +282,12 @@ describe('rule 3: ambiguous changes', () => {
   it('two new windows for one old row: one "Izmena" that lists both', async () => {
     const date = '15.11.2026.';
     const a = await addSub({ norm: 'studenicka' });
-    await page(date, [['Пантелеј', '08:00 - 10:00', 'Студеничке']]);
+    await page(date, [['Палилула - Ниш', '08:00 - 10:00', 'Студеничке']]);
     await plan();
     await deliver();
     await page(date, [
-      ['Пантелеј', '09:00 - 11:00', 'Студеничке'],
-      ['Пантелеј', '07:00 - 09:00', 'Студеничке'],
+      ['Палилула - Ниш', '09:00 - 11:00', 'Студеничке'],
+      ['Палилула - Ниш', '07:00 - 09:00', 'Студеничке'],
     ]);
     await plan();
     await deliver();
@@ -317,13 +323,13 @@ describe('rule 4: EDS reverts a changed time', () => {
   it('is another "Izmena" back to the original time, never an "Otkazano"', async () => {
     const date = '16.11.2026.';
     const a = await addSub({ norm: 'studenicka' });
-    await page(date, [['Пантелеј', '08:00 - 10:00', 'Студеничке']]);
+    await page(date, [['Палилула - Ниш', '08:00 - 10:00', 'Студеничке']]);
     await plan();
     await deliver();
-    await page(date, [['Пантелеј', '09:00 - 11:00', 'Студеничке']]);
+    await page(date, [['Палилула - Ниш', '09:00 - 11:00', 'Студеничке']]);
     await plan();
     await deliver();
-    await page(date, [['Пантелеј', '08:00 - 10:00', 'Студеничке']]); // back to the original
+    await page(date, [['Палилула - Ниш', '08:00 - 10:00', 'Студеничке']]); // back to the original
     await plan();
     await deliver();
 
@@ -333,8 +339,8 @@ describe('rule 4: EDS reverts a changed time', () => {
     expect(t3[2]).toMatch(/^Izmena: Studenič.+, novo vreme 08:00–10:00$/);
     expect(await kinds(a.subId)).toEqual(['new:sent', 'changed:sent', 'changed:sent']);
     // enough fetches later, the newer row is still just superseded, never cancelled
-    await page(date, [['Пантелеј', '08:00 - 10:00', 'Студеничке']]);
-    await page(date, [['Пантелеј', '08:00 - 10:00', 'Студеничке']]);
+    await page(date, [['Палилула - Ниш', '08:00 - 10:00', 'Студеничке']]);
+    await page(date, [['Палилула - Ниш', '08:00 - 10:00', 'Студеничке']]);
     const after = await plan();
     expect(after.planned).toBe(0);
     expect((await kinds(a.subId)).some((k) => k.startsWith('cancelled'))).toBe(false);

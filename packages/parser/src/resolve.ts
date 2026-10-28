@@ -1,6 +1,6 @@
 import { SCORING } from '../data/scoring.ts';
 import { stems } from './forms.ts';
-import { StreetIndex } from './gazetteer.ts';
+import { StreetIndex, type Resolution } from './gazetteer.ts';
 import type { NisMunicipality, NisStreet } from './osm.ts';
 import type { HouseRange } from './ranges.ts';
 import {
@@ -12,8 +12,19 @@ import {
   trigrams,
 } from './similarity.ts';
 
+// `placed`: the name belongs to several streets (same name, different places) and the row's
+// municipality or its other streets decided which. `ambiguous`: they could not, so every one of them
+// is a candidate (the matcher alerts all of them as "Moguće": a false alarm over a miss).
 export type LadderStep =
-  'exact' | 'alias' | 'form' | 'fuzzy' | 'heuristic' | 'scored' | 'unresolved';
+  | 'exact'
+  | 'alias'
+  | 'form'
+  | 'fuzzy'
+  | 'heuristic'
+  | 'scored'
+  | 'placed'
+  | 'ambiguous'
+  | 'unresolved';
 
 export interface ScoredCandidate {
   street: NisStreet;
@@ -69,6 +80,8 @@ export class Resolver {
   private readonly stemSets = new Map<NisStreet, Set<string>>();
   private readonly allNorms = new Map<NisStreet, string[]>();
   private readonly vertices = new Map<NisStreet, [number, number][]>();
+  // Streets that share one normalized name, by that name (only names with two or more).
+  private readonly siblings = new Map<string, NisStreet[]>();
   // Trigram sets of every gazetteer name, computed once (the fuzzy step scans all streets).
   private readonly trigramSets = new Map<string, Set<string>>();
 
@@ -78,11 +91,15 @@ export class Resolver {
     this.index = new StreetIndex(streets);
     for (const s of streets) {
       this.byId.set(s.id, s);
+      const same = this.siblings.get(s.nameNorm);
+      if (same) same.push(s);
+      else this.siblings.set(s.nameNorm, [s]);
       const norms = [s.nameNorm, ...(s.altNorms ?? [])];
       this.allNorms.set(s, norms);
       this.stemSets.set(s, new Set(norms.flatMap((n) => stems(n))));
       for (const n of norms) if (!this.trigramSets.has(n)) this.trigramSets.set(n, trigrams(n));
     }
+    for (const [name, list] of this.siblings) if (list.length < 2) this.siblings.delete(name);
   }
 
   resolve(segNorm: string, ctx: ResolveContext = {}): LadderResult {
@@ -90,6 +107,9 @@ export class Resolver {
     const aliasId = ctx.aliases?.get(segNorm);
     if (aliasId !== undefined) {
       const street = this.byId.get(aliasId);
+      // An alias names a street, and the name may belong to several: place it like any such name.
+      const same = street ? this.siblings.get(street.nameNorm) : undefined;
+      if (same) return this.place(same, ctx);
       if (street) return { by: 'alias', street, score: 1, candidates: [] };
     }
 
@@ -104,28 +124,93 @@ export class Resolver {
       const by = direct.by === 'heuristic' ? 'heuristic' : direct.by === 'form' ? 'form' : 'exact';
       return { by, street: direct.street as NisStreet, score: 1, candidates: [] };
     }
-    if (direct.by === 'ambiguous') pool = direct.matches as NisStreet[];
+    if (direct.by === 'ambiguous') {
+      const matches = direct.matches as NisStreet[];
+      // Several streets with the very same name: a question of place, not of spelling.
+      if (matches.every((m) => m.nameNorm === matches[0]?.nameNorm))
+        return this.place(matches, ctx);
+      pool = matches;
+    }
 
     // 3. Fuzzy: trigram similarity, own municipality first, then the whole city.
     const fuzzy = this.fuzzy(segNorm, ctx.municipality ?? null);
     if (fuzzy.accepted) {
-      return {
-        by: 'fuzzy',
-        street: fuzzy.accepted.street,
-        score: fuzzy.accepted.sim,
-        candidates: [],
-      };
+      return this.accept('fuzzy', fuzzy.accepted.streets, fuzzy.accepted.sim, ctx);
     }
     pool = [...pool, ...fuzzy.pool];
 
     // 4. Deterministic rewrites; accepted only when exactly one street results.
     const heuristic = this.heuristic(segNorm);
-    if (heuristic) return { by: 'heuristic', street: heuristic, score: 0.8, candidates: [] };
+    if (heuristic) return this.accept('heuristic', heuristic, 0.8, ctx);
 
     // 5. Candidate scoring with spatial context.
     for (const c of this.index.candidates(segNorm, SCORING.candidateLimit))
       pool.push(c.street as NisStreet);
     return this.score(segNorm, [...new Set(pool)], ctx);
+  }
+
+  // One street: accepted as it is. Several streets with one name: a question of place.
+  private accept(
+    by: 'fuzzy' | 'heuristic',
+    streets: readonly NisStreet[],
+    score: number,
+    ctx: ResolveContext,
+  ): LadderResult {
+    if (streets.length === 1) return { by, street: streets[0] as NisStreet, score, candidates: [] };
+    return this.place(streets, ctx);
+  }
+
+  /**
+   * Which of several streets with one name is meant: first by the municipality of the EDS row, then
+   * by how close each is to the streets already resolved in the same row (one row = one area). When
+   * neither settles it, none is chosen and every one is a candidate.
+   */
+  private place(streets: readonly NisStreet[], ctx: ResolveContext): LadderResult {
+    let pool = [...streets];
+    if (ctx.municipality) {
+      const local = pool.filter((s) =>
+        s.municipalities.includes(ctx.municipality as NisMunicipality),
+      );
+      if (local.length === 1) return this.placed(local[0] as NisStreet);
+      if (local.length > 1) pool = local;
+    }
+    const anchors = (ctx.anchors ?? []).filter((a) => !pool.includes(a));
+    if (anchors.length > 0) {
+      const ranked = pool
+        .map((street) => ({ street, meters: this.distanceTo(street, anchors) }))
+        .sort((a, b) => a.meters - b.meters);
+      const [nearest, next] = ranked;
+      if (
+        nearest &&
+        nearest.meters <= SCORING.placeMaxMeters &&
+        (!next || next.meters - nearest.meters >= SCORING.placeLeadMeters)
+      ) {
+        return this.placed(nearest.street);
+      }
+    }
+    return {
+      by: 'ambiguous',
+      street: null,
+      score: null,
+      candidates: pool.map((street) => ({ street, score: 1, features: {} })),
+    };
+  }
+
+  private placed(street: NisStreet): LadderResult {
+    return { by: 'placed', street, score: 1, candidates: [] };
+  }
+
+  // The shortest distance, in metres, between a street and any of the anchors.
+  private distanceTo(street: NisStreet, anchors: readonly NisStreet[]): number {
+    let mine = this.vertices.get(street);
+    if (!mine) this.vertices.set(street, (mine = sampleVertices(street)));
+    let best = Infinity;
+    for (const a of anchors) {
+      let theirs = this.vertices.get(a);
+      if (!theirs) this.vertices.set(a, (theirs = sampleVertices(a)));
+      for (const p of mine) for (const q of theirs) best = Math.min(best, haversineMeters(p, q));
+    }
+    return best;
   }
 
   private bestSimilarity(segTrigrams: ReadonlySet<string>, street: NisStreet): number {
@@ -139,7 +224,7 @@ export class Resolver {
   private fuzzy(
     segNorm: string,
     municipality: NisMunicipality | null,
-  ): { accepted: { street: NisStreet; sim: number } | null; pool: NisStreet[] } {
+  ): { accepted: { streets: NisStreet[]; sim: number } | null; pool: NisStreet[] } {
     const hits: { street: NisStreet; sim: number }[] = [];
     const sims: { street: NisStreet; sim: number }[] = [];
     const near: NisStreet[] = [];
@@ -160,40 +245,56 @@ export class Resolver {
       ? hits.filter((h) => h.street.municipalities.includes(municipality))
       : [];
     const chosen = local.length > 0 ? local : hits;
-    const only = chosen.length === 1 ? (chosen[0] ?? null) : null;
+    // One name (it may be several streets that share it: that is decided by `place`).
+    const only = distinctNames(chosen.map((h) => h.street)) === 1 ? (chosen[0] ?? null) : null;
     // A fuzzy accept needs a clear lead: if another street is almost as similar ("Првог" vs
     // "Другог српског устанка"), a wrong accept would be a false alarm, so go on to scoring.
     const rival = sims.some(
-      (x) => only !== null && x.street !== only.street && only.sim - x.sim < SCORING.fuzzyMargin,
+      (x) =>
+        only !== null &&
+        x.street.nameNorm !== only.street.nameNorm &&
+        only.sim - x.sim < SCORING.fuzzyMargin,
     );
     // Same rule as scoring: a name that fits two or more streets is not a fuzzy accept.
-    const ambiguous = this.containing(segNorm).length >= 2;
-    return { accepted: only && !rival && !ambiguous ? only : null, pool: near };
+    const ambiguous = distinctNames(this.containing(segNorm)) >= 2;
+    return {
+      accepted:
+        only && !rival && !ambiguous
+          ? { streets: chosen.map((h) => h.street), sim: only.sim }
+          : null,
+      pool: near,
+    };
   }
 
-  private heuristic(segNorm: string): NisStreet | null {
+  // The streets a rewrite of the segment points to: all of one name (one street, or several that
+  // share it), or null when the rewrite is not clearly one name.
+  private heuristic(segNorm: string): NisStreet[] | null {
+    const oneName = (streets: readonly NisStreet[]): NisStreet[] | null => {
+      const list = [...new Set(streets)];
+      return list.length > 0 && distinctNames(list) === 1 ? list : null;
+    };
+    const named = (r: Resolution): NisStreet[] =>
+      r.street ? [r.street as NisStreet] : r.by === 'ambiguous' ? (r.matches as NisStreet[]) : [];
     const tokens = segNorm.split(' ').filter(Boolean);
     // Stray бб / б.б.
     const withoutBb = tokens.filter((t) => t !== 'bb');
     if (withoutBb.length !== tokens.length && withoutBb.length > 0) {
-      const r = this.index.resolve(withoutBb.join(' '));
-      if (r.street) return r.street as NisStreet;
+      const found = oneName(named(this.index.resolve(withoutBb.join(' '))));
+      if (found) return found;
     }
     // Swapped word order: "pasica nikole" -> "nikole pasica".
     if (tokens.length >= 2 && tokens.length <= MAX_PERMUTED_TOKENS) {
-      const found = new Set<NisStreet>();
+      const found: NisStreet[] = [];
       for (const p of permutations(tokens)) {
         const joined = p.join(' ');
         if (joined === segNorm) continue;
-        const r = this.index.resolve(joined);
-        if (r.street) found.add(r.street as NisStreet);
+        found.push(...named(this.index.resolve(joined)));
       }
-      if (found.size === 1) return [...found][0] ?? null;
+      const swapped = oneName(found);
+      if (swapped) return swapped;
     }
-    // Missing first name or title: every token of the segment is in exactly one street.
-    const containing = this.containing(segNorm);
-    if (containing.length === 1) return containing[0] ?? null;
-    return null;
+    // Missing first name or title: every token of the segment is in exactly one street (name).
+    return oneName(this.containing(segNorm));
   }
 
   // Streets whose words include every word of the segment ("мишића" is in "Војводе Мишића").
@@ -281,18 +382,29 @@ export class Resolver {
     });
     scored.sort((a, b) => b.score - a.score);
     const top5 = scored.slice(0, 5);
-    const [best, second] = top5;
+    const best = top5[0];
+    // The runner-up is the best street of another name: a street of the same name is not a rival.
+    const rival = scored.find((c) => best && c.street.nameNorm !== best.street.nameNorm);
     // A bare name that fits several streets ("Новака") is only decidable from where the other
     // streets of the same row are; without that context, leave it for review.
-    const needsContext = this.containing(segNorm).length >= 2 && (ctx.anchors ?? []).length === 0;
+    const needsContext =
+      distinctNames(this.containing(segNorm)) >= 2 && (ctx.anchors ?? []).length === 0;
     if (
       best &&
       !needsContext &&
       best.score >= SCORING.acceptScore &&
-      (!second || best.score - second.score >= SCORING.minMargin)
+      (!rival || best.score - rival.score >= SCORING.minMargin)
     ) {
+      // The best street may share its name with others: which of them is a question of place.
+      const same = this.siblings.get(best.street.nameNorm);
+      if (same) return this.place(same, ctx);
       return { by: 'scored', street: best.street, score: best.score, candidates: top5 };
     }
     return { by: 'unresolved', street: null, score: null, candidates: top5 };
   }
+}
+
+// How many different names a set of streets has (streets of one name in different places count once).
+function distinctNames(streets: readonly NisStreet[]): number {
+  return new Set(streets.map((s) => s.nameNorm)).size;
 }

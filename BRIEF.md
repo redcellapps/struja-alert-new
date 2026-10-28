@@ -126,7 +126,11 @@ Apply these steps in this exact order, to gazetteer entries and scraped segments
 Example: `ВОЈВОДЕ МИШИЋА` → `vojvode misica`
 
 ### Gazetteer
-Seed the canonical street list for Niš from OpenStreetMap (Overpass API: named `highway` ways inside the Niš admin area, with geometry). Deduplicate by `name_norm`. Store Latin name, Cyrillic name, municipality and the LineString geometry.
+Seed the canonical street list for Niš from OpenStreetMap (Overpass API: named `highway` ways inside the Niš admin area, with geometry). Store Latin name, Cyrillic name, municipality and the geometry.
+
+**One name is not one street.** Ways that share a `name_norm` are one street only when they are connected or close (a gap of at most 500 m, chained) and so lie in one place; farther apart they are **separate streets that happen to share a name** ("Војводе Путника" in the city and in Трупале, 9 km apart; "Маршала Тита" in eight villages). Each is its own entry with its own geometry, its municipalities and its **settlement** (the nearest village, hamlet, suburb or town), and a stable `cluster_key` (the smallest OSM way id of the street). Matching works on the street id only, so an address on one street is never alerted for its namesake. (The first version of this brief said "deduplicate by `name_norm`": that merged streets that are kilometres apart and gave false alerts.)
+
+**Resolving a name that belongs to several streets** (`placed` / `ambiguous`): first narrow by the **municipality of the EDS row**; if several remain, by the **distance to the other streets already resolved in the same row** (the nearest, when it is within 3 km and at least 1.5 km nearer than the next; names of one row that are all still ambiguous lean on each other). If that still does not decide, **no street is chosen and every candidate gets "Moguće"** (a false alarm over a miss), and the outage detail draws all of them as candidates. An alias of such a name is placed like the name itself. OSM address points go to the nearest street of their `addr:street` name. The app search shows the settlement under every name that repeats ("Vojvode Putnika · Trupale").
 
 Also import OSM address points (`addr:street` + `addr:housenumber`) into `address_point`. They feed the scoring in step 5 below. They are optional data: a missing address point never blocks a match.
 
@@ -179,7 +183,7 @@ A subscription matches if the street matches AND (`house_from IS NULL` OR the us
 ## 4. Backend
 
 ### Data model (Drizzle, Postgres)
-- `street`: id, city, municipality, name_latin, name_cyrillic, name_norm, geom (LineString). `UNIQUE(city, name_norm)`
+- `street`: id, city, municipality, name_latin, name_cyrillic, name_norm, cluster_key, settlement_name, geom (MultiLineString). `UNIQUE(city, name_norm, cluster_key)`: one row per street, and several rows can share a name
 - `address_point`: street_id, housenumber, geom (Point), from OSM
 - `street_alias`: street_id, raw, raw_norm, confidence (1.0 = human-confirmed), source (`exact|fuzzy|heuristic|scored|manual`), reviewed_at, rejected. `UNIQUE(raw_norm)`
 - `scrape_run`: id, started_at, finished_at, url, http_status, etag, rows_found, error

@@ -17,8 +17,11 @@ function street(
   opts: { mun?: NisStreet['municipalities']; at?: [number, number]; alts?: string[] } = {},
 ): NisStreet {
   const at = opts.at;
+  const id = nextId++;
   return {
-    id: nextId++,
+    id,
+    clusterKey: String(id),
+    settlement: null,
     name,
     nameNorm: norm(name),
     altNorms: (opts.alts ?? []).map(norm),

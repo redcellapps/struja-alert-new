@@ -1,62 +1,92 @@
-# Phase 3, step 10: the map on the outage detail (with the spike first)
+# Same-named streets are different streets (priority fix, found through the map)
 
-Date: 2026-10-27. Branch `main`.
+Date: 2026-10-28. Branch `main`. Stopped for review after this fix, as asked; the map zoom (item 2) and step 11 (item 3) are **not started**.
 
 ## Git
 
-`11f0e61` (the housekeeping and the comparison) is pushed. This step is one commit after it, **not pushed**; it waits for Milan's OK. The screenshots are in `docs/screens/android/step10/` (a git-ignored working set, as for earlier steps; the final QA set is committed at step 11).
+`04d8aa7` (step 10) and `11f0e61` are pushed. This fix is one commit after them, **not pushed**.
 
-Also done first, as asked: the server test workers are capped at two (`maxWorkers: 2` in `apps/server/vitest.config.ts`; each file starts its own Postgres container). The suite passes in 53 s.
+## The problem, measured
 
-## The spike (one day's questions, answered)
+`buildNisGazetteer` merged every OSM way with the same `name_norm` into one street (BRIEF §3 said "deduplicate by `name_norm`"). On the saved Niš data: 4,838 named ways, 2,251 names, **805 names with more than one way**; with a 500 m gap rule **136 names fall apart into streets that are kilometres from each other** (your figure: 130 with parts more than 3 km apart). Examples: Војводе Путника is 48 ways in two places (47 in the city, 1 in Трупале, centroids about 7 km apart); Маршала Тита is in eight villages; Чегарска in four places; Студеничка in three. Matching used only `street_id`, so a saved address on one of them was alerted for an outage on its namesake, and the map drew all of them.
 
-| Question                                      | Result                                                                                                                                                                                                                                                                                                                                                                                                                      |
-| --------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Does it render on RN 0.88 (new architecture)? | Yes. `@maplibre/maplibre-react-native` 11.5.0, debug build on the emulator (x86_64): an OpenFreeMap style loaded and drew in about 1.6 s, with a street from our data drawn natively over it (`spike-positron.png`, `spike-dark.png`, `spike-liberty.png`)                                                                                                                                                                  |
-| Does it build on Windows with our setup?      | Yes: debug builds in 2 to 3 minutes, release in 6; the existing short-path workaround for CMake is enough. No Mac needed for Android                                                                                                                                                                                                                                                                                        |
-| APK size                                      | Release, universal APK (four ABIs): **108.2 MB before, 153.1 MB after (+44.9 MB)**. Per ABI, which is what a Play user downloads: `libmaplibre.so` is 10.8 MB on arm64-v8a (+11.7 MB native libraries in all) and 7.9 MB on armeabi-v7a (+8.6 MB)                                                                                                                                                                           |
-| Latin / Cyrillic labels                       | The tiles carry `name:sr-Latn` (proper diacritics, "Kalač brdo"), `name:sr` (Cyrillic), `name:latin` (ASCII only, "Kalac brdo": not used first), `name:nonlatin`, and `name`. So Latin reads `name:sr-Latn`, then `name:latin`, then `name`; Cyrillic reads `name:sr`, then `name:nonlatin`, then `name`. Checked on the emulator in both scripts. OpenFreeMap's own styles print both scripts on two lines; ours picks one |
-| A dark style                                  | OpenFreeMap has a ready one, but I built our own light and dark styles from the app's palette (below), so both fit                                                                                                                                                                                                                                                                                                          |
-| PMTiles on Android                            | Only a note for later (as asked): not tested; `docs/map.md` says what changes for Protomaps                                                                                                                                                                                                                                                                                                                                 |
+## What changed
 
-## What was built
+**One name is not one street (parser, `osm.ts`).** Ways with one name are one street only when connected or within **500 m** of each other (chained). I tested the settlement as a merge condition too: with only village points to go on (the data has no polygons) it split continuous city streets between neighbouring villages (136 names split by distance alone, 225 with "nearest village" added), so the settlement is the **label**, not a merge rule. Each street has a stable `clusterKey` (its smallest OSM way id), its own geometry and municipalities, and a `settlement` (the nearest place, in Cyrillic). 2,250 streets became **2,452**.
 
-- **Library and permissions.** MapLibre's own manifest adds `ACCESS_COARSE_LOCATION` and `ACCESS_FINE_LOCATION`. The existing manifest test caught it on the first build. They are now blocked in `app.json` (`android.blockedPermissions`, with background location too); the merged manifest of the last build is clean again.
-- **Base map (`src/map/style.ts`).** Our own style over OpenMapTiles-schema vector tiles: land, parks, water, buildings, three road tiers with casings, rail and paths, road labels along the line, place labels, house numbers from zoom 17. Light and dark variants take their colours from the palette (`design/tokens.ts`: card and raised for land and roads in light, card and background in dark, text colours for labels).
-- **The tile host is in config.** `src/map/config.ts` holds the TileJSON URL, the glyph URL, the fonts, the credit and its link, the timeout. `EXPO_PUBLIC_MAP_TILES_URL` and `EXPO_PUBLIC_MAP_GLYPHS_URL` override the two URLs at build time. Moving to a self-hosted OpenFreeMap is one change; Protomaps also needs the layer names (documented in `docs/map.md`).
-- **Our geometry, drawn natively.** The GeoJSON of `GET /v1/outages/:id` goes in as a source: a casing and a line in the status colour of the outage (thin zoomed out, thick zoomed in), a circle for a settlement, a fill for an area.
-- **The person's house.** New in the API: each entry of `mine` has `point` (`{ lng, lat }` or `null`). The server looks the house up in `address_point` (OSM) by street and number; no number, or no OSM point, gives `null`. Shared schema, mock, live contract test, `docs/api.md` and a server test (a point is returned once the house has one; none for an address without a number) updated. On the map: a lime dot with a dark ring and a soft halo.
-- **Never blank or broken.** A placeholder of the same size shows while it loads. The map counts as drawn only when a query of the base layers finds something in view (polled every 0.6 s): a style can load while every tile fails. If the style fails to load, or nothing is in view within 8 s, the map is removed and the street list stands alone. With no network (the saved copy of the detail is shown) it is not even started. **No offline tile download.**
-- **Attribution.** "© OpenStreetMap · © OpenMapTiles · OpenFreeMap" is on the map at all times, bottom right, and opens the OSM copyright page; the native logo and info button are off, so the credit is never behind a toggle. Its text grows at most 10 % with the system font (at 200 % it wrapped over part of the map before; now smaller).
-- **Privacy text and credits (O aplikaciji).** Podešavanja > Privatnost now says the map comes from OpenFreeMap, which sees the phone's IP address and the area of the outage being viewed, not the saved addresses; the About text credits the map data. All three languages; the Cyrillic generator now keeps `OpenStreetMap`, `OpenMapTiles`, `OpenFreeMap`, `IP` and `©` in Latin (`cyrillic.ts`, tests).
-- **Still picture.** No pan, zoom or rotate (it sits in a scrolling sheet); hidden from TalkBack; the street list is the accessible version.
-- Docs: `docs/map.md` (how it works, how to change the host, the fallback rules, privacy), a rule in `CLAUDE.md`, `docs/phase3-plan.md` step 10 marked done.
+**Resolving a name that belongs to several streets (`resolve.ts`, `row.ts`).**
 
-## Checked on the emulator against the real local stack
+1. By the **municipality of the EDS row** (one street of that name in it: placed).
+2. Then by the **distance to the row's other streets**: the nearest wins if it is within 3 km and at least 1.5 km nearer than the next (`SCORING.placeMaxMeters` / `placeLeadMeters`, provisional like the other constants). Names of one row that are all still ambiguous lean on each other's candidates (a third round).
+3. Otherwise **no street is chosen and every candidate gets "Moguće"** (new steps `placed` and `ambiguous`).
+   The swap, "missing word", "stray бб" and fuzzy steps, the scoring step and an alias of such a name all go through the same placement instead of failing on the conflict.
 
-| What                          | Result                                                                                 | Screenshot                                                  |
-| ----------------------------- | -------------------------------------------------------------------------------------- | ----------------------------------------------------------- |
-| Outage detail, light, Latin   | base map, streets in red, a village as a point, credits, house marker on Trebinjska 34 | `03-detail-map-light.png`, `05-detail-map-house.png`        |
-| Dark, Cyrillic                | dark style from the palette, Cyrillic labels ("Ниш", "Медошевац")                      | `06-detail-map-dark.png`, `07-detail-map-dark-cyrillic.png` |
-| Privacy and About in Cyrillic | OpenFreeMap named, brand names in Latin                                                | `08-privacy-about-cyrillic.png`                             |
-| Tile host down                | placeholder first, then the map is gone and the street list stands alone               | `09-fail-loading.png`, `10-fail-no-map.png`                 |
-| 360 dp and 200 % font         | the map fits, the credits wrap (capped further afterwards)                             | `11-detail-360dp-200pct.png`                                |
-| Release build                 | installs and starts cold, no crash (`12-release-cold-start-onboarding.png`)            |                                                             |
+**Server.** Migration `0010_same_name_streets` (additive: `cluster_key`, `settlement_name`, `UNIQUE(city, name_norm, cluster_key)`, enum values `placed`, `ambiguous`). The importer upserts by `(city, name_norm, cluster_key)`, gives each OSM address point to the nearest street of its `addr:street` name, and **replaces the old name-merged rows**: whatever pointed at one (a saved address, an outage row, an alias) moves to the split street of that name with the most geometry, then the old row is deleted. The matcher tells **every candidate of an ambiguous segment "Moguće"** (new reason `same_name`, with its own push text) and nobody else; the planner and the on-screen list look the candidates up too (all of them are stored, not the top five). A placed segment concerns only its own street. New dev command `pnpm --filter @struja/server dev:import-gazetteer` (local database only); the server also imports at start with `IMPORT_GAZETTEER=true` when old rows exist.
 
-Problems found on the way, and fixed: the road casings were invalid (a zoom expression inside an addition), which MapLibre reported as a warning and dropped; now a test walks both styles and fails on that class of mistake. The native map reports every failed tile request as an error, which raised a red toast in development; expected network failures are filtered (`logging.ts`, tested), a broken style is still reported. The house marker only appeared after the app's 5-minute query cache expired (a persisted cache, not a map problem).
+**API and app.** The gazetteer gives every street a `settlement`; each outage segment gives its `streetId` (so "Prati" follows exactly that street); an ambiguous name is drawn on the map as every candidate (`properties.candidate`, dashed and lighter). Search shows the settlement and municipality under names that repeat ("Vojvode Putnika · Stočni trg"), and the detail says "Više ulica nosi ovo ime, a obaveštenje ne kaže koja je. Zato javljamo svima na tim ulicama."
 
-## Limits and notes
+**BRIEF §3** (Gazetteer, and the `street` data model line) now says all of this; the first version's "deduplicate by `name_norm`" is named as the mistake.
 
-- **The release build could not be taken to the map.** A release build refuses cleartext `http://10.0.2.2:3000`, so with the local server its street list cannot load (`EXPO_PUBLIC_API_URL` needs an https address, as `runtime.ts` says). The release build starts and the same JavaScript and native library are exercised in the debug build; the release map needs the real server over https (Phase 5).
-- When an outage spans a wide area (a far village in the same outage), the camera fits all of it and the streets are small; the street list and the marker still say what concerns the person. Zooming to the part nearest the house is possible if wanted.
-- Play Data safety: the library documents no telemetry; the tile host's view of the IP address and the requested tiles is what the privacy text declares. OpenFreeMap's privacy policy still has to be read for the form (Phase 6). OpenFreeMap has no SLA; the fallback above is why that is acceptable, and `docs/map.md` says how to move to Protomaps on R2.
+## The dev database (migrated)
+
+|                                  | before                       | after                                                                                    |
+| -------------------------------- | ---------------------------- | ---------------------------------------------------------------------------------------- |
+| street rows / distinct names     | 2,250 / 2,250                | **2,452** / 2,250                                                                        |
+| old merged rows left             |                              | 0 (2,250 replaced)                                                                       |
+| subscriptions                    | Цара Душана 80, Требињска 34 | moved to the split street with the most geometry (Нова железничка колонија, Паси Пољана) |
+| outage rows pointing at a street | 108                          | 108, moved the same way (history only: dev data)                                         |
+| address points                   | 63,419                       | 63,419, now per street (Војводе Путника: 144 in the city, 12 in Трупале)                 |
+| gazetteer version                | 1                            | 2                                                                                        |
+
+Checked live: a Палилула row naming Војводе Путника is `placed` in the city street; "делови Горњоматејевачке и Студеничке" in Пантелеј is `ambiguous`.
+
+## Phase 1 labels and the synthetic test: what changed
+
+**Labels (`label-sample`, the 10 reviewed in-scope segments).** Four rows changed, nothing else:
+
+| segment                     | before                  | after                                      |
+| --------------------------- | ----------------------- | ------------------------------------------ |
+| Горњоматејевачке (Пантелеј) | form → Горњоматејевачка | **ambiguous**: Виник or Каменица           |
+| Студеничке (Пантелеј)       | form → Студеничка       | **ambiguous**: Пантелеј or Горњи Матејевац |
+| Војводе Путника (Палилула)  | exact                   | **placed in Сточни трг**                   |
+| Чегарске (Нишка бања)       | form                    | **placed in Нишка Бања**                   |
+
+The ambiguous pairs are real, not a weakness: Студеничка (Пантелеј) touches Горњоматејевачка (Виник) at 0 m, and Студеничка (Горњи Матејевац) lies 1.4 km from Горњоматејевачка (Каменица): two consistent readings, so both are told "Moguće". The reviewer's `ok` was about the name and is kept.
+**Gate on this sample:** automatic resolution **100% → 80%** (8/10; the two ambiguous ones are not counted as resolved, and are reported separately), auto-accept precision **100% → 100%** (8/8), new step `placed` 2/2. Still `INSUFFICIENT_SAMPLE` (10 of the 200 needed). `gate-report` now counts `placed` as an automatic accept and prints the ambiguous count. Aliases unchanged (8 reviewed); `label-sample` lists settlements for ambiguous candidates and "placed in …" for placed rows.
+
+**Synthetic test (SYNTHETIC, not a measurement).**
+
+|                                          | before                                                 | after                                                                   |
+| ---------------------------------------- | ------------------------------------------------------ | ----------------------------------------------------------------------- |
+| streets / cases                          | 2,250 / 7,126                                          | 2,452 / 7,690                                                           |
+| accepted                                 | 81.8%                                                  | **78.0%**                                                               |
+| precision of accepted                    | 100.0% (0 wrong)                                       | 99.97% (**2 wrong of 5,997**)                                           |
+| genitive / typo / dropFirst / swap       | 99.4 / 77.1 / 50.7 / 99.7 %                            | 93.4 / 73.5 / 49.3 / 95.9 %                                             |
+| by step                                  | form 2,237 · heuristic 1,865 · scored 1,673 · fuzzy 51 | form 2,105 · heuristic 1,780 · scored 1,582 · fuzzy 51 · **placed 483** |
+| ambiguous cases (all candidates offered) | n/a                                                    | **305, 0 of them without the true street**                              |
+
+The accept rate falls because a name that several streets share, given only a municipality, is no longer "accepted": 305 cases stay ambiguous (and none misses the true street). The two wrong accepts ("toplica" for Топличка → Милана Топлице; "vaska" for Влашка → Васка Попе) are an old weakness of the "token of another street" heuristic: I resolved the same inputs against a merged gazetteer and both are accepted there too; the changed street list only changed which typos the fixed random sequence produced. Worth a look before the Phase 5 freeze.
+
+## Tests added or changed
+
+- Parser (`same-name-streets.test.ts`, 17 tests): the clustering (touching, within the gap, chained, farther apart, stable order); placement by municipality, by distance, none when nothing decides, narrowing to the municipality's streets, an alias of a shared name, the mutual round; **real data: Војводе Путника is two streets (city and Трупале), Маршала Тита is in at least eight places none within the gap of another, a Палилула row means the city street**.
+- Server (`same-name.test.ts`, 14 tests, real Postgres): the matcher (a placed segment does not reach the namesake; an ambiguous segment is "Moguće" for every candidate and nobody else; all eight candidates, not five); **an address on the other same-named street is not alerted** (Палилула row → city street only, Црвени крст row → Трупале only); ambiguous Чегарска → every Пантелеј candidate, not the Нишка бања one; the on-screen list and the detail (segment `streetId`, candidates drawn); the importer (one row per street with its settlement, address points to the nearest street, ids stable on re-import, **old row replaced and the saved address moved**), and the gazetteer API.
+- Existing tests moved to the new model (rows that named Студеничка or Чегарска in a municipality where several exist now name one where it is one street; the real-pages tests accept an ambiguous result only if all its candidates carry the right name). App: search and the settlement line, following by street id, the `same_name` note. Scripts: labels and the gate.
 
 ## Gate
 
-`pnpm lint` 0 warnings · `pnpm typecheck` green · `pnpm test` green. Tests: mobile **320** jest (+23: map style, geometry, component states, logging, privacy text, Cyrillic brands, outage detail) + 29 contract (6 live ones skip without `LIVE_API_URL`) · server **241** · parser 147 (144 + 3 todo) · shared 22 · scripts 62. The live contract (6 tests) also passes against the running local server, including the house point.
+`pnpm lint` 0 warnings · `pnpm typecheck` green · `pnpm test` green. Tests: mobile **324** jest + 29 contract (6 live skip) · server **256** · parser **165** (162 + 3 todo) · shared **23** · scripts **62**. The live contract against the real local server also passes (6 tests, including two Војводе Путника streets with different settlements). Screenshots: `docs/screens/android/step10b/` (git-ignored working set).
+
+## Limits and notes
+
+- The settlement label is the nearest place point, so a city street is named after a neighbourhood ("Stočni trg"); the app shows it with the municipality. Good enough to tell two streets apart; no polygons to do better.
+- The 500 m gap, and 3 km / 1.5 km for placement, are provisional like `SCORING`; re-check with real labels (only 10 in-scope ones so far).
+- The OSM house-number feature of the scoring is still keyed by name (all streets of the name together): weak and conservative.
+- The old outages in the dev database were moved to "the split street with the most geometry": right for the one checked (Војводе Путника → city), approximate in general; no real data was affected.
+- An ambiguous segment is shown in the street list by its raw EDS text (Cyrillic), as unresolved segments always were.
+- The correct commit hash of the step 8 follow-up (`6ce2cf0`) and step 9 are unchanged and pushed.
 
 ## Decisions needed
 
-1. OK to push this step's commit?
-2. Zoom to the part of the outage nearest the person's house, instead of fitting the whole outage?
-3. Step 11 (Maestro, which needs your approval to install) next?
+1. OK to push this fix?
+2. Then item 2 (map zoom to the house, or to the person's street, with "Celo isključenje") and item 3 (step 11, install Maestro)?

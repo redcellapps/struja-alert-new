@@ -39,7 +39,7 @@ export interface DetailAddress {
   name: string;
   houseNumber: number | null;
   match: 'affected' | 'possible';
-  reason: 'no_number' | 'partial' | 'unresolved' | null;
+  reason: 'no_number' | 'partial' | 'unresolved' | 'same_name' | null;
 }
 
 export interface OutageDetailViewProps {

@@ -21,6 +21,8 @@ export interface CandidateRef {
   id: string | number;
   name: string;
   score: number;
+  // The settlement of the street, to tell streets that share a name apart.
+  settlement?: string;
 }
 
 export interface SegmentResolution {
@@ -51,7 +53,9 @@ export function resolveRow(segments: readonly Segment[], deps: RowDeps): Segment
   }));
 
   const anchors: NisStreet[] = [];
-  const ladder = (i: number, withAnchors: boolean) => {
+  // The streets each segment is still undecided between (names that several streets share).
+  const undecided = new Map<number, NisStreet[]>();
+  const ladder = (i: number, withAnchors: boolean, extra: readonly NisStreet[] = []) => {
     const res = out[i];
     if (!res || res.kind !== 'street') return;
     const r = deps.resolver.resolve(normalizeName(res.segment.name), {
@@ -59,8 +63,14 @@ export function resolveRow(segments: readonly Segment[], deps: RowDeps): Segment
       ranges: res.segment.ranges,
       aliases: deps.aliases,
       addressNumbers: deps.addressNumbers,
-      anchors: withAnchors ? anchors : undefined,
+      anchors: withAnchors ? [...anchors, ...extra] : undefined,
     });
+    if (r.by === 'ambiguous')
+      undecided.set(
+        i,
+        r.candidates.map((c) => c.street),
+      );
+    else undecided.delete(i);
     res.by = r.by;
     res.street = r.street;
     res.score = r.score;
@@ -68,6 +78,7 @@ export function resolveRow(segments: readonly Segment[], deps: RowDeps): Segment
       id: c.street.id,
       name: c.street.name,
       score: c.score,
+      ...(c.street.settlement ? { settlement: c.street.settlement } : {}),
     }));
   };
 
@@ -76,9 +87,23 @@ export function resolveRow(segments: readonly Segment[], deps: RowDeps): Segment
     const street = out[i]?.street;
     if (street) anchors.push(street);
   });
-  out.forEach((res, i) => {
-    if (res.kind === 'street' && !res.street) ladder(i, true);
-  });
+  // Pass 2, twice: a street placed in the first round is itself context for a same-named one.
+  for (let round = 0; round < 2; round++) {
+    out.forEach((res, i) => {
+      if (res.kind !== 'street' || res.street) return;
+      ladder(i, true);
+      if (res.street) anchors.push(res.street);
+    });
+  }
+  // Names that are still ambiguous lean on each other: two same-named streets that lie next to each
+  // other are the pair this row means (the candidates of the others count as context).
+  for (const i of [...undecided.keys()]) {
+    const res = out[i];
+    if (!res || res.street) continue;
+    const others = [...undecided.entries()].filter(([j]) => j !== i).flatMap(([, list]) => list);
+    ladder(i, true, others);
+    if (res.street) anchors.push(res.street);
+  }
 
   // Villages and settlement parts resolve against the settlement list.
   out.forEach((res) => {

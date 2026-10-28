@@ -101,27 +101,54 @@ describe('the Resolver rebuilt from the database gives the Phase 1 answers', () 
           aliases: loaded.aliases,
           addressNumbers: loaded.addressNumbers,
         });
-        expect(r.street, seg.name).not.toBeNull();
         const want = expected.get(seg.name);
-        if (want) {
-          expect(r.street?.name, seg.name).toBe(want);
-          checked++;
+        if (r.by === 'ambiguous') {
+          // several streets share the name and the row alone cannot tell: none chosen, all offered
+          expect(r.street, seg.name).toBeNull();
+          expect(new Set(r.candidates.map((c) => c.street.nameNorm)).size, seg.name).toBe(1);
+          if (want) for (const c of r.candidates) expect(c.street.name, seg.name).toBe(want);
+        } else {
+          expect(r.street, seg.name).not.toBeNull();
+          if (want) expect(r.street?.name, seg.name).toBe(want);
         }
+        if (want) checked++;
       }
     }
     expect(checked).toBe(expected.size);
   });
 
   it('uses a confirmed alias before anything else', () => {
-    const r = loaded.resolver.resolve('studenicke', { aliases: loaded.aliases });
-    expect(r.by).toBe('alias');
+    // an alias of a street with one entry is exactly that street
+    for (const [raw, id] of loaded.aliases) {
+      const named = loaded.streets.filter((s) => s.id === id)[0];
+      const same = loaded.streets.filter((s) => s.nameNorm === named?.nameNorm);
+      if (same.length > 1) continue;
+      const r = loaded.resolver.resolve(raw, { aliases: loaded.aliases });
+      expect(r.by, raw).toBe('alias');
+      expect(r.street?.id, raw).toBe(id);
+    }
+  });
+
+  it('places an alias of a name that several streets share, like the name itself', () => {
+    // "studenicke" is pinned to Студеничка, which is three streets: the municipality of the row says which
+    const r = loaded.resolver.resolve('studenicke', {
+      aliases: loaded.aliases,
+      municipality: 'palilula',
+    });
+    expect(r.by).toBe('placed');
     expect(r.street?.name).toBe('Студеничка');
+    expect(r.street?.municipalities).toContain('palilula');
+    // with nothing to go on, every Студеничка is a candidate
+    const none = loaded.resolver.resolve('studenicke', { aliases: loaded.aliases });
+    expect(none.by).toBe('ambiguous');
+    expect(none.candidates).toHaveLength(3);
   });
 });
 
 describe('re-importing', () => {
   it('keeps every street id (subscriptions point at them) and the version when nothing changed', async () => {
-    const before = new Map(loaded.streets.map((s) => [s.nameNorm, s.id]));
+    const key = (s: { nameNorm: string; clusterKey: string }) => `${s.nameNorm}|${s.clusterKey}`;
+    const before = new Map(loaded.streets.map((s) => [key(s), s.id]));
     const again = await importGazetteer(t.db, {
       city: 'Nis',
       gazetteer: source.gazetteer,
@@ -132,7 +159,7 @@ describe('re-importing', () => {
     expect(again.version).toBe(1);
     expect(again.etag).toBe(first.etag);
     expect(again.aliases).toBe(0); // already there
-    for (const s of after.streets) expect(s.id, s.name).toBe(before.get(s.nameNorm));
+    for (const s of after.streets) expect(s.id, s.name).toBe(before.get(key(s)));
     expect(after.streets.length).toBe(loaded.streets.length);
   });
 
@@ -143,6 +170,8 @@ describe('re-importing', () => {
         ...source.gazetteer.streets,
         {
           id: 999999,
+          clusterKey: '999999',
+          settlement: null,
           name: 'Нова тестна улица',
           nameNorm: 'nova testna ulica',
           altNorms: [],

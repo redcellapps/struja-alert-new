@@ -4,7 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { MAX_ADDRESSES } from '@struja/shared';
 import { api } from '../../src/api/runtime';
 import { useGazetteer } from '../../src/gazetteer/cache';
-import { findStreet } from '../../src/gazetteer/search';
+import { findStreetById } from '../../src/gazetteer/search';
 import { useMinuteNow } from '../../src/design/useNow';
 import { SUBSCRIPTIONS_KEY } from '../../src/home/useHomeData';
 import {
@@ -79,13 +79,16 @@ export default function OutageSheet() {
       onRetry={() => void detailQuery.refetch()}
       onClose={() => router.back()}
       followState={(segment) => {
-        const place = segment.name && index ? findStreet(index, segment.name.latin) : undefined;
+        // the exact street of the segment (a name can belong to several)
+        const place =
+          segment.streetId !== null && index ? findStreetById(index, segment.streetId) : undefined;
         if (!place) return 'none';
         if (saved.some((a) => a.request.streetId === place.id)) return 'followed';
         return saved.length < MAX_ADDRESSES ? 'can' : 'none';
       }}
       onFollow={(segment) => {
-        const place = segment.name && index ? findStreet(index, segment.name.latin) : undefined;
+        const place =
+          segment.streetId !== null && index ? findStreetById(index, segment.streetId) : undefined;
         if (place)
           router.push({
             pathname: '/add-address',

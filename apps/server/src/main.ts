@@ -31,7 +31,12 @@ await runMigrations(db);
 // Development convenience: load the saved OSM snapshots into an empty database.
 if (config.IMPORT_GAZETTEER) {
   const have = Number((await db.execute(sql`SELECT count(*)::int AS n FROM street`)).rows[0]?.n);
-  if (have === 0) {
+  // Rows from before the split of same-named streets (no cluster key) are replaced by the import.
+  const legacy = Number(
+    (await db.execute(sql`SELECT count(*)::int AS n FROM street WHERE cluster_key IS NULL`)).rows[0]
+      ?.n,
+  );
+  if (have === 0 || legacy > 0) {
     const src = readNisSnapshots(`${repoRoot}fixtures/osm`);
     const aliases: ReviewedAlias[] = JSON.parse(
       readFileSync(`${repoRoot}packages/parser/data/aliases.json`, 'utf8'),

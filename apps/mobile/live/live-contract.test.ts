@@ -62,6 +62,11 @@ describe.skipIf(!BASE)('live API contract', () => {
     const g = await publicApi.gazetteer('nis');
     expect(g?.streets.length).toBeGreaterThan(100);
     expect(await publicApi.gazetteer('nis', g?.etag)).toBeNull();
+    // streets that share a name in different places are different streets, told apart by settlement
+    const vp = g?.streets.filter((s) => s.nameNorm === 'vojvode putnika') ?? [];
+    expect(vp.length).toBeGreaterThanOrEqual(2);
+    expect(new Set(vp.map((s) => s.settlement)).size).toBe(vp.length);
+    expect(vp.map((s) => s.settlement)).toContain('Трупале');
   });
 
   it('city browse answers with and without a date', async () => {

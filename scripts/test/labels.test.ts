@@ -81,12 +81,23 @@ describe('buildLabels on the collected Niš pages', () => {
   it('proposes a street for every in-scope street segment', () => {
     const inScope = rows.filter((r) => r.in_scope && r.kind === 'street');
     expect(inScope.length).toBeGreaterThanOrEqual(10);
-    for (const r of inScope) expect(r.proposed, r.raw_segment).not.toBe('');
+    for (const r of inScope) {
+      // a name that several streets share and the row cannot place: no single street, every candidate listed
+      if (r.resolved_by === 'ambiguous') {
+        expect(r.proposed, r.raw_segment).toBe('');
+        expect(r.candidates, r.raw_segment).toContain('·');
+      } else {
+        expect(r.proposed, r.raw_segment).not.toBe('');
+      }
+    }
   });
   it('summarizes the sample size next to the rate', () => {
     const s = summarize(rows);
     expect(s.inScopeStreetSegments).toBeGreaterThanOrEqual(10);
-    expect(s.resolutionRate).toBe(1);
+    // every segment is resolved except those whose name several streets share and nothing places
+    const ambiguous = s.resolvedByStep['ambiguous'] ?? 0;
+    expect(s.resolvedStreetSegments + ambiguous).toBe(s.inScopeStreetSegments);
+    expect(s.resolutionRate).toBeGreaterThan(0.5);
   });
   it('writes a CSV with empty confirmed/notes columns for the reviewer', () => {
     const csv = toCsv(rows);
@@ -98,11 +109,19 @@ describe('buildLabels on the collected Niš pages', () => {
     const seed = aliasSeed(rows);
     expect(seed.length).toBeGreaterThan(0);
     expect(seed.every((a) => a.source !== 'exact')).toBe(true);
-    expect(seed.find((a) => a.raw === 'Студеничке')).toMatchObject({
-      raw_norm: 'studenicke',
-      street: 'Студеничка',
+    expect(seed.find((a) => a.raw === 'Космајске')).toMatchObject({
+      raw_norm: 'kosmajske',
+      street: 'Космајска',
       source: 'form',
     });
+    // a spelling of a shared name is seeded too (the street is placed by its row)
+    expect(seed.find((a) => a.raw === 'Чегарске')).toMatchObject({
+      raw_norm: 'cegarske',
+      street: 'Чегарска',
+      source: 'placed',
+    });
+    // a name the row could not place yields no seed: there is no single street to point at
+    expect(seed.find((a) => a.raw === 'Студеничке')).toBeUndefined();
   });
 });
 

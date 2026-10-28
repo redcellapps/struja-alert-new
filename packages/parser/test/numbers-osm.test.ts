@@ -84,7 +84,8 @@ describe('buildNisGazetteer', () => {
       type: 'way',
       id: 2,
       tags: { name: 'Студеничка' },
-      geometry: [{ lat: 43.5, lon: 22.1 }],
+      // a continuation within a few metres of the end of way 1: the same street
+      geometry: [{ lat: 43.4002, lon: 22.0002 }],
     },
     {
       type: 'way',
@@ -128,7 +129,7 @@ describe('buildNisGazetteer', () => {
   ];
   const g = buildNisGazetteer(ways, muns);
 
-  it('merges ways with the same normalized name and ignores nameless ways', () => {
+  it('merges connected or close ways with the same normalized name and ignores nameless ways', () => {
     expect(g.streets.map((s) => s.name)).toEqual(['Студеничка', 'Булевар 12. фебруар']);
     expect(g.streets[0]?.wayIds).toEqual([1, 2]);
     expect(g.streets[0]?.lines).toHaveLength(2);
@@ -138,12 +139,17 @@ describe('buildNisGazetteer', () => {
     expect(g.streets[1]?.municipalities).toEqual(['pantelej', 'palilula']);
   });
   it('computes a centroid from the geometry', () => {
-    expect(g.streets[0]?.centroid?.[0]).toBeCloseTo((43.3 + 43.4 + 43.5) / 3);
+    expect(g.streets[0]?.centroid?.[0]).toBeCloseTo((43.3 + 43.4 + 43.4002) / 3);
     expect(g.streets[1]?.centroid).toBeNull();
   });
   it('keeps alternate names as extra normalized forms', () => {
     expect(g.streets[1]?.altNorms).toEqual(['bulevar dvanaesti februar', 'bulevar 12 februara']);
     expect(g.streets[0]?.nameLatin).toBe('Studenička');
+  });
+  it('names the nearest settlement of each street, and gives each a stable key', () => {
+    expect(g.streets[0]?.settlement).toBe('Трупале');
+    expect(g.streets[0]?.clusterKey).toBe('1'); // the smallest OSM way id
+    expect(g.streets[1]?.settlement).toBeNull(); // no geometry, no place to name
   });
   it('lets an alternate name resolve to the street', () => {
     const r = new StreetIndex(g.streets).resolve(norm('Бул. 12. фебруара'));

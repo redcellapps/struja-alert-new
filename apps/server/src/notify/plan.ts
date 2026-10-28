@@ -134,7 +134,10 @@ async function candidateSubs(
   for (const r of rows) {
     if (r.streetId !== null) streetIds.add(r.streetId);
     if (r.settlementId !== null) settlementIds.add(r.settlementId);
-    if (safetyNet) for (const c of r.candidates ?? []) streetIds.add(Number(c.id));
+    // every street an ambiguous name may mean (always), and any candidate of an unresolved segment (safety net)
+    if (safetyNet || r.resolvedBy === 'ambiguous') {
+      for (const c of r.candidates ?? []) streetIds.add(Number(c.id));
+    }
   }
   const conditions = [];
   if (streetIds.size) conditions.push(inArray(subscription.streetId, [...streetIds]));

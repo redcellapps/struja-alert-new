@@ -10,7 +10,8 @@
     "db:generate": "drizzle-kit generate",
     "db:migrate": "node --env-file-if-exists=../../.env src/db/migrate-cli.ts",
     "dev:fixtures": "node --experimental-strip-types --env-file-if-exists=../../.env src/dev/rebase-fixtures.ts",
-    "dev:scrape": "node --experimental-strip-types --env-file-if-exists=../../.env src/dev/scrape-now.ts"
+    "dev:scrape": "node --experimental-strip-types --env-file-if-exists=../../.env src/dev/scrape-now.ts",
+    "dev:import-gazetteer": "node --experimental-strip-types --env-file-if-exists=../../.env src/dev/import-gazetteer.ts"
   },
   "dependencies": {
     "@fastify/helmet": "^13.2.0",

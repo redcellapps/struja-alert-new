@@ -252,6 +252,7 @@ function detailForCity(o: CityOutage): OutageDetailDto {
       raw,
       kind: 'street' as const,
       name: { latin: cyrillicToLatin(raw), cyrillic: raw },
+      streetId: null,
       partial: false,
       ranges: [],
     })),

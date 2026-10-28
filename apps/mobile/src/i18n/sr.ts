@@ -90,6 +90,8 @@ export const sr = {
     yourNumber: 'Vaš broj {{n}} je u opsegu {{range}}',
     possibleNoNumber: 'Moguće pogođeno — niste uneli broj',
     affectedStreets: 'Pogođene ulice',
+    possibleSameName:
+      'Više ulica nosi ovo ime, a obaveštenje ne kaže koja je. Zato javljamo svima na tim ulicama.',
     mapSource:
       'Izvor mape: OpenStreetMap, OpenMapTiles, OpenFreeMap. Otvara stranicu o autorskim pravima.',
     rawText: 'Originalni tekst iz EDS',

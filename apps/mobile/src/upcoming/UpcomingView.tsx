@@ -17,7 +17,7 @@ import { useTheme } from '../design/theme';
 import { CARD_GAP, CARD_PADDING } from '../design/tokens';
 import { belgradeDate, hhmm } from '../format/time';
 import { agoLabel } from '../home/format';
-import { placeMunicipality, placeName, type Place } from '../gazetteer/search';
+import { placeDetail, placeName, type Place } from '../gazetteer/search';
 import { dateLong } from '../outage/actions';
 import { groupByDay, inScript, matchesQuery, streetsSummary, type CityOutage } from './group';
 
@@ -93,7 +93,7 @@ export function UpcomingView(props: UpcomingViewProps) {
                 <View style={{ flex: 1, gap: 2 }}>
                   <AppText variant="bodyStrong">{placeName(place, script)}</AppText>
                   <AppText variant="label" color="textSecondary">
-                    {placeMunicipality(place, script)}
+                    {placeDetail(place, script)}
                   </AppText>
                 </View>
                 {followed ? (

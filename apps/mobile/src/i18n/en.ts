@@ -87,6 +87,8 @@ export const en: Deep<Messages> = {
     yourNumber: 'Your number {{n}} is within {{range}}',
     possibleNoNumber: 'Possibly affected — no house number entered',
     affectedStreets: 'Affected streets',
+    possibleSameName:
+      'Several streets have this name and the notice does not say which. We tell everyone on them.',
     mapSource: 'Map sources: OpenStreetMap, OpenMapTiles, OpenFreeMap. Opens the copyright page.',
     rawText: 'Original text from EDS',
     addToCalendar: 'Add to calendar',

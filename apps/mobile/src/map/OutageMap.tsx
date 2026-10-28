@@ -15,6 +15,10 @@ installMapLogging();
 export const MAP_HEIGHT = 240;
 const POLL_MS = 600;
 
+// A street the notice may mean (several streets share its name) is drawn lighter and dashed.
+const CANDIDATE = ['==', ['get', 'candidate'], true] as const;
+const NOT_CANDIDATE = ['!=', ['get', 'candidate'], true] as const;
+
 // The affected streets: thin when the whole area is in view, thick when zoomed in; `extra` widens the casing.
 const lineWidth = (extra: number) =>
   ['interpolate', ['linear'], ['zoom'], 11, 3 + extra, 15, 5 + extra, 18, 8 + extra] as never;
@@ -144,9 +148,21 @@ export function OutageMap({ geometry, house, color, script }: OutageMapProps) {
             <Layer
               id="shape-line"
               type="line"
-              filter={lines as never}
+              filter={['all', lines, NOT_CANDIDATE] as never}
               layout={{ 'line-cap': 'round', 'line-join': 'round' }}
               paint={{ 'line-color': color, 'line-width': lineWidth(0) }}
+            />
+            <Layer
+              id="shape-line-candidate"
+              type="line"
+              filter={['all', lines, CANDIDATE] as never}
+              layout={{ 'line-cap': 'butt', 'line-join': 'round' }}
+              paint={{
+                'line-color': color,
+                'line-width': lineWidth(0),
+                'line-opacity': 0.6,
+                'line-dasharray': [2, 1.5],
+              }}
             />
             <Layer
               id="shape-point"

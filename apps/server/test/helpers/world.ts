@@ -29,6 +29,12 @@ export const isoOf = (d: string) => {
   return `${year}-${month}-${day}`;
 };
 
+// Where the tests' rows put the names that several streets share.
+export const PLACED_IN: Record<string, 'palilula' | 'niska banja'> = {
+  studenicka: 'palilula',
+  cegarska: 'niska banja',
+};
+
 export interface World {
   t: TestDb;
   gaz: LoadedGazetteer;
@@ -37,6 +43,8 @@ export interface World {
   sid: (nameNorm: string) => number;
   addSub: (o: {
     norm: string;
+    // a specific street (a name can belong to several); default: the street `sid(norm)`
+    streetId?: number;
     house?: number | null;
     script?: 'latn' | 'cyrl';
     locale?: 'sr' | 'en';
@@ -69,7 +77,13 @@ export async function createWorld(now = new Date('2026-11-02T10:00:00Z')): Promi
     gaz,
     provider,
     now,
-    sid: (norm) => gaz.streets.find((s) => s.nameNorm === norm)?.id as number,
+    // The street of a name. Some names belong to several streets (Студеничка, Чегарска): the tests use
+    // the one in the municipality their rows name (PLACED_IN), so the outage resolves to it.
+    sid: (norm) => {
+      const same = gaz.streets.filter((s) => s.nameNorm === norm);
+      const mun = PLACED_IN[norm];
+      return (mun ? same.find((s) => s.municipalities.includes(mun)) : same[0])?.id as number;
+    },
     async addSub(o) {
       const token = `ExponentPushToken[w${++seq}]`;
       const [d] = await t.db
@@ -87,7 +101,7 @@ export async function createWorld(now = new Date('2026-11-02T10:00:00Z')): Promi
         .insert(subscription)
         .values({
           deviceId: d!.id,
-          streetId: w.sid(o.norm),
+          streetId: o.streetId ?? w.sid(o.norm),
           houseNumber: o.house ?? null,
           isPrimary: true,
         })

@@ -23,4 +23,8 @@ export const SCORING = {
   candidateLimit: 10,
   // Proximity decays as exp(-distance / scale).
   proximityScaleMeters: 1500,
+  // Streets that share a name: one is chosen by its distance to the other streets of the EDS row only
+  // when it is within this far of them and at least this much nearer than the next one.
+  placeMaxMeters: 3000,
+  placeLeadMeters: 1500,
 } as const;

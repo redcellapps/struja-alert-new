@@ -14,6 +14,10 @@ export interface Place {
   nameLatin: string;
   nameCyrillic: string;
   municipality: string | null;
+  // The settlement a street is in (Cyrillic): what tells apart streets that share a name.
+  settlement: string | null;
+  // True when another street has the same name (Војводе Путника in the city and in Трупале).
+  repeated: boolean;
   // Normalized names to match against: the name and its alternatives.
   norms: string[];
   // Words of every norm, for prefix matching of each query word.
@@ -28,6 +32,8 @@ const MAX_RESULTS = 8;
 
 export function buildIndex(g: GazetteerResponse): GazetteerIndex {
   const places: Place[] = [];
+  const perName = new Map<string, number>();
+  for (const s of g.streets) perName.set(s.nameNorm, (perName.get(s.nameNorm) ?? 0) + 1);
   for (const s of g.streets) {
     const norms = [s.nameNorm, ...s.altNorms];
     places.push({
@@ -36,6 +42,8 @@ export function buildIndex(g: GazetteerResponse): GazetteerIndex {
       nameLatin: s.nameLatin ?? cyrillicToLatin(s.nameCyrillic),
       nameCyrillic: s.nameCyrillic,
       municipality: s.municipality,
+      settlement: s.settlement,
+      repeated: (perName.get(s.nameNorm) ?? 0) > 1,
       norms,
       words: norms.flatMap((n) => n.split(' ')),
     });
@@ -48,6 +56,8 @@ export function buildIndex(g: GazetteerResponse): GazetteerIndex {
       nameLatin: cyrillicToLatin(s.nameCyrillic),
       nameCyrillic: s.nameCyrillic,
       municipality: s.municipality,
+      settlement: null,
+      repeated: false,
       norms,
       words: norms.flatMap((n) => n.split(' ')),
     });
@@ -92,6 +102,25 @@ export const placeMunicipality = (place: Place, script: 'latn' | 'cyrl'): string
     : script === 'cyrl'
       ? place.municipality
       : cyrillicToLatin(place.municipality);
+
+/**
+ * The line under a result: the municipality, and for a street whose name repeats the settlement first
+ * ("Vojvode Putnika · Trupale"), so the right one can be picked. Streets of one name are also told
+ * apart by the municipality when the settlement is the same.
+ */
+export function placeDetail(place: Place, script: 'latn' | 'cyrl'): string | null {
+  const municipality = placeMunicipality(place, script);
+  if (place.kind !== 'street' || !place.repeated || !place.settlement) return municipality;
+  const settlement = script === 'cyrl' ? place.settlement : cyrillicToLatin(place.settlement);
+  return municipality && municipality !== settlement
+    ? `${settlement} · ${municipality}`
+    : settlement;
+}
+
+/** The street with this id, if the gazetteer has it. */
+export function findStreetById(index: GazetteerIndex, id: number): Place | undefined {
+  return index.places.find((p) => p.kind === 'street' && p.id === id);
+}
 
 /** The street of the gazetteer that goes by this name (any script, case or diacritics), if there is one. */
 export function findStreet(index: GazetteerIndex, name: string): Place | undefined {

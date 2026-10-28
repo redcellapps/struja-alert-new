@@ -1,4 +1,4 @@
-import { and, eq, inArray, sql } from 'drizzle-orm';
+import { and, eq, inArray, or, sql } from 'drizzle-orm';
 import type { PossibleReason } from '@struja/shared';
 import type { Db } from '../db/client.ts';
 import { notificationLog, outage, outageStreet } from '../db/schema.ts';
@@ -51,7 +51,14 @@ export async function outagesForAddress(
 ): Promise<AddressOutage[]> {
   const key =
     target.streetId !== null
-      ? eq(outageStreet.streetId, target.streetId)
+      ? // the street itself, or an ambiguous name that lists this street among its candidates
+        or(
+          eq(outageStreet.streetId, target.streetId),
+          and(
+            eq(outageStreet.resolvedBy, 'ambiguous'),
+            sql`${outageStreet.candidates} @> ${JSON.stringify([{ id: target.streetId }])}::jsonb`,
+          ),
+        )
       : target.settlementId !== null
         ? eq(outageStreet.settlementId, target.settlementId)
         : null;

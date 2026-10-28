@@ -30,6 +30,8 @@ interface StreetRow {
   name_cyrillic: string;
   name_latin: string | null;
   name_norm: string;
+  cluster_key: string | null;
+  settlement_name: string | null;
   alt_norms: string[];
   municipality: string | null;
   municipalities: string[];
@@ -63,8 +65,8 @@ function centroidOf(lines: [number, number][][]): [number, number] | null {
 export async function loadGazetteer(db: Db, city: string): Promise<LoadedGazetteer> {
   const streetRows = (
     await db.execute(sql`
-      SELECT id, name_cyrillic, name_latin, name_norm, alt_norms, municipality, municipalities,
-             osm_way_ids, ST_AsGeoJSON(geom) AS geo
+      SELECT id, name_cyrillic, name_latin, name_norm, cluster_key, settlement_name, alt_norms,
+             municipality, municipalities, osm_way_ids, ST_AsGeoJSON(geom) AS geo
       FROM street WHERE city = ${city} ORDER BY id`)
   ).rows as unknown as StreetRow[];
 
@@ -75,6 +77,8 @@ export async function loadGazetteer(db: Db, city: string): Promise<LoadedGazette
       id: r.id,
       name: r.name_cyrillic,
       nameNorm: r.name_norm,
+      clusterKey: r.cluster_key ?? String(r.id),
+      settlement: r.settlement_name,
       altNorms: r.alt_norms,
       municipality: (r.municipality as NisMunicipality | null) ?? null,
       municipalities,

@@ -38,6 +38,7 @@ export function citiesRoutes(app: FastifyInstance, deps: AppDeps): void {
         nameNorm: s.nameNorm,
         altNorms: s.altNorms ?? [],
         municipality: s.municipality,
+        settlement: s.settlement,
       })),
       settlements: g.settlements.map((p) => ({
         id: Number(p.id),

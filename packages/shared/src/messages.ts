@@ -9,7 +9,8 @@ export type Script = 'latn' | 'cyrl';
 export type Locale = 'sr' | 'en';
 
 // Why a match is only "possibly affected".
-export type PossibleReason = 'no_number' | 'partial' | 'unresolved';
+// `same_name`: several streets share the name and the notice does not say which: all are told.
+export type PossibleReason = 'no_number' | 'partial' | 'unresolved' | 'same_name';
 
 export interface TimeWindow {
   startsAt: Date;
@@ -60,11 +61,13 @@ const REASON_SR: Record<PossibleReason, string> = {
   no_number: 'Niste uneli kućni broj, pa nije sigurno da ste pogođeni.',
   partial: 'Isključenje se odnosi na delove ulice.',
   unresolved: 'Ulica iz obaveštenja nije sa sigurnošću prepoznata.',
+  same_name: 'Više ulica nosi ovo ime, a obaveštenje ne kaže koja je.',
 };
 const REASON_EN: Record<PossibleReason, string> = {
   no_number: 'You did not enter a house number, so it is not certain you are affected.',
   partial: 'The outage covers parts of the street.',
   unresolved: 'The street in the notice could not be identified with certainty.',
+  same_name: 'Several streets have this name and the notice does not say which.',
 };
 
 // Templates use {0}.. placeholders (not words) so transliteration cannot touch them:

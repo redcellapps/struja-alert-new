@@ -20,8 +20,8 @@ describe('a time that flips A -> B -> A -> B', () => {
   it('tells the person every flip, so they never keep believing the old time', async () => {
     const date = '10.11.2026.';
     const a = await w.addSub({ norm: 'studenicka' });
-    const early: [string, string, string] = ['Пантелеј', '08:00 - 10:00', A];
-    const late: [string, string, string] = ['Пантелеј', '09:00 - 11:00', A];
+    const early: [string, string, string] = ['Палилула - Ниш', '08:00 - 10:00', A];
+    const late: [string, string, string] = ['Палилула - Ниш', '09:00 - 11:00', A];
 
     await w.page(date, [early, keep]);
     await w.plan();
@@ -52,7 +52,7 @@ describe('a time that flips A -> B -> A -> B', () => {
 
   it('a repeat run with nothing new sends nothing', async () => {
     const date = '10.11.2026.';
-    await w.page(date, [['Пантелеј', '08:00 - 10:00', A], keep]);
+    await w.page(date, [['Палилула - Ниш', '08:00 - 10:00', A], keep]);
     const again = await w.plan();
     expect(again.planned).toBe(0);
     expect((await w.deliver()).sent).toBe(0);

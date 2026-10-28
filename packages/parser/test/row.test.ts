@@ -12,6 +12,8 @@ import {
 let nextId = 1;
 const street = (name: string, at?: [number, number]): NisStreet => ({
   id: nextId++,
+  clusterKey: String(nextId),
+  settlement: null,
   name,
   nameNorm: normalizeName(name),
   altNorms: [],

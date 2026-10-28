@@ -24,6 +24,8 @@ export const gazetteerStreetSchema = z.object({
   nameNorm: z.string(),
   altNorms: z.array(z.string()),
   municipality: z.string().nullable(),
+  // The nearest settlement, in Cyrillic: what tells streets with the same name apart.
+  settlement: z.string().nullable(),
 });
 export const gazetteerSettlementSchema = z.object({
   id: z.number().int(),

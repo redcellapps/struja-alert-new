@@ -629,7 +629,14 @@ function segmentRows(
     resolvedBy: res.by,
     score: res.score,
     // Top candidates stay on the row for admin review (unresolved or only scored).
-    candidates: res.candidates.length && res.by !== 'exact' ? res.candidates.slice(0, 5) : null,
+    // All of them for a name that several streets share (each one is told "Moguće"); else the top five.
+    candidates: res.candidates.length
+      ? res.by === 'ambiguous'
+        ? res.candidates
+        : res.by !== 'exact'
+          ? res.candidates.slice(0, 5)
+          : null
+      : null,
   };
   const ranges = res.segment.ranges;
   if (ranges.length === 0) {
