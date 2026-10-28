@@ -1,0 +1,37 @@
+# The three onboarding steps and the first address, from a clean install.
+appId: rs.example.strujaalert
+---
+- launchApp:
+    clearState: true
+    permissions:
+      all: allow
+- runFlow:
+    file: lib/scenario.yaml
+    env:
+      SCENARIO: clear
+- runFlow: lib/open-app.yaml
+- extendedWaitUntil:
+    visible: 'Korak 1 od 3'
+    timeout: 90000
+- takeScreenshot: onboarding-1-welcome
+- tapOn: 'Dalje'
+- assertVisible: 'Korak 2 od 3'
+- takeScreenshot: onboarding-2-notifications
+- tapOn: 'Ne sada'
+- assertVisible: 'Korak 3 od 3'
+- takeScreenshot: onboarding-3-address
+- tapOn: 'Ukucajte naziv ulice'
+- inputText: 'vojvode misica'
+- takeScreenshot: onboarding-4-search
+# at a large font the keyboard covers the results
+- hideKeyboard
+- assertVisible: 'Vojvode Mišića'
+- tapOn: 'Vojvode Mišića'
+- scrollUntilVisible:
+    element: 'Sačuvaj adresu'
+- takeScreenshot: onboarding-5-confirm
+- tapOn: 'Sačuvaj adresu'
+- extendedWaitUntil:
+    visible: 'Početna'
+    timeout: 30000
+- takeScreenshot: onboarding-6-home

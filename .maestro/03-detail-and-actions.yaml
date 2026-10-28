@@ -1,0 +1,45 @@
+# The outage detail (an outage in progress), its map, and the system actions it hands over to.
+appId: rs.example.strujaalert
+---
+- runFlow: lib/open-app.yaml
+- runFlow:
+    file: lib/scenario.yaml
+    env:
+      SCENARIO: active
+- tapOn: 'Početna'
+- swipe:
+    start: 50%, 30%
+    end: 50%, 78%
+    duration: 400
+- waitForAnimationToEnd:
+    timeout: 4000
+- tapOn: 'Bez struje'
+- extendedWaitUntil:
+    visible: 'Zatvori'
+    timeout: 20000
+- takeScreenshot: detail-1-top
+# down to the map, and a moment for its tiles
+- swipe:
+    start: 50%, 85%
+    end: 50%, 30%
+    duration: 500
+- waitForAnimationToEnd:
+    timeout: 9000
+- takeScreenshot: detail-2-map
+- scroll
+- takeScreenshot: detail-3-streets
+- scroll
+- takeScreenshot: detail-4-actions
+- tapOn:
+    text: 'Prikaži originalni tekst'
+    optional: true
+- takeScreenshot: detail-5-original-text
+# the system share sheet; the calendar and the EDS site are for the phone
+- tapOn:
+    text: 'Podeli'
+    optional: true
+- waitForAnimationToEnd:
+    timeout: 3000
+- takeScreenshot: detail-6-share
+- pressKey: back
+- pressKey: back

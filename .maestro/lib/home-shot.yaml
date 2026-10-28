@@ -1,0 +1,15 @@
+# One scenario of the mock API on Početna: switch it, pull down to refresh, screenshot.
+appId: rs.example.strujaalert
+---
+- runFlow:
+    file: scenario.yaml
+    env:
+      SCENARIO: ${SCENARIO}
+- tapOn: 'Početna'
+- swipe:
+    start: 50%, 30%
+    end: 50%, 78%
+    duration: 400
+- waitForAnimationToEnd:
+    timeout: 4000
+- takeScreenshot: home-${SCENARIO}

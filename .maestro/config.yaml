@@ -1,0 +1,4 @@
+# Maestro workspace for the Android design QA (step 11). Run it with `pnpm --filter @struja/scripts qa-screens`,
+# which sets the theme and the font scale with adb, starts the flows below and collects the screenshots.
+flows:
+  - '0*.yaml'

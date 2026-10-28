@@ -1,0 +1,50 @@
+# Najave, Istorija and Podešavanja, and the add-address sheet.
+appId: rs.example.strujaalert
+---
+- runFlow: lib/open-app.yaml
+- runFlow:
+    file: lib/scenario.yaml
+    env:
+      SCENARIO: active
+- tapOn: 'Najave'
+- waitForAnimationToEnd:
+    timeout: 4000
+- takeScreenshot: najave-1
+- scroll
+- takeScreenshot: najave-2
+- tapOn: 'Pretraži ulicu'
+- inputText: 'vojvode'
+- waitForAnimationToEnd:
+    timeout: 2000
+- takeScreenshot: najave-3-search
+- hideKeyboard
+- tapOn: 'Istorija'
+- waitForAnimationToEnd:
+    timeout: 4000
+- takeScreenshot: istorija-1
+- scroll
+- takeScreenshot: istorija-2
+- tapOn: 'Podešavanja'
+- waitForAnimationToEnd:
+    timeout: 3000
+- takeScreenshot: podesavanja-1
+- scroll
+- takeScreenshot: podesavanja-2
+- scroll
+- takeScreenshot: podesavanja-3
+- scroll
+- takeScreenshot: podesavanja-4
+- tapOn: 'Početna'
+- scrollUntilVisible:
+    element: 'Dodaj adresu'
+- tapOn: 'Dodaj adresu'
+- waitForAnimationToEnd:
+    timeout: 3000
+- takeScreenshot: add-address-1
+- tapOn: 'Ukucajte naziv ulice'
+- inputText: 'cegarska'
+- waitForAnimationToEnd:
+    timeout: 2000
+- takeScreenshot: add-address-2-search
+- hideKeyboard
+- pressKey: back

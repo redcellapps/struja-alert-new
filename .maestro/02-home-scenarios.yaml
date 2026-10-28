@@ -1,0 +1,20 @@
+# Početna in every scenario of the mock API, then notifications off.
+appId: rs.example.strujaalert
+---
+- runFlow: lib/open-app.yaml
+- extendedWaitUntil:
+    visible: 'Početna'
+    timeout: 60000
+- runFlow: { file: lib/home-shot.yaml, env: { SCENARIO: clear } }
+- runFlow: { file: lib/home-shot.yaml, env: { SCENARIO: upcoming } }
+- runFlow: { file: lib/home-shot.yaml, env: { SCENARIO: imminent } }
+- runFlow: { file: lib/home-shot.yaml, env: { SCENARIO: active } }
+- runFlow: { file: lib/home-shot.yaml, env: { SCENARIO: cancelled } }
+- runFlow: { file: lib/home-shot.yaml, env: { SCENARIO: possible } }
+- runFlow: { file: lib/home-shot.yaml, env: { SCENARIO: three } }
+# a loaded scenario, then the connection is gone: the saved data with the offline notice
+- runFlow: { file: lib/home-shot.yaml, env: { SCENARIO: active } }
+- runFlow: { file: lib/home-shot.yaml, env: { SCENARIO: offline } }
+# the server answers every request with its 500
+- runFlow: { file: lib/home-shot.yaml, env: { SCENARIO: fail } }
+- runFlow: { file: lib/scenario.yaml, env: { SCENARIO: active } }

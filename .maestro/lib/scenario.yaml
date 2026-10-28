@@ -1,0 +1,6 @@
+appId: rs.example.strujaalert
+---
+- runScript:
+    file: set-scenario.js
+    env:
+      SCENARIO: ${SCENARIO}

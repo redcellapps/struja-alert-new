@@ -23,4 +23,9 @@ export default tseslint.config(
     },
     rules: { '@typescript-eslint/no-require-imports': 'off' },
   },
+  {
+    // Maestro runs these scripts with `http` and the flow's env variables as globals.
+    files: ['.maestro/**/*.js'],
+    languageOptions: { globals: { http: 'readonly', SCENARIO: 'readonly' } },
+  },
 );
