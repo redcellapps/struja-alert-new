@@ -1,4 +1,5 @@
 import { eq, sql } from 'drizzle-orm';
+import { URGENT_CHANNEL } from '@struja/shared';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { device, notificationLog, outage, outageStreet, subscription } from '../src/db/schema.ts';
 import { importGazetteer } from '../src/gazetteer/import.ts';
@@ -11,7 +12,12 @@ import {
   processReceipts,
   RECEIPT_DELAY_MS,
 } from '../src/notify/deliver.ts';
-import { planEveningBefore, planNotifications, planSafetyNet } from '../src/notify/plan.ts';
+import {
+  planEveningBefore,
+  planNotifications,
+  planOnDemand,
+  planSafetyNet,
+} from '../src/notify/plan.ts';
 import { FakePushProvider } from '../src/notify/provider.ts';
 import { startTestDb, type TestDb } from './helpers/db.ts';
 import { PLACED_IN } from './helpers/world.ts';
@@ -551,5 +557,29 @@ describe('delivery', () => {
     );
     expect(r.droppedDevices).toBeGreaterThan(0);
     expect(await t.db.select().from(device).where(eq(device.id, a.deviceId))).toEqual([]);
+  });
+  it('dev:push plans one notification on demand through the outbox, urgent when asked', async () => {
+    const a = await addSub({ norm: 'kosmajska' });
+    await page('29.11.2026.', [['Палилула - Ниш', '08:00 - 09:00', 'Космајске']]);
+    await plan();
+    await deliver();
+    const before = titles(a.token).length;
+    const r = await planOnDemand(t.db, NOW, { subscriptionId: a.subId, kind: 'changed' });
+    expect(r).not.toBeNull();
+    await deliver();
+    expect(titles(a.token)).toHaveLength(before + 1);
+    // The same second plans the same row again (the dedupe key), never a second push.
+    const again = await planOnDemand(t.db, NOW, { subscriptionId: a.subId, kind: 'changed' });
+    expect(again?.id).toBe(r!.id);
+    const later = new Date(NOW.getTime() + 1000);
+    const u = await planOnDemand(t.db, later, {
+      subscriptionId: a.subId,
+      kind: 'new',
+      urgent: true,
+    });
+    const [row] = await t.db.select().from(notificationLog).where(eq(notificationLog.id, u!.id));
+    expect((row!.payload as { channelId: string; urgent: boolean }).channelId).toBe(URGENT_CHANNEL);
+    expect(row!.revision).toBeLessThan(0);
+    expect(await planOnDemand(t.db, NOW, { subscriptionId: 999_999, kind: 'new' })).toBeNull();
   });
 });

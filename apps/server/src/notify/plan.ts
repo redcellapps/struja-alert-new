@@ -290,6 +290,8 @@ interface Emit {
   possible?: PossibleReason | null;
   // The outage revision this announces; "new" and "evening_before" are always 0.
   revision?: number;
+  // Development only (dev:push): send on the "hitno" channel now, whatever the window says.
+  forceUrgent?: boolean;
 }
 
 async function emit(
@@ -300,7 +302,9 @@ async function emit(
 ): Promise<PlanResult> {
   const r = empty();
   const quiet = parseQuietHours(e.sub.quietHours);
-  const delivery = planDelivery(now, e.window.startsAt, quiet);
+  const delivery = e.forceUrgent
+    ? { deliverAt: now, urgent: true }
+    : planDelivery(now, e.window.startsAt, quiet);
   const name = names.get(
     e.sub.streetId !== null ? `s${e.sub.streetId}` : `p${e.sub.settlementId}`,
   ) ?? {
@@ -762,6 +766,74 @@ export async function planSafetyNet(db: Db, now: Date): Promise<PlanResult> {
 }
 
 /** Everyone an outage affects (or may affect), for the start/end signals and the app. */
+/**
+ * Development only (`pnpm --filter @struja/server dev:push`): plans ONE notification of the given
+ * kind for a subscription right now, so a real push can be sent on demand without waiting for a
+ * scrape or a change. The row goes through the ordinary outbox (`deliverPending`, receipts), with a
+ * negative revision (the time, in seconds) so it never collides with a planned one and is easy to
+ * tell apart in `notification_log`. Quiet hours apply as usual unless `urgent` is set.
+ */
+export async function planOnDemand(
+  db: Db,
+  now: Date,
+  opts: { subscriptionId: number; kind: NotificationKind; outageId?: number; urgent?: boolean },
+): Promise<{ id: number; outageId: number; status: string } | null> {
+  const [sub] = await subById(db, [opts.subscriptionId]);
+  if (!sub) return null;
+  const o = opts.outageId
+    ? await db
+        .select({ id: outage.id, startsAt: outage.startsAt, endsAt: outage.endsAt })
+        .from(outage)
+        .where(eq(outage.id, opts.outageId))
+        .then((r) => r[0])
+    : await latestOutageFor(db, sub);
+  if (!o) return null;
+  const names = await streetNames(db, [sub]);
+  const revision = -Math.floor(now.getTime() / 1000);
+  await emit(db, now, names, {
+    sub,
+    kind: opts.kind,
+    outageId: o.id,
+    window: { startsAt: o.startsAt, endsAt: o.endsAt },
+    revision,
+    forceUrgent: opts.urgent,
+  });
+  const [row] = await db
+    .select({ id: notificationLog.id, status: notificationLog.status })
+    .from(notificationLog)
+    .where(
+      and(
+        eq(notificationLog.subscriptionId, sub.id),
+        eq(notificationLog.outageId, o.id),
+        eq(notificationLog.kind, opts.kind),
+        eq(notificationLog.revision, revision),
+      ),
+    );
+  return row ? { id: row.id, outageId: o.id, status: row.status } : null;
+}
+
+// The newest current (not cancelled) outage (by start) that names the street or settlement of the subscription.
+async function latestOutageFor(
+  db: Db,
+  sub: Sub,
+): Promise<{ id: number; startsAt: Date; endsAt: Date } | undefined> {
+  const where =
+    sub.streetId !== null
+      ? eq(outageStreet.streetId, sub.streetId)
+      : sub.settlementId !== null
+        ? eq(outageStreet.settlementId, sub.settlementId)
+        : undefined;
+  if (!where) return undefined;
+  const rows = await db
+    .selectDistinct({ id: outage.id, startsAt: outage.startsAt, endsAt: outage.endsAt })
+    .from(outage)
+    .innerJoin(outageStreet, eq(outageStreet.outageId, outage.id))
+    .where(and(where, inArray(outage.status, ['active', 'changed'])))
+    .orderBy(sql`${outage.startsAt} DESC`)
+    .limit(1);
+  return rows[0];
+}
+
 export async function matchedSubscribers(
   db: Db,
   outageId: number,

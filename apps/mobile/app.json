@@ -52,6 +52,7 @@
     },
     "android": {
       "package": "rs.strujaalert.app",
+      "googleServicesFile": "./google-services.json",
       "adaptiveIcon": {
         "backgroundColor": "#E6F4FE",
         "foregroundImage": "./assets/android-icon-foreground.png",
@@ -59,9 +60,7 @@
         "monochromeImage": "./assets/android-icon-monochrome.png"
       },
       "predictiveBackGestureEnabled": true,
-      "permissions": [
-        "android.permission.POST_NOTIFICATIONS"
-      ],
+      "permissions": ["android.permission.POST_NOTIFICATIONS"],
       "blockedPermissions": [
         "android.permission.ACCESS_FINE_LOCATION",
         "android.permission.ACCESS_COARSE_LOCATION",

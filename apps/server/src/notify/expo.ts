@@ -29,8 +29,9 @@ export function toExpoMessage(m: PushMessage): ExpoPushMessage {
     channelId: m.channelId,
     // The app registers this category with the "Detalji" and "Dodaj u kalendar" buttons.
     categoryId: OUTAGE_CATEGORY,
-    // Android group key / iOS thread: one per saved address (expo-notifications maps the thread id
-    // to the Android group and adds the summary itself).
+    // iOS thread: one per saved address. Expo's push service sends it to iOS only: on Android no
+    // group reaches the phone (measured 29 Oct on the HONOR: the notification has no group), so
+    // remote pushes are not grouped by address there; local notifications are (docs/phase4-plan.md).
     threadId: m.groupKey,
     // Every notification of ours is about a coming or current outage: worth waking the device for.
     priority: 'high',
