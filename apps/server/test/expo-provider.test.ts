@@ -41,13 +41,15 @@ class FakeExpo implements ExpoClient {
 }
 
 describe('the Expo push message', () => {
-  it('carries the channel, the category with the two actions, the address group and high priority', () => {
+  it('carries the channel, the category with the two actions, the address as iOS thread and Android tag, and high priority', () => {
     const m = toExpoMessage(message());
     expect(m).toMatchObject({
       to: 'ExponentPushToken[abc]',
       channelId: 'new',
       categoryId: 'outage',
       threadId: 'address-15',
+      // Android replaces a shown notification with the same tag: one line per address in the shade.
+      tag: 'address-15',
       priority: 'high',
       sound: 'default',
       data: { outageId: 7, link: 'strujaalert://outage/7' },
