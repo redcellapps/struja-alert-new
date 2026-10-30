@@ -429,6 +429,9 @@ export const notificationLog = pgTable(
     lastError: text('last_error'),
     createdAt: tstz('created_at').notNull().defaultNow(),
     sentAt: tstz('sent_at'),
+    // For "changed", "cancelled" and "reinstated": when the data-only companion push went out (the
+    // app's background task corrects its local alarm from it; docs/phase4-plan.md step 3).
+    companionSentAt: tstz('companion_sent_at'),
     // Expo push ticket / receipt, so dead tokens can be dropped.
     ticketId: text('ticket_id'),
     receiptStatus: text('receipt_status'),

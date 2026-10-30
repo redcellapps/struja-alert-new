@@ -222,6 +222,36 @@ describe('rule 1: a changed outage sends only "Izmena" to people already notifie
     // and the replaced row never produced an "Otkazano"
     expect(await kinds(told.subId)).not.toContain('cancelled:sent');
   });
+
+  it('every "Izmena" and "Otkazano" also sends a data-only companion once, even when the kind is off', async () => {
+    const date = '12.11.2026.';
+    const on = await addSub({ norm: 'cegarska' });
+    const off = await addSub({ norm: 'cegarska', kinds: ['new'] }); // "Izmene" turned off
+    await page(date, [['Нишка бања', '08:00 - 10:00', 'Чегарске']]);
+    await plan();
+    await deliver();
+    expect(titles(on.token)).toHaveLength(1);
+    // a "new" has no companion: nothing to correct yet
+    expect(provider.silentSent.filter((m) => m.to === on.token)).toHaveLength(0);
+
+    await page(date, [['Нишка бања', '09:00 - 11:00', 'Чегарске']]); // the time moves
+    await plan();
+    await deliver();
+    const forOn = provider.silentSent.filter((m) => m.to === on.token);
+    expect(forOn).toHaveLength(1);
+    expect(forOn[0]).toMatchObject({ silent: true, data: { kind: 'changed' } });
+    expect(forOn[0]?.data).toMatchObject({
+      outageId: expect.any(Number),
+      address: expect.any(String),
+    });
+    // the person who turned "Izmene" off gets no notification, but the alarm correction still goes
+    expect(titles(off.token)).toHaveLength(1);
+    expect(await kinds(off.subId)).toEqual(['new:sent', 'changed:suppressed']);
+    expect(provider.silentSent.filter((m) => m.to === off.token)).toHaveLength(1);
+    // once: a repeated delivery sends no second companion
+    await deliver();
+    expect(provider.silentSent.filter((m) => m.to === on.token)).toHaveLength(1);
+  });
 });
 
 describe('rule 2: an edited street list notifies only the difference', () => {

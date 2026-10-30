@@ -8,6 +8,7 @@ import { ThemeProvider, useTheme } from '../src/design/theme';
 import { i18next, initI18n, setLocale } from '../src/i18n';
 import { useOutageAlarms } from '../src/notifications/useOutageAlarms';
 import { registerBackgroundTask } from '../src/notifications/background';
+import { registerRefreshTask } from '../src/notifications/refresh';
 import { installForegroundHandler, setupNotifications } from '../src/notifications/channels';
 import { useNotificationResponses } from '../src/notifications/respond';
 import { CACHE_MAX_AGE_MS, mmkvPersister } from '../src/query/client';
@@ -96,7 +97,8 @@ export default function RootLayout() {
     if (!ready) return;
     void setupNotifications(i18next.t.bind(i18next))
       .catch(() => {})
-      .then(registerBackgroundTask);
+      .then(registerBackgroundTask)
+      .then(registerRefreshTask);
   }, [ready, language, script]);
 
   if (!ready) return null;

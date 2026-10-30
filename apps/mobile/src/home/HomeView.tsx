@@ -19,6 +19,7 @@ import {
 import { useTheme } from '../design/theme';
 import { CARD_GAP, type StatusKey } from '../design/tokens';
 import { addDays, belgradeDate, dayOfMonth, hhmm } from '../format/time';
+import { VendorCard, type VendorCardProps } from '../notifications/VendorCard';
 import {
   agoLabel,
   dayCaption,
@@ -52,6 +53,8 @@ export interface HomeViewProps {
   // Loading failed but older data is shown.
   offline: boolean;
   notificationsOff: boolean;
+  // The HONOR / Huawei advice, shown under the "notifications off" banner on those phones only.
+  vendorCard?: VendorCardProps | null;
   canAdd: boolean;
   refreshing: boolean;
   onRefresh: () => void;
@@ -318,6 +321,7 @@ export function HomeView(props: HomeViewProps) {
           onAction={props.onOpenSystemSettings}
         />
       ) : null}
+      {props.notificationsOff && props.vendorCard ? <VendorCard {...props.vendorCard} /> : null}
       {props.offline ? <Banner tone="offline" message={t('banner.offline')} /> : null}
 
       {props.loading ? (

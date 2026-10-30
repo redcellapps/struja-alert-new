@@ -87,6 +87,10 @@ const props = (over: Partial<SettingsViewProps> = {}): SettingsViewProps => ({
   onChange: jest.fn(),
   permission: 'granted',
   onOpenSystemSettings: jest.fn(),
+  exactAlarms: 'allowed',
+  onRequestExactAlarms: jest.fn(),
+  vendorCard: false,
+  onOpenAppLaunch: jest.fn(),
   addresses: [home, work],
   addressesState: 'ready',
   onRetryAddresses: jest.fn(),
@@ -142,6 +146,26 @@ describe('SettingsView: notifications', () => {
     await show(p);
     await fireEvent.press(screen.getByLabelText('Uključi'));
     expect(p.onOpenSystemSettings).toHaveBeenCalled();
+  });
+
+  it('offers exact alarms only while they are not allowed, and the HONOR card only on those phones', async () => {
+    const { unmount } = await show(props({ exactAlarms: 'allowed' }));
+    expect(screen.queryByTestId('exact-alarms-row')).toBeNull();
+    expect(screen.queryByTestId('vendor-card')).toBeNull();
+    await unmount();
+
+    const p = props({ exactAlarms: 'denied', vendorCard: true });
+    await show(p);
+    expect(screen.getByTestId('exact-alarms-row')).toBeTruthy();
+    expect(screen.getByText('Alarm za početak isključenja')).toBeTruthy();
+    await fireEvent.press(screen.getAllByText('Dozvoli tačne alarme')[0]!);
+    expect(p.onRequestExactAlarms).toHaveBeenCalled();
+    expect(screen.getByTestId('vendor-card')).toBeTruthy();
+    expect(screen.getByText('Obaveštenja na HONOR i Huawei telefonima')).toBeTruthy();
+    await fireEvent.press(screen.getByText('Otvori pokretanje aplikacija'));
+    expect(p.onOpenAppLaunch).toHaveBeenCalled();
+    // the card carries the exact-alarm button too: two buttons on the screen
+    expect(screen.getAllByText('Dozvoli tačne alarme')).toHaveLength(2);
   });
 
   it('turns quiet hours off and on, and moves their start and end', async () => {

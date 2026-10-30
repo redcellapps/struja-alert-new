@@ -240,6 +240,14 @@ export const en: Deep<Messages> = {
       'During quiet hours we send no notifications, unless an outage starts within 2 hours.',
     quietFrom: 'From',
     quietTo: 'To',
+    exactAlarmsTitle: 'Alarm for the start of an outage',
+    exactAlarmsDenied:
+      'Approximate: it can be up to an hour late. Allow exact alarms for the minute.',
+    exactAlarmsAllow: 'Allow exact alarms',
+    vendorTitle: 'Notifications on HONOR and Huawei phones',
+    vendorBody:
+      'So that "No power" arrives on the minute even with the app closed: Settings → Battery → App launch → Struja Alert → turn "Manage automatically" off and all three options on; then Battery → Unrestricted.',
+    vendorOpen: 'Open App launch',
     earlier: 'half an hour earlier',
     later: 'half an hour later',
     addressesHint: 'You can follow at most {{max}} addresses.',

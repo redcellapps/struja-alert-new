@@ -19,6 +19,8 @@ import {
 import { useLargeText } from '../design/largeText';
 import { useTheme } from '../design/theme';
 import { CARD_GAP, CARD_PADDING } from '../design/tokens';
+import type { ExactAlarms } from '../notifications/exactAlarms';
+import { ExactAlarmsRow, VendorCard } from '../notifications/VendorCard';
 import type { Kind, NotificationPermission, SettingsValues } from '../store/settings';
 
 export interface SettingsAddress {
@@ -40,6 +42,12 @@ export interface SettingsViewProps {
   onChange: (patch: Partial<SettingsViewProps['values']>) => void;
   permission: NotificationPermission;
   onOpenSystemSettings: () => void;
+  // Exact alarms (Android 12+): the row shows only while they are not allowed.
+  exactAlarms: ExactAlarms;
+  onRequestExactAlarms: () => void;
+  // The HONOR / Huawei advice card: shown on those phones only.
+  vendorCard: boolean;
+  onOpenAppLaunch: () => void;
   addresses: SettingsAddress[];
   // Where the list of addresses stands: still loading, failed (with nothing saved to show), or ready.
   addressesState: 'loading' | 'error' | 'ready';
@@ -338,6 +346,14 @@ export function SettingsView(props: SettingsViewProps) {
           <AppText variant="label" color="textSecondary">
             {t('settings.notificationsOn')}
           </AppText>
+        ) : null}
+        <ExactAlarmsRow exactAlarms={props.exactAlarms} onRequest={props.onRequestExactAlarms} />
+        {props.vendorCard ? (
+          <VendorCard
+            onOpenAppLaunch={props.onOpenAppLaunch}
+            exactAlarms={props.exactAlarms}
+            onRequestExactAlarms={props.onRequestExactAlarms}
+          />
         ) : null}
         <Card gap={4}>
           <AppText variant="label" color="textSecondary">

@@ -48,6 +48,20 @@ jest.mock('expo-notifications', () => ({
   dismissAllNotificationsAsync: jest.fn(async () => undefined),
   registerTaskAsync: jest.fn(async () => null),
   unregisterTaskAsync: jest.fn(async () => null),
+  getExactAlarmPermissionsAsync: jest.fn(async () => ({ granted: false, status: 'denied' })),
+  requestExactAlarmPermissionsAsync: jest.fn(async () => ({ granted: true, status: 'granted' })),
+}));
+
+// expo-background-task is native; the tests record the registration.
+jest.mock('expo-background-task', () => ({
+  BackgroundTaskResult: { Success: 1, Failed: 2 },
+  registerTaskAsync: jest.fn(async () => undefined),
+  unregisterTaskAsync: jest.fn(async () => undefined),
+}));
+
+// expo-intent-launcher is native; the tests decide which activities exist.
+jest.mock('expo-intent-launcher', () => ({
+  startActivityAsync: jest.fn(async () => ({ resultCode: 0 })),
 }));
 
 // expo-task-manager is native; the tests keep the defined tasks in a map.

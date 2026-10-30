@@ -85,6 +85,13 @@
       "when": 1793358143676,
       "tag": "0011_native_push_token",
       "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "7",
+      "when": 1793368793325,
+      "tag": "0012_companion_sent_at",
+      "breakpoints": true
     }
   ]
 }

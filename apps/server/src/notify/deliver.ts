@@ -8,7 +8,15 @@ export interface DeliverResult {
   failed: number;
   // Devices removed because the push service said the token is dead.
   droppedDevices: number;
+  // Data-only companions of changes and cancellations sent (see `sendCompanions`).
+  companions: number;
 }
+
+// Kinds whose rows get a data-only companion: the app's alarm for the outage must move or go.
+export const COMPANION_KINDS = ['changed', 'cancelled', 'reinstated'] as const;
+// A row planned longer ago than this gets no companion any more: the next sync has long corrected
+// the alarm (measured from the planned delivery time, which is the planner's clock).
+const COMPANION_MAX_AGE_MS = 6 * 3600_000;
 
 export const MAX_ATTEMPTS = 3;
 const BATCH = 100;
@@ -40,7 +48,8 @@ export async function deliverPending(
   provider: PushProvider,
   now: Date,
 ): Promise<DeliverResult> {
-  const result: DeliverResult = { sent: 0, failed: 0, droppedDevices: 0 };
+  const result: DeliverResult = { sent: 0, failed: 0, droppedDevices: 0, companions: 0 };
+  result.companions = await sendCompanions(db, provider, now, result);
 
   // Release rows a crashed worker left in `sending`.
   await db
@@ -168,6 +177,97 @@ export async function deliverPending(
     }
   }
   return result;
+}
+
+/**
+ * The data-only companion of every "changed", "cancelled" and "reinstated" row (docs/phase4-plan.md
+ * step 3, decided 30 Oct): the app's background task runs for a data push even when the app is
+ * closed, and corrects or cancels its local "Bez struje" alarm from the same `data` the notification
+ * carries. It goes out at once, whatever the row's own delivery time (quiet hours hold the visible
+ * notification, not the alarm correction) and even when the person turned the kind off
+ * (`suppressed`): the alarm must be right regardless. Each row gets at most one; a row whose send
+ * failed is retried on the next tick for a few hours. Returns how many were sent.
+ */
+export async function sendCompanions(
+  db: Db,
+  provider: PushProvider,
+  now: Date,
+  result?: Pick<DeliverResult, 'droppedDevices'>,
+): Promise<number> {
+  const since = new Date(now.getTime() - COMPANION_MAX_AGE_MS);
+  const claimed = await db
+    .update(notificationLog)
+    .set({ companionSentAt: now })
+    .where(
+      and(
+        inArray(notificationLog.kind, [...COMPANION_KINDS]),
+        isNull(notificationLog.companionSentAt),
+        inArray(notificationLog.status, ['pending', 'sending', 'sent', 'suppressed']),
+        sql`coalesce(${notificationLog.deliverAt}, ${notificationLog.createdAt}) > ${since.toISOString()}::timestamptz`,
+      ),
+    )
+    .returning({
+      id: notificationLog.id,
+      payload: notificationLog.payload,
+      subscriptionId: notificationLog.subscriptionId,
+    });
+  if (claimed.length === 0) return 0;
+
+  const targets = await db
+    .select({ subscriptionId: subscription.id, deviceId: device.id, token: device.pushToken })
+    .from(subscription)
+    .innerJoin(device, eq(device.id, subscription.deviceId))
+    .where(
+      inArray(
+        subscription.id,
+        claimed.map((c) => c.subscriptionId),
+      ),
+    );
+  const target = new Map(targets.map((t) => [t.subscriptionId, t]));
+  const messages: { id: number; deviceId: string; msg: PushMessage }[] = [];
+  for (const row of claimed) {
+    const t = target.get(row.subscriptionId);
+    const p = row.payload as Payload | null;
+    if (!t || !p) continue; // the device is gone: nothing to correct
+    messages.push({
+      id: row.id,
+      deviceId: t.deviceId,
+      msg: {
+        to: t.token,
+        title: '',
+        body: '',
+        data: p.data,
+        channelId: p.channelId,
+        groupKey: p.groupKey,
+        urgent: false,
+        silent: true,
+      },
+    });
+  }
+  if (messages.length === 0) return 0;
+
+  const release = (ids: number[]) =>
+    db
+      .update(notificationLog)
+      .set({ companionSentAt: null })
+      .where(inArray(notificationLog.id, ids));
+  let tickets;
+  try {
+    tickets = await provider.send(messages.map((m) => m.msg));
+  } catch {
+    await release(messages.map((m) => m.id));
+    return 0;
+  }
+  let sent = 0;
+  for (const [i, m] of messages.entries()) {
+    const ticket = tickets[i];
+    if (ticket?.status === 'ok') sent++;
+    else if (ticket?.error === 'DeviceNotRegistered') {
+      await dropDevice(db, m.deviceId);
+      if (result) result.droppedDevices++;
+    } else await release([m.id]);
+  }
+  return sent;
 }
 
 async function retryOrFail(

@@ -2,7 +2,7 @@ import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { checkDay, dayToCheck, describeDay } from '../src/collector/watch.ts';
+import { checkDay, dayToCheck, describeDay, isAlarm } from '../src/collector/watch.ts';
 
 const branch = (slots: string[]) => {
   const dir = mkdtempSync(join(tmpdir(), 'struja-watch-'));
@@ -32,14 +32,25 @@ describe('the collector watchdog', () => {
       missing: ['2026-10-30-13'],
     });
     expect(describeDay(checkDay(dir, '2026-10-30'))).toBe(
-      '2026-10-30: 2 of 3 slots collected (2026-10-30-07, 2026-10-30-19); missing 2026-10-30-13.',
+      '2026-10-30: 2 of 3 slots collected (2026-10-30-07, 2026-10-30-19); missing 2026-10-30-13: enough.',
     );
+    expect(isAlarm(checkDay(dir, '2026-10-30'))).toBe(false);
   });
 
-  it('reports a day with nothing collected (the case that fails the workflow)', () => {
+  it('alarms on a day with fewer than two slots (the owner’s threshold), not only on none', () => {
+    const one = checkDay(branch(['2026-10-30-19']), '2026-10-30');
+    expect(isAlarm(one)).toBe(true);
+    expect(describeDay(one)).toBe(
+      '2026-10-30: 1 of 3 slots collected (2026-10-30-19); missing 2026-10-30-07, 2026-10-30-13: fewer than 2.',
+    );
+    expect(isAlarm(checkDay(branch(['2026-10-30-07', '2026-10-30-13', '2026-10-30-19']), '2026-10-30'))).toBe(false);
+  });
+
+  it('reports a day with nothing collected', () => {
     const dir = branch(['2026-10-29-19']);
     const r = checkDay(dir, '2026-10-30');
     expect(r.present).toEqual([]);
+    expect(isAlarm(r)).toBe(true);
     expect(describeDay(r)).toBe(
       'No EDS fixtures were collected on 2026-10-30 (missing: 2026-10-30-07, 2026-10-30-13, 2026-10-30-19).',
     );

@@ -13,6 +13,9 @@ export interface PushMessage {
   groupKey: string;
   // iOS: `timeSensitive` interruption level for urgent notifications.
   urgent: boolean;
+  // Data-only: nothing is shown, the app's background task gets `data` (the alarm-book companion of
+  // a change or a cancellation). Title and body are ignored.
+  silent?: boolean;
 }
 
 export interface PushTicket {
@@ -35,7 +38,9 @@ export interface PushProvider {
 
 // For tests: records every message, can fail tokens, and can mark tokens as dead.
 export class FakePushProvider implements PushProvider {
+  // Visible notifications, and the data-only companions apart (the tests count them separately).
   readonly sent: PushMessage[] = [];
+  readonly silentSent: PushMessage[] = [];
   // Tokens whose send fails with this error (ticket-level).
   readonly failTokens = new Map<string, string>();
   // Tokens that are accepted at send time but whose receipt says DeviceNotRegistered.
@@ -47,7 +52,7 @@ export class FakePushProvider implements PushProvider {
     return messages.map((m) => {
       const error = this.failTokens.get(m.to);
       if (error) return { status: 'error', error };
-      this.sent.push(m);
+      (m.silent ? this.silentSent : this.sent).push(m);
       const id = `fake-ticket-${++this.counter}`;
       this.tokenOfTicket.set(id, m.to);
       return { status: 'ok', id };
@@ -83,7 +88,11 @@ export class LogPushProvider implements PushProvider {
 
   async send(messages: PushMessage[]): Promise<PushTicket[]> {
     return messages.map((m) => {
-      this.log(`[push:not-sent] ${m.to} (${m.channelId}) ${m.title}`);
+      this.log(
+        m.silent
+          ? `[push:not-sent] ${m.to} data-only ${JSON.stringify(m.data)}`
+          : `[push:not-sent] ${m.to} (${m.channelId}) ${m.title}`,
+      );
       return { status: 'ok', id: `log-${++this.counter}` };
     });
   }

@@ -5,6 +5,8 @@ import { MAX_ADDRESSES } from '@struja/shared';
 import { useMinuteNow } from '../../src/design/useNow';
 import { HomeView } from '../../src/home/HomeView';
 import { useHomeData } from '../../src/home/useHomeData';
+import { useExactAlarms } from '../../src/notifications/useExactAlarms';
+import { isHonorOrHuawei, openAppLaunchSettings } from '../../src/notifications/vendor';
 import { checkNotificationPermission } from '../../src/notifications/permission';
 import { useAddresses } from '../../src/store/addresses';
 import { useSettings } from '../../src/store/settings';
@@ -16,6 +18,8 @@ export default function HomeScreen() {
   const count = useAddresses((s) => s.items.length);
   const permission = useSettings((s) => s.notificationPermission);
   const set = useSettings((s) => s.set);
+
+  const { exactAlarms, request: requestExactAlarms } = useExactAlarms();
 
   // The permission can change outside the app: read it again on opening and on coming back.
   useEffect(() => {
@@ -32,6 +36,15 @@ export default function HomeScreen() {
       {...data}
       now={now}
       notificationsOff={permission === 'denied'}
+      vendorCard={
+        isHonorOrHuawei()
+          ? {
+              onOpenAppLaunch: () => void openAppLaunchSettings(),
+              exactAlarms,
+              onRequestExactAlarms: requestExactAlarms,
+            }
+          : null
+      }
       canAdd={count < MAX_ADDRESSES}
       onAdd={() => router.push('/add-address')}
       onAddNumber={(id) => router.push({ pathname: '/edit-address', params: { id: String(id) } })}

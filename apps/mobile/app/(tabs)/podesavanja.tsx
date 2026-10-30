@@ -8,6 +8,8 @@ import { MY_OUTAGES_KEY, SUBSCRIPTIONS_KEY } from '../../src/home/useHomeData';
 import { deleteAddress, makePrimary } from '../../src/settings/addresses';
 import { deleteEverything } from '../../src/settings/deleteData';
 import { realDeleteDeps } from '../../src/settings/runtime';
+import { useExactAlarms } from '../../src/notifications/useExactAlarms';
+import { isHonorOrHuawei, openAppLaunchSettings } from '../../src/notifications/vendor';
 import { SettingsView, type SettingsAddress } from '../../src/settings/SettingsView';
 import { useAddresses } from '../../src/store/addresses';
 import { useSettings } from '../../src/store/settings';
@@ -19,6 +21,7 @@ export default function SettingsScreen() {
   const queryClient = useQueryClient();
   const settings = useSettings();
   const saved = useAddresses((s) => s.items);
+  const { exactAlarms, request: requestExactAlarms } = useExactAlarms();
   const subs = useQuery({
     queryKey: SUBSCRIPTIONS_KEY,
     queryFn: async () => (await api.subscriptions()).subscriptions,
@@ -57,6 +60,10 @@ export default function SettingsScreen() {
       onChange={(patch) => settings.set(patch)}
       permission={settings.notificationPermission}
       onOpenSystemSettings={() => void Linking.openSettings()}
+      exactAlarms={exactAlarms}
+      onRequestExactAlarms={requestExactAlarms}
+      vendorCard={isHonorOrHuawei()}
+      onOpenAppLaunch={() => void openAppLaunchSettings()}
       addresses={addresses}
       addressesState={
         saved.length > 0 && subs.isPending && !subs.isError

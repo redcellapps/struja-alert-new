@@ -1,9 +1,9 @@
 name: Watch the EDS collector
 
 # The collector's watchdog: once a day, in the small hours Belgrade time, checks that the last
-# whole day got at least one slot on the `fixtures-collect` branch. A day with none fails this
-# workflow (GitHub mails the failure to the owner) and opens, or comments on, the open issue
-# labelled `collector`. Nothing here requests elektrodistribucija.rs.
+# whole day got at least two of its three slots on the `fixtures-collect` branch. A day with fewer
+# fails this workflow (GitHub mails the failure to the owner) and opens, or comments on, the open
+# issue labelled `collector`. Nothing here requests elektrodistribucija.rs.
 on:
   schedule:
     - cron: '20 1 * * *' # 02:20 CET / 03:20 CEST
@@ -57,5 +57,5 @@ jobs:
           if [ -n "$existing" ]; then
             gh issue comment "$existing" --body "$body"
           else
-            gh issue create --title "Collector: no EDS fixtures on $DATE" --label collector --body "$body"
+            gh issue create --title "Collector: too few EDS fixtures on $DATE" --label collector --body "$body"
           fi

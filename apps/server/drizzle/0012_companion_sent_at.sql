@@ -1,0 +1,1 @@
+ALTER TABLE "notification_log" ADD COLUMN "companion_sent_at" timestamp with time zone;

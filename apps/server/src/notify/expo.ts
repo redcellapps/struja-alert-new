@@ -18,8 +18,22 @@ export interface ExpoClient {
 // Delivery may be retried this long; a message kept longer than this would arrive stale.
 const TTL_SECONDS = 6 * 3600;
 
+// A data-only companion may wait this long for the phone; after that the next sync corrects the alarm.
+const SILENT_TTL_SECONDS = 3600;
+
 /** What one of our notifications looks like to Expo's push service (FCM v1 on Android, APNs on iOS). */
 export function toExpoMessage(m: PushMessage): ExpoPushMessage {
+  if (m.silent) {
+    // No title or body: Android shows nothing and runs the app's background task with `data`;
+    // `contentAvailable` is the iOS equivalent (Phase 6 [MAC]).
+    return {
+      to: m.to,
+      data: m.data,
+      priority: 'high',
+      ttl: SILENT_TTL_SECONDS,
+      contentAvailable: true,
+    };
+  }
   return {
     to: m.to,
     title: m.title,

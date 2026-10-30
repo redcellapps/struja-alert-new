@@ -114,6 +114,26 @@ const show = (p: HomeViewProps) =>
   );
 
 describe('HomeView', () => {
+  it('shows the HONOR card under the "notifications off" banner, and only there', async () => {
+    const card = {
+      onOpenAppLaunch: jest.fn(),
+      exactAlarms: 'denied' as const,
+      onRequestExactAlarms: jest.fn(),
+    };
+    const on = await show(props({ notificationsOff: false, vendorCard: card }));
+    expect(on.queryByTestId('vendor-card')).toBeNull();
+    await on.unmount();
+    const off = await show(props({ notificationsOff: true, vendorCard: card }));
+    expect(off.getByText('Obaveštenja su isključena')).toBeTruthy();
+    expect(off.getByTestId('vendor-card')).toBeTruthy();
+    await fireEvent.press(off.getByText('Otvori pokretanje aplikacija'));
+    expect(card.onOpenAppLaunch).toHaveBeenCalled();
+    await off.unmount();
+    const other = await show(props({ notificationsOff: true, vendorCard: null }));
+    expect(other.queryByTestId('vendor-card')).toBeNull();
+    await other.unmount(); // the file has no automatic cleanup between tests
+  });
+
   it('shows an empty start with one action when there is no address', async () => {
     const p = props({ addresses: [] });
     await show(p);

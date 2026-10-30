@@ -1,59 +1,48 @@
-# Phase 1 gate: the collector's missing runs, the village names of Niška Banja, the rate on everything collected
+# Phase 4: the watchdog threshold, exact alarms, the HONOR card, the companion push and the 15-minute refresh
 
-Date: 2026-10-30. Branch `main`. `aeb4c94` (the phone session) is **not pushed**; this report's commit is **not pushed** either. The phone session's stack (server, Metro, tunnels) is still up and untouched.
+Date: 2026-10-30. Branch `main`. `aeb4c94` and `c21e70f` are **pushed**, as approved. This report's commit is **not pushed**. The phone has the new build installed (details below); the local stack is up on the new server code.
 
-## 1. The collector
+## 1. Collector watchdog: fewer than two slots is the alarm
 
-**Why the runs are missing.** `gh run list` for `collect.yml` shows 25 runs since 22 Oct, every one `success`, 22 of them scheduled. None failed and none was skipped by GitHub: they ran late. The cron is set for 05:05/06:05, 11:05/12:05, 17:05/18:05 UTC; the runs started at, for example, 09:56Z on 23 Oct (4.8 h after the 05:05 trigger), 15:42Z (4.6 h after 11:05) and 20:19Z (3.2 h after 17:05); on 26 Oct 10:58Z, 17:16Z, 22:35Z. The collector then logged "Outside the collection window (07/13/19 Europe/Belgrade, one hour each); nothing to do." and exited green. Only three scheduled runs fell inside a one-hour window: 22 Oct 17:03Z, 28 Oct 18:18Z and 29 Oct 18:23Z, which are the three slots on the branch. The 07 slot never ran inside its window, so the daily slug rediscovery never ran scheduled either (the manual runs' `slugs.json` was reused; it was not the cause of anything).
+`collect-watch.yml` now fails and opens (or comments on) the `collector` issue when the last whole Belgrade day has fewer than **two** of its three slots (`MIN_SLOTS_PER_DAY` in `scripts/src/collector/watch.ts`); the issue title is "Collector: too few EDS fixtures on <date>". Tests cover 0, 1, 2 and 3 slots. The threshold is one constant.
 
-**The fix (this commit).**
+## 2. The two confirmations
 
-- Cron every hour (`5 * * * *`). A run belongs to the latest slot that has begun: the window of a slot is [slot, next slot) — 07:00–12:59 is the 07 slot, 13:00–18:59 the 13 slot, 19:00–06:59 the 19 slot of the day it started on. The first successful run in the window collects the slot; the slot marker keeps later runs in the same window from collecting twice. Manual runs keep their own `manual-*` key. Tests rewritten on the real late start times (`scripts/test/slots.test.ts`, `collect.test.ts`).
-- **The alarm: `collect-watch.yml`**, daily at 01:20 UTC (02:20 CET), checks the last whole Belgrade day on the `fixtures-collect` branch (`pnpm --filter @struja/scripts collect-watch`, pure file checks, no network). A day with no slot at all **fails the workflow**, which GitHub mails to you, and the workflow then **opens an issue** "Collector: no EDS fixtures on <date>" with the label `collector`, or comments on the open one, with a link to the run. A day with one or two of three slots is logged, not alarmed (one slot a day is enough for the gate; the hourly cron should give three). Why an issue rather than only the failure mail: the mail depends on your notification settings for the actor of the workflow file, the issue is in the repository for anyone.
-- Nothing changes in what is requested from EDS: still at most three slots a day, same User-Agent, same robots check.
+Encoded as reviewed, dated today, no change needed: "Старе Железничке Колоније" → the neighbourhood Железничка колонија (not Нова железничка колонија), and Бојанине воде as a locality of Niška Banja.
 
-What to expect: from the next hour on, the branch should gain `2026-10-30-13` (or `-19`) and from tomorrow three slots a day. The watchdog's first real check is tonight; you can run it by hand from Actions with a date.
+## 3. Exact alarms (recommendation 1, as approved)
 
-## 2. The parser: settlements written like streets
+- `android.permission.SCHEDULE_EXACT_ALARM` is declared in `app.json` (optional on Android 12+: off until the person turns it on; the battery allowlist grants it too). `USE_EXACT_ALARM` is not used.
+- `src/notifications/exactAlarms.ts` reads the state through expo-notifications (`getExactAlarmPermissionsAsync`) and asks through `requestExactAlarmPermissionsAsync`, which opens the system's "Alarms & reminders" screen for the app. Below Android 12 it is "allowed" without asking.
+- **One row on Podešavanja** under notifications, shown only while the state is "denied": "Alarm za početak isključenja — Približan: može da zakasni do sat vremena. Dozvolite tačne alarme da stigne u minut." with the button "Dozvoli tačne alarme". The state is re-read whenever the app comes back to the front. Nothing in onboarding.
 
-The rows, verbatim from the branch (28 and 29 Oct, Niš):
+## 4. The HONOR / Huawei card (as approved)
 
-- Нишка бања: `делови Банцарева, Чукљеника, Доње Студене, Горње Студене, Бојаниних вода;`
-- Палилула - Ниш: `делови Белопаланчке (бб), Старе Железничке Колоније (1-10), Станоја Бунушевца (13,23,27,37), Таковске (37), Милана Ракића (1), Божидарчеве (10-26), Железничке Колоније (1);`
+`src/notifications/vendor.ts` reads the maker from `Platform.constants.Manufacturer`; on HONOR and Huawei the card appears **on Podešavanja** (notifications section) and **on Početna under the "notifications off" banner**, nowhere else and on no other maker. Copy: "Obaveštenja na HONOR i Huawei telefonima — Da bi „Bez struje“ stizalo u minut i kad je aplikacija zatvorena: Podešavanja → Baterija → Pokretanje aplikacija → Struja Alert → isključite „Upravljaj automatski“ i uključite sve tri opcije; zatim Baterija → Neograničeno." The button "Otvori pokretanje aplikacija" opens the system manager's App launch list (HONOR's `com.hihonor.systemmanager`, then Huawei's `com.huawei.systemmanager`), falling back to the app's own settings page; the card carries the exact-alarm button too while that state is "denied". Advice, never a gate. `BOUNDARY_SINK=fcm` stays off.
 
-Before: the five Niška Banja names and "Старе Железничке Колоније" were in-scope **street** segments, `unresolved` (the "село"/"насеље" markers that flag a village were absent, and the street ladder found nothing).
+Seen on your phone (`docs/screens/android/phase4/10-honor-card-podesavanja.png`): the card on Podešavanja; the exact-alarm row is hidden because the allowlist grants exact alarms there.
 
-What was done:
+## 5. The changed-outage gap, closed two ways (as approved)
 
-- **The row resolver** (`packages/parser/src/row.ts`): a street segment the ladder could not place at all (no street accepted, not ambiguous) now falls through to the settlement list and the reviewed village aliases; if a settlement matches, the segment becomes `village`. A real street always wins, so "делови Горњоматејевачке и Студеничке" stays two streets (tested). The genitive forms match through the existing form generator: Банцарева → Банцарево, Чукљеника → Чукљеник, Доње Студене → Доња Студена, Горње Студене → Горња Студена (all four are OSM villages of Niška Banja with boundaries).
-- **Бојанине воде is not in OSM** (no place node, no boundary). It is added as a hand-kept settlement (`packages/parser/data/settlements.ts`: kind `locality`, municipality Niška Banja, no coordinates, a negative id, with the genitive-plural spelling "Бојаниних вода" that the case generator does not produce). It goes through the normal import into the `settlement` table without geometry, so a person there can save the place. When OSM gains the node, the entry can go.
-- **"Старе Железничке Колоније" is the neighbourhood Железничка колонија** (OSM: a `neighbourhood` node in Palilula, and separately a street of the same name, and a second neighbourhood "Нова железничка колонија"). It is a reviewed **settlement alias** in `packages/parser/data/aliases.json` (`reviewed: true`, dated today on your word). To carry it: a reviewed alias may now name a `settlement` instead of a `street`; the gazetteer import writes it to `settlement_alias` (where the admin review also writes), and the label builder and `label-sample` pass the reviewed village aliases to the resolver. "Железничке Колоније (1)" on the same row stays the street (form match, house number 1).
-- **Tests on the real rows**: `packages/parser/test/villages.test.ts` (four cases, real OSM snapshots and the real cells) and one server import case (the settlement alias is loaded, the extra settlement is stored without geometry and resolves from "bojaninih voda").
+**The companion push (server).** Every "Izmena", "Otkazano" and "reinstated" row now also gets a **data-only companion**: the notification's own `data` (outage id, kind, the new window, the address), no title or body, high priority, an hour of TTL. It goes out **at once** (the visible notification may wait for 07:00 in quiet hours; the alarm correction does not), and **even when the person turned the kind off** (`suppressed`: the alarm must be right regardless). Each row gets at most one (`notification_log.companion_sent_at`, migration `0012`; a failed send is retried on the next tick for six hours; a dead token drops the device as before). The deliverer sends the companions before the visible notifications. The log provider prints them as `data-only`. Tests: the companion for a changed outage, none for a "new", one for a suppressed kind, never twice; the silent Expo message shape.
 
-## 3. The gate on everything collected
+**On the phone.** Nothing new to receive: the background task already handles a data push with `outageId`/`kind` as an alarm-book update (`bookFromPush` → `syncAlarms`), proven to run with the app killed and in Doze (15 of 15 today). The jest test "the companion push of a change (the app killed)" drives the real `syncAlarms` against the notification mock: the 13:00 alarm is cancelled, the 15:00 one booked, nothing stays at 13:00; "Otkazano" cancels and takes "Bez struje" down.
 
-The branch's three scheduled slots (`2026-10-22-19`, `2026-10-28-19`, `2026-10-29-19`, 20 pages each) are now in `fixtures/eds/` beside the two manual ones, committed, so the measurement is reproducible and the tests can use the rows. `label-sample` then `gate-report`:
+**The second line: a 15-minute refresh.** `expo-background-task` (installed with `npx expo install`, its config plugin added) runs `struja-alert-refresh` (`src/notifications/refresh.ts`): fetch the addresses and their outages, rebuild the book from that answer alone, make the alarms match. Registered after onboarding with `minimumInterval: 15`; Android runs it through WorkManager at its own pace (not before 15 minutes, often later, not in Doze), so it is the backstop, not the clock. Defined at module scope in `index.ts` beside the push task. Tests: a refresh rebuilds the book and syncs; no addresses means nothing; a failed fetch leaves the book alone; the registration.
 
-|                                                             | before (your figure) | after            |
-| ----------------------------------------------------------- | -------------------- | ---------------- |
-| in-scope street segments                                    | 47                   | 41               |
-| resolved automatically                                      | 38 (80.9%)           | 38 (**92.7%**)   |
-| ambiguous (several streets, none chosen, all told "Moguće") | 3                    | 3                |
-| in-scope village segments                                   | 0 resolved           | 6, all resolved  |
-| confirmed                                                   | 10 of 200 needed     | 10 of 200 needed |
+**The step 6 checklist** (`docs/phase4-plan.md` §5) has three new rows: the changed outage with the app killed (13:00 → 15:00 by the fixtures; nothing fires at 13:00; the companion's task line; then with the server stopped after the scrape, the refresh line within 15–30 min), the exact-alarms row, and the HONOR card. §8 has decisions 13–15.
 
-Read it honestly: the six names moved from the street column to the village column and all six resolve there; no street resolution changed. The remaining three unresolved street segments are the ambiguous same-name cases, which the design leaves ambiguous by choice. The gate verdict is still **INSUFFICIENT_SAMPLE** (10 confirmed; 200 needed), and the sample itself (41 + 6 segments from five days) is far below what the gate wants; the hourly collector is what grows it. Auto-accept precision stays 8/8 on the confirmed rows. 31 rows wait for your review in `fixtures/labels.csv`.
+## On the phone now
+
+New debug APK built (the native project gained `expo-background-task` and the permission) and installed with `phone-session --install`. Checked with adb: `SCHEDULE_EXACT_ALARM` is in the installed package; `TaskManagerModule.xml` lists both tasks (`struja-alert-push`, `struja-alert-refresh`); a WorkManager job for the app is scheduled; the HONOR card renders (screenshot). Not run today: the 13:00 → 15:00 phone test itself (step 6, as you said). Note: the reinstall put the app on the battery allowlist again (as every adb install does); your full settings are otherwise as you set them. The server was restarted on the new code with migration 0012 applied; Metro was restarted (the prebuild had taken the old one down).
 
 ## Tests and gate
 
-`pnpm lint` 0 warnings · `pnpm typecheck` green · tests: parser **178** (+4, +3 todo), scripts **65** (+3), server **277** (+1), mobile 378 + 24 contract (6 live skipped), shared 23. One full run, exit 0.
-
-Also changed: `CLAUDE.md` (the collector's rule, the watchdog, how to bring the branch's slots in).
+`pnpm lint` 0 warnings · `pnpm typecheck` green · tests: mobile **389** jest (+11) and 24 contract, server **279** (+2), scripts **66** (+1), parser 178, shared 23. One full run, exit 0.
 
 ## Decisions needed
 
-1. Whether to push this commit and `aeb4c94` (the new cron and the watchdog take effect only when `collect.yml` and `collect-watch.yml` are on `main`).
-2. Confirm the two facts I took on your word and encoded as reviewed: the alias "Старе Железничке Колоније" → neighbourhood Железничка колонија (not "Нова железничка колонија"), and Бојанине воде as a locality of Niška Banja without coordinates.
-3. The watchdog alarms only on a day with **no** slot; say if you want it on fewer than three.
+1. Whether to push this commit.
+2. Nothing else: the watchdog threshold, the alias, the locality and the four fallback decisions are done as you said.
 
-Then back to Phase 4: the widget (step 4), with the three open decisions of the phone report still waiting.
+Next: the widget (step 4).

@@ -41,6 +41,17 @@ class FakeExpo implements ExpoClient {
 }
 
 describe('the Expo push message', () => {
+  it('a silent message is data-only: no title, body, channel or category; high priority, an hour of TTL', () => {
+    const m = toExpoMessage(message({ silent: true, title: 'ignored', body: 'ignored' }));
+    expect(m).toEqual({
+      to: 'ExponentPushToken[abc]',
+      data: { outageId: 7, kind: 'new', link: 'strujaalert://outage/7' },
+      priority: 'high',
+      ttl: 3600,
+      contentAvailable: true,
+    });
+  });
+
   it('carries the channel, the category with the two actions, the address as iOS thread and Android tag, and high priority', () => {
     const m = toExpoMessage(message());
     expect(m).toMatchObject({

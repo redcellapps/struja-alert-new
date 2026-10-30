@@ -244,6 +244,16 @@ export const sr = {
       'U tihim satima ne šaljemo obaveštenja, osim ako isključenje počinje u narednih 2 sata.',
     quietFrom: 'Od',
     quietTo: 'Do',
+    // Exact alarms (Android 12+): the local "Bez struje" alarm on the minute.
+    exactAlarmsTitle: 'Alarm za početak isključenja',
+    exactAlarmsDenied:
+      'Približan: može da zakasni do sat vremena. Dozvolite tačne alarme da stigne u minut.',
+    exactAlarmsAllow: 'Dozvoli tačne alarme',
+    // The HONOR / Huawei card (MagicOS, EMUI).
+    vendorTitle: 'Obaveštenja na HONOR i Huawei telefonima',
+    vendorBody:
+      'Da bi „Bez struje“ stizalo u minut i kad je aplikacija zatvorena: Podešavanja → Baterija → Pokretanje aplikacija → Struja Alert → isključite „Upravljaj automatski“ i uključite sve tri opcije; zatim Baterija → Neograničeno.',
+    vendorOpen: 'Otvori pokretanje aplikacija',
     earlier: 'pola sata ranije',
     later: 'pola sata kasnije',
     addressesHint: 'Možete pratiti najviše {{max}} adrese.',
