@@ -9,6 +9,7 @@ import {
   type Script,
 } from '@struja/shared';
 import type { Db } from '../db/client.ts';
+import type { BoundarySignal } from '../jobs/boundary.ts';
 import {
   device,
   notificationLog,
@@ -55,6 +56,7 @@ export interface Sub extends SubscriptionTarget {
   platform: 'android' | 'ios';
   houseSuffix: string | null;
   pushToken: string;
+  nativePushToken: string | null;
   locale: string;
   script: Script;
   quietHours: unknown;
@@ -146,6 +148,7 @@ async function candidateSubs(
       deviceId: subscription.deviceId,
       platform: device.platform,
       pushToken: device.pushToken,
+      nativePushToken: device.nativePushToken,
       locale: device.locale,
       script: device.script,
       quietHours: device.quietHours,
@@ -169,6 +172,7 @@ async function subById(db: Db, ids: number[]): Promise<Sub[]> {
       deviceId: subscription.deviceId,
       platform: device.platform,
       pushToken: device.pushToken,
+      nativePushToken: device.nativePushToken,
       locale: device.locale,
       script: device.script,
       quietHours: device.quietHours,
@@ -313,6 +317,7 @@ async function emit(
   };
   const houseNumber =
     e.sub.houseNumber !== null ? `${e.sub.houseNumber}${e.sub.houseSuffix ?? ''}` : '';
+  const addressLabel = `${e.sub.script === 'cyrl' ? name.cyrillic : name.latin}${houseNumber ? ` ${houseNumber}` : ''}`;
   const locale = e.sub.locale === 'en' ? 'en' : 'sr';
   const message = renderMessage(
     {
@@ -353,6 +358,9 @@ async function emit(
           link: `strujaalert://outage/${e.outageId}`,
           startsAt: e.window.startsAt.toISOString(),
           endsAt: e.window.endsAt.toISOString(),
+          // The address as the person sees it, so the app can schedule its own "Bez struje" alarm
+          // from the push alone (docs/phase4-plan.md §3 step 3, fallback 1).
+          address: addressLabel,
         },
       },
     })
@@ -810,6 +818,43 @@ export async function planOnDemand(
       ),
     );
   return row ? { id: row.id, outageId: o.id, status: row.status } : null;
+}
+
+/**
+ * The outage start / end signal for ONE subscription, for the development push tool (`dev:push
+ * started|ended`): the outage given, or the newest current one for the address. The recipient is
+ * marked "possible" when the matcher would not pair the two (the tool sends anyway).
+ */
+export async function boundaryOnDemand(
+  db: Db,
+  opts: { subscriptionId: number; outageId?: number },
+): Promise<BoundarySignal | null> {
+  const [sub] = await subById(db, [opts.subscriptionId]);
+  if (!sub) return null;
+  const o = opts.outageId
+    ? await db
+        .select({ id: outage.id, startsAt: outage.startsAt, endsAt: outage.endsAt })
+        .from(outage)
+        .where(eq(outage.id, opts.outageId))
+        .then((r) => r[0])
+    : await latestOutageFor(db, sub);
+  if (!o) return null;
+  const matched = (await matchedSubscribers(db, o.id)).find((m) => m.sub.id === sub.id);
+  return {
+    outageId: o.id,
+    startsAt: o.startsAt,
+    endsAt: o.endsAt,
+    recipients: [
+      {
+        subscriptionId: sub.id,
+        deviceId: sub.deviceId,
+        pushToken: sub.pushToken,
+        nativePushToken: sub.nativePushToken,
+        platform: sub.platform,
+        possible: matched ? matched.match.kind === 'possible' : true,
+      },
+    ],
+  };
 }
 
 // The newest current (not cancelled) outage (by start) that names the street or settlement of the subscription.

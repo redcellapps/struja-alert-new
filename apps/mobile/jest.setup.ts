@@ -38,11 +38,27 @@ jest.mock('expo-notifications', () => ({
   addNotificationResponseReceivedListener: jest.fn(() => ({ remove: jest.fn() })),
   getLastNotificationResponseAsync: jest.fn(async () => null),
   getExpoPushTokenAsync: jest.fn(async () => ({ data: 'ExponentPushToken[test]', type: 'expo' })),
+  getDevicePushTokenAsync: jest.fn(async () => ({ data: 'fcm-device-token', type: 'android' })),
   SchedulableTriggerInputTypes: { TIME_INTERVAL: 'timeInterval', DATE: 'date' },
   scheduleNotificationAsync: jest.fn(async () => 'local-1'),
+  cancelScheduledNotificationAsync: jest.fn(async () => undefined),
   cancelAllScheduledNotificationsAsync: jest.fn(async () => undefined),
+  getAllScheduledNotificationsAsync: jest.fn(async () => []),
+  dismissNotificationAsync: jest.fn(async () => undefined),
   dismissAllNotificationsAsync: jest.fn(async () => undefined),
+  registerTaskAsync: jest.fn(async () => null),
+  unregisterTaskAsync: jest.fn(async () => null),
 }));
+
+// expo-task-manager is native; the tests keep the defined tasks in a map.
+jest.mock('expo-task-manager', () => {
+  const tasks = new Map<string, unknown>();
+  return {
+    defineTask: jest.fn((name: string, executor: unknown) => void tasks.set(name, executor)),
+    isTaskDefined: jest.fn((name: string) => tasks.has(name)),
+    __tasks: tasks,
+  };
+});
 
 // expo-crypto is native; the tests use Node's.
 jest.mock('expo-crypto', () => ({ randomUUID: () => require('node:crypto').randomUUID() }));

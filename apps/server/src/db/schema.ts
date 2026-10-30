@@ -351,6 +351,8 @@ export const device = pgTable(
   {
     id: uuid('id').primaryKey().defaultRandom(),
     pushToken: text('push_token').notNull(),
+    // The device's own FCM token (Android), for the direct FCM boundary sink; null when unknown.
+    nativePushToken: text('native_push_token'),
     deviceSecretHash: text('device_secret_hash').notNull(),
     platform: platformEnum('platform').notNull(),
     osVersion: text('os_version'),

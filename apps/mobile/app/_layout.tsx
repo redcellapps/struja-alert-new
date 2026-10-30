@@ -6,6 +6,8 @@ import { AppState } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { ThemeProvider, useTheme } from '../src/design/theme';
 import { i18next, initI18n, setLocale } from '../src/i18n';
+import { useOutageAlarms } from '../src/notifications/useOutageAlarms';
+import { registerBackgroundTask } from '../src/notifications/background';
 import { installForegroundHandler, setupNotifications } from '../src/notifications/channels';
 import { useNotificationResponses } from '../src/notifications/respond';
 import { CACHE_MAX_AGE_MS, mmkvPersister } from '../src/query/client';
@@ -27,6 +29,8 @@ function RootStack() {
   const { colors } = useTheme();
   // A tap on a notification, or on "Detalji" / "Dodaj u kalendar", opens the outage detail.
   useNotificationResponses(useRouter());
+  // The local "Bez struje" alarms follow the saved addresses' outages; a push refetches them.
+  useOutageAlarms();
   return (
     <Stack
       screenOptions={{
@@ -86,9 +90,13 @@ export default function RootLayout() {
     };
   }, [language, script, ready]);
 
-  // The Android channels and the action buttons, named in the current language and script.
+  // The Android channels and the action buttons, named in the current language and script; then
+  // the push task (it needs the channels: what it shows goes to "hitno").
   useEffect(() => {
-    if (ready) void setupNotifications(i18next.t.bind(i18next)).catch(() => {});
+    if (!ready) return;
+    void setupNotifications(i18next.t.bind(i18next))
+      .catch(() => {})
+      .then(registerBackgroundTask);
   }, [ready, language, script]);
 
   if (!ready) return null;

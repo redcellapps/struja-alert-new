@@ -1,0 +1,1 @@
+ALTER TABLE "device" ADD COLUMN "native_push_token" text;

@@ -95,6 +95,7 @@ export function deviceRoutes(app: FastifyInstance, deps: AppDeps, opts: AppOptio
           .insert(device)
           .values({
             pushToken: body.pushToken,
+            nativePushToken: body.nativePushToken ?? null,
             deviceSecretHash: hashed,
             platform: body.platform,
             osVersion: body.osVersion ?? null,
@@ -131,6 +132,7 @@ export function deviceRoutes(app: FastifyInstance, deps: AppDeps, opts: AppOptio
         .update(device)
         .set({
           ...(body.pushToken !== undefined ? { pushToken: body.pushToken } : {}),
+          ...(body.nativePushToken !== undefined ? { nativePushToken: body.nativePushToken } : {}),
           ...(body.locale !== undefined ? { locale: body.locale } : {}),
           ...(body.script !== undefined ? { script: body.script } : {}),
           ...(body.quietHours !== undefined ? { quietHours: body.quietHours } : {}),

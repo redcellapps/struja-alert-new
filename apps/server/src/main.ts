@@ -8,7 +8,6 @@ import { importGazetteer, type ReviewedAlias } from './gazetteer/import.ts';
 import { readNisSnapshots } from './gazetteer/osm-files.ts';
 import { GazetteerService } from './gazetteer/service.ts';
 import { PgDumpBackup } from './jobs/backup.ts';
-import { LogBoundarySink } from './jobs/boundary.ts';
 import { registerJobs, startBoss } from './jobs/register.ts';
 import { FixturePageSource, HttpPageSource, scraperUserAgent } from './jobs/sources.ts';
 import {
@@ -18,6 +17,7 @@ import {
   PushAlertSink,
   type AlertSink,
 } from './monitor/sinks.ts';
+import { chooseBoundarySink } from './notify/boundary-choice.ts';
 import { ExpoPushProvider } from './notify/expo.ts';
 import { LogPushProvider, type PushProvider } from './notify/provider.ts';
 
@@ -99,6 +99,8 @@ if (config.RUN_JOBS) {
   if (list(config.ADMIN_PUSH_TOKENS).length) {
     sinks.push(new PushAlertSink(provider, list(config.ADMIN_PUSH_TOKENS)));
   }
+  // The outage start / end signal: a data-only push through Expo's service, or straight to FCM.
+  const { sink: boundary } = chooseBoundarySink(config, db, log);
   const edsDir = config.FIXTURES_DIR ?? `${repoRoot}fixtures/eds`;
   await registerJobs(boss, {
     db,
@@ -106,7 +108,7 @@ if (config.RUN_JOBS) {
     provider,
     alerts: new MultiAlertSink(sinks),
     adminUrl: config.ADMIN_BASE_URL,
-    boundary: new LogBoundarySink(),
+    boundary,
     pages:
       config.PAGE_SOURCE === 'http'
         ? new HttpPageSource({

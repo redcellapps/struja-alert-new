@@ -45,6 +45,7 @@ export function endpoints(client: ApiClient) {
 
     registerDevice: (body: {
       pushToken: string;
+      nativePushToken?: string;
       platform: 'android' | 'ios';
       osVersion?: string;
       locale: 'sr' | 'en';

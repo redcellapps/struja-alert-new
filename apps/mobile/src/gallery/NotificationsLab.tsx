@@ -10,6 +10,8 @@ import {
 import type { AddressOutageDto } from '@struja/shared';
 import { AppText, Button, SectionHeader } from '../design/components';
 import { MY_OUTAGES_KEY } from '../home/useHomeData';
+import { i18next } from '../i18n';
+import { showActive, showEnded } from '../notifications/active';
 import { queryClient } from '../query/instance';
 
 // Development only (the gallery): posts local notifications shaped like the server's pushes, so the
@@ -62,6 +64,14 @@ const SAMPLES: Sample[] = [
     address: 'address-2',
   },
 ];
+
+// The "outage active" notification as the push task shows it (src/notifications/active.ts).
+const activeSample = (ids: { outageId: number; subscriptionId: number }) => ({
+  ...ids,
+  address: 'Trebinjska 34',
+  startsAt: new Date(Date.now() - 5 * 60_000).toISOString(),
+  endsAt: new Date(Date.now() + 2 * 3600_000).toISOString(),
+});
 
 function currentIds(): { outageId: number; subscriptionId: number } {
   const mine = queryClient.getQueryData<AddressOutageDto[]>(MY_OUTAGES_KEY);
@@ -124,6 +134,22 @@ export function NotificationsLab() {
           await post(SAMPLES[0]!, DELAY_SECONDS);
           await post(SAMPLES[1]!, DELAY_SECONDS + 1);
           await post(SAMPLES[2]!, DELAY_SECONDS + 2);
+        })}
+      />
+      <Button
+        label="Bez struje (sada, kao signal početka)"
+        variant="secondary"
+        onPress={run('Bez struje', async () => {
+          const ids = currentIds();
+          await showActive(activeSample(ids), i18next.t.bind(i18next));
+        })}
+      />
+      <Button
+        label="Struja se vratila (signal kraja)"
+        variant="secondary"
+        onPress={run('Struja se vratila', async () => {
+          const ids = currentIds();
+          await showEnded(activeSample(ids), i18next.t.bind(i18next));
         })}
       />
       <Button

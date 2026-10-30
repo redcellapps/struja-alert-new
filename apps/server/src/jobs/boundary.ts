@@ -11,6 +11,8 @@ export interface BoundaryRecipient {
   subscriptionId: number;
   deviceId: string;
   pushToken: string;
+  // The device's own FCM token, for the direct FCM sink; null when the app never sent one.
+  nativePushToken: string | null;
   platform: 'android' | 'ios';
   possible: boolean;
 }
@@ -86,6 +88,7 @@ export async function boundaryTick(db: Db, sink: BoundarySink, now: Date): Promi
           subscriptionId: sub.id,
           deviceId: sub.deviceId,
           pushToken: sub.pushToken,
+          nativePushToken: sub.nativePushToken,
           platform: sub.platform,
           possible: match.kind === 'possible',
         }));
@@ -106,7 +109,8 @@ export async function boundaryTick(db: Db, sink: BoundarySink, now: Date): Promi
   return result;
 }
 
-// Until the Android data push / iOS Live Activity exist (Phase 4 / 6), signals are only logged.
+// The sink of a server without push credentials (`BOUNDARY_SINK=log`): signals are only logged. The
+// real ones are in ../notify/boundary-sinks.ts.
 export class LogBoundarySink implements BoundarySink {
   private readonly log: (message: string) => void;
 

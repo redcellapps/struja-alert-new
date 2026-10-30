@@ -1,3 +1,4 @@
+export * from './boundary.ts';
 export * from './constants.ts';
 export * from './messages.ts';
 export * from './schemas/api.ts';

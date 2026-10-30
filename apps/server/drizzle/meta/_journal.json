@@ -78,6 +78,13 @@
       "when": 1793179863378,
       "tag": "0010_same_name_streets",
       "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1793358143676,
+      "tag": "0011_native_push_token",
+      "breakpoints": true
     }
   ]
 }

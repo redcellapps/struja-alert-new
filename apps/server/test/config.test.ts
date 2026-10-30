@@ -23,6 +23,16 @@ describe('loadConfig', () => {
     expect(() => loadConfig({})).toThrow(/DATABASE_URL/);
   });
 
+  it('sends the outage start / end signal straight to FCM only with the service account key', () => {
+    expect(loadConfig(base).BOUNDARY_SINK).toBeUndefined();
+    expect(() => loadConfig({ ...base, BOUNDARY_SINK: 'fcm' })).toThrow(/FCM_SERVICE_ACCOUNT_JSON/);
+    expect(
+      loadConfig({ ...base, BOUNDARY_SINK: 'fcm', FCM_SERVICE_ACCOUNT_JSON: '{}' }).BOUNDARY_SINK,
+    ).toBe('fcm');
+    expect(loadConfig({ ...base, BOUNDARY_SINK: 'expo' }).BOUNDARY_SINK).toBe('expo');
+    expect(() => loadConfig({ ...base, BOUNDARY_SINK: 'apns' })).toThrow(/BOUNDARY_SINK/);
+  });
+
   it('never scrapes the live site without a contact address', () => {
     expect(() => loadConfig({ ...base, PAGE_SOURCE: 'http' })).toThrow(/SCRAPER_CONTACT_EMAIL/);
     expect(

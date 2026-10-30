@@ -36,6 +36,12 @@ export const configSchema = z.object({
   EXPO_ACCESS_TOKEN: z.string().optional(),
   // Development only: register real Expo push tokens (the owner's phone) and push to them.
   ALLOW_REAL_PUSH_IN_DEV: bool.default(false),
+  // The outage start / end signal (data-only push): `expo` through Expo's push service, `fcm` straight
+  // to FCM v1 with the service account key (the fallback should Expo's path prove slow or lossy for
+  // data-only messages), `log` only log (the default outside production).
+  BOUNDARY_SINK: z.enum(['log', 'expo', 'fcm']).optional(),
+  // The Firebase service account key as one line of JSON (never in git). Required for BOUNDARY_SINK=fcm.
+  FCM_SERVICE_ACCOUNT_JSON: z.string().optional(),
   BACKUP_DIR: z.string().default('./backups'),
   // Development convenience: load the saved OSM snapshots when the database has no streets yet.
   IMPORT_GAZETTEER: bool.default(false),
@@ -54,6 +60,9 @@ export function loadConfig(env: Record<string, string | undefined> = process.env
   }
   if (c.SMTP_URL && (!c.ALERT_EMAIL_TO || !c.ALERT_EMAIL_FROM)) {
     throw new Error('Invalid configuration: SMTP_URL requires ALERT_EMAIL_FROM and ALERT_EMAIL_TO');
+  }
+  if (c.BOUNDARY_SINK === 'fcm' && !c.FCM_SERVICE_ACCOUNT_JSON) {
+    throw new Error('Invalid configuration: BOUNDARY_SINK=fcm requires FCM_SERVICE_ACCOUNT_JSON');
   }
   return c;
 }

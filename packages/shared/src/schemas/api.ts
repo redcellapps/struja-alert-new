@@ -13,6 +13,10 @@ export type QuietHoursDto = z.infer<typeof quietHoursSchema>;
 
 export const registerDeviceRequestSchema = z.object({
   pushToken: z.string().min(8).max(300),
+  // The device's own FCM registration token (Android), for the direct FCM path of the outage start
+  // and end signals (docs/phase4-plan.md §3 step 3, fallback 2). Optional: without it that path
+  // skips the device.
+  nativePushToken: z.string().min(8).max(400).optional(),
   platform: z.enum(['android', 'ios']),
   osVersion: z.string().max(40).optional(),
   locale: z.enum(['sr', 'en']).default('sr'),
@@ -30,6 +34,7 @@ export const registerDeviceResponseSchema = z.object({
 export const patchDeviceRequestSchema = z
   .object({
     pushToken: z.string().min(8).max(300),
+    nativePushToken: z.string().min(8).max(400),
     locale: z.enum(['sr', 'en']),
     script: z.enum(['latn', 'cyrl']),
     quietHours: quietHoursSchema.nullable(),

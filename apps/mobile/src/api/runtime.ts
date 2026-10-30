@@ -11,7 +11,7 @@ import {
 import { endpoints } from './endpoints';
 import { useAddresses } from '../store/addresses';
 import { useSettings } from '../store/settings';
-import { realPushToken } from '../notifications/token';
+import { nativePushToken, realPushToken } from '../notifications/token';
 import { newId } from '../util/uuid';
 
 // 10.0.2.2 is the host machine as seen from the Android emulator. Release builds set
@@ -36,6 +36,7 @@ const deps = (): DeviceDeps => ({
   randomId: newId,
   addresses: () => useAddresses.getState().items,
   realPushToken,
+  nativePushToken,
 });
 
 const publicClient = createClient({

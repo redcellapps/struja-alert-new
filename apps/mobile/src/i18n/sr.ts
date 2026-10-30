@@ -293,6 +293,10 @@ export const sr = {
     },
     actionDetails: 'Detalji',
     actionCalendar: 'Dodaj u kalendar',
+    // The "outage active" notification (shown by the app itself: from the server's signal or its
+    // own alarm) and the one at the end.
+    active: { title: 'Bez struje: {{address}}', body: 'Povratak u {{time}}' },
+    ended: { title: 'Struja se vratila' },
   },
   banner: {
     offline: 'Prikazujem sačuvane podatke',

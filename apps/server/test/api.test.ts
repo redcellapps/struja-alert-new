@@ -185,6 +185,21 @@ describe('devices and authentication', () => {
     ).toBeNull();
   });
 
+  it('keeps the device’s own FCM token when the app sends one (the direct FCM signal path)', async () => {
+    const native = async (c: Client) =>
+      (await w.t.db.execute(sql`SELECT native_push_token AS t FROM device WHERE id = ${c.id}`))
+        .rows[0]?.t;
+    const plain = await register();
+    expect(await native(plain)).toBeNull();
+    const withNative = await register({ nativePushToken: 'fcm:registration-token-1' });
+    expect(await native(withNative)).toBe('fcm:registration-token-1');
+    const patch = await call(withNative, 'PATCH', '/v1/devices/me', {
+      nativePushToken: 'fcm:registration-token-2',
+    });
+    expect(patch.statusCode).toBe(200);
+    expect(await native(withNative)).toBe('fcm:registration-token-2');
+  });
+
   it('refreshes the push token, but not onto another device’s token', async () => {
     const a = await register();
     const b = await register();

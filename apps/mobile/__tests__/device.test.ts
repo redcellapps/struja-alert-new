@@ -58,6 +58,19 @@ describe('device registration', () => {
     await ensureRegistered({ ...deps, realPushToken: async () => 'ExponentPushToken[abc]' });
     expect(registered[0]?.pushToken).toBe('ExponentPushToken[abc]');
   });
+
+  it('sends the device’s own FCM token along when there is one, and nothing when there is none', async () => {
+    const { deps } = setup();
+    await ensureRegistered({ ...deps, nativePushToken: async () => 'fcm:abc' });
+    expect(jest.mocked(deps.api.registerDevice).mock.calls[0]?.[0]).toMatchObject({
+      nativePushToken: 'fcm:abc',
+    });
+    const none = setup();
+    await ensureRegistered({ ...none.deps, nativePushToken: async () => null });
+    expect(jest.mocked(none.deps.api.registerDevice).mock.calls[0]?.[0]).not.toHaveProperty(
+      'nativePushToken',
+    );
+  });
 });
 
 describe('recovery from a lost secret', () => {

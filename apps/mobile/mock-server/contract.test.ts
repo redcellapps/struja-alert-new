@@ -81,6 +81,13 @@ describe('mock API contract', () => {
     expect(secrets.data.get('push-token')?.startsWith(DEV_PUSH_TOKEN_PREFIX)).toBe(true);
   });
 
+  it('registers with the device’s own FCM token when the app has one (an optional field)', async () => {
+    const secrets = memorySecrets();
+    const { deps } = app(secrets);
+    await ensureRegistered({ ...deps, nativePushToken: async () => 'fcm:device-token' });
+    expect(await getCredentials(secrets)).toMatch(/\./);
+  });
+
   it('city outages, history, reports and delete-my-data answer in the shared shapes', async () => {
     const { api } = app(memorySecrets());
     await api.addSubscription({ city: 'nis', streetId: 2 });

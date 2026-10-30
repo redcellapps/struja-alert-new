@@ -289,6 +289,8 @@ export const en: Deep<Messages> = {
     },
     actionDetails: 'Details',
     actionCalendar: 'Add to calendar',
+    active: { title: 'No power: {{address}}', body: 'Back at {{time}}' },
+    ended: { title: 'The power is back' },
   },
   banner: {
     offline: 'Showing saved data',

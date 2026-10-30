@@ -25,6 +25,8 @@ export interface DeviceDeps {
   locale: () => { language: 'sr' | 'en'; script: 'latn' | 'cyrl' };
   // The real Expo push token when there is one (Phase 4); otherwise a development token is used.
   realPushToken?: () => Promise<string | null>;
+  // The device's own FCM token, sent along when there is one (the server's direct FCM signal path).
+  nativePushToken?: () => Promise<string | null>;
   randomId: () => string;
   // The addresses kept on the device: the source of truth that survives a lost secret.
   addresses: () => LocalAddress[];
@@ -62,8 +64,10 @@ export async function ensureRegistered(deps: DeviceDeps): Promise<string> {
 
 async function register(deps: DeviceDeps): Promise<string> {
   const { language, script } = deps.locale();
+  const native = (await deps.nativePushToken?.()) ?? null;
   const res = await deps.api.registerDevice({
     pushToken: await pushToken(deps),
+    ...(native ? { nativePushToken: native } : {}),
     platform: deps.platform,
     locale: language,
     script,

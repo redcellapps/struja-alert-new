@@ -27,7 +27,7 @@ interface Payload {
 }
 
 // "DeviceNotRegistered": the app was uninstalled. Drop the device and everything attached to it.
-async function dropDevice(db: Db, deviceId: string): Promise<void> {
+export async function dropDevice(db: Db, deviceId: string): Promise<void> {
   await db.delete(device).where(eq(device.id, deviceId));
 }
 

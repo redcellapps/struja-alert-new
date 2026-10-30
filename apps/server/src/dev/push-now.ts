@@ -5,14 +5,19 @@
 //   pnpm --filter @struja/server dev:push list
 //   pnpm --filter @struja/server dev:push <new|evening_before|changed|cancelled|reinstated>
 //        --subscription <id> [--outage <id>] [--urgent]
+//   pnpm --filter @struja/server dev:push <started|ended> --subscription <id> [--outage <id>]
 //
 // `--urgent` sends on the "hitno" channel now, whatever the outage window says. `started` and
-// `ended` (the data pushes of step 3) are not here yet.
+// `ended` send the outage start / end data push (step 3) from this process, through the sink the
+// environment names (BOUNDARY_SINK, the same choice the server makes); the outage's own
+// `*_signalled_at` claim is left alone, so the real tick is not affected.
 import { eq, sql } from 'drizzle-orm';
+import { loadConfig } from '../config.ts';
 import { createDb } from '../db/client.ts';
 import { device, settlement, street, subscription } from '../db/schema.ts';
 import { JOBS } from '../jobs/handlers.ts';
-import { planOnDemand } from '../notify/plan.ts';
+import { chooseBoundarySink } from '../notify/boundary-choice.ts';
+import { boundaryOnDemand, planOnDemand } from '../notify/plan.ts';
 import { assertLocalDatabase } from './local-only.ts';
 
 const KINDS = ['new', 'evening_before', 'changed', 'cancelled', 'reinstated'] as const;
@@ -25,7 +30,7 @@ const value = (name: string): string | undefined => {
 };
 const usage = (): never => {
   console.error(
-    'usage: dev:push list | dev:push <new|evening_before|changed|cancelled|reinstated> --subscription <id> [--outage <id>] [--urgent]',
+    'usage: dev:push list | dev:push <new|evening_before|changed|cancelled|reinstated> --subscription <id> [--outage <id>] [--urgent] | dev:push <started|ended> --subscription <id> [--outage <id>]',
   );
   process.exit(2);
 };
@@ -63,9 +68,26 @@ if (command === 'list') {
   }
   if (rows.length === 0) console.log('no subscriptions');
 } else if (command === 'started' || command === 'ended') {
-  console.error(`${command}: the outage data push is step 3 of docs/phase4-plan.md; not here yet`);
-  await pool.end();
-  process.exit(2);
+  const subscriptionId = Number(value('subscription'));
+  if (!Number.isInteger(subscriptionId)) usage();
+  const outageRaw = value('outage');
+  const signal = await boundaryOnDemand(db, {
+    subscriptionId,
+    ...(outageRaw === undefined ? {} : { outageId: Number(outageRaw) }),
+  });
+  if (!signal) {
+    console.error('nothing to signal: no such subscription, or no active outage names its street');
+    await pool.end();
+    process.exit(1);
+  }
+  const { name, sink } = chooseBoundarySink(loadConfig(), db, (m) => console.log(m));
+  const r = signal.recipients[0]!;
+  console.log(
+    `${command}: outage ${signal.outageId} (${signal.startsAt.toISOString()} – ${signal.endsAt.toISOString()}) to subscription ${r.subscriptionId}, ${r.possible ? 'possible' : 'affected'}, sink ${name}, FCM token ${r.nativePushToken ? 'yes' : 'no'}`,
+  );
+  if (command === 'started') await sink.started(signal);
+  else await sink.ended(signal);
+  console.log(`sent at ${new Date().toISOString()}`);
 } else if (command && (KINDS as readonly string[]).includes(command)) {
   const subscriptionId = Number(value('subscription'));
   if (!Number.isInteger(subscriptionId)) usage();
