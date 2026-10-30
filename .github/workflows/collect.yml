@@ -1,14 +1,16 @@
 name: Collect EDS fixtures
 
-# Phase 1 fixture collector. Saves raw EDS pages three times a day to the orphan branch
-# `fixtures-collect` (never to main). The script itself decides whether a run is due:
-# it collects only while the Europe/Belgrade local hour is 07, 13 or 19 (a one-hour window
-# per slot, so a delayed cron run still counts) and skips a slot that is already collected.
-# Each slot is listed at two UTC hours (summer/winter), and the script discards the one that
-# falls outside the window, so DST needs no manual change. Minute 5 avoids the top-of-hour rush.
+# Phase 1 fixture collector. Saves raw EDS pages three times a day (the 07, 13 and 19 slots,
+# Europe/Belgrade) to the orphan branch `fixtures-collect` (never to main). The cron runs every
+# hour because GitHub fires scheduled runs 1 to 5 hours late on this repository (seen 22–30 Oct
+# 2026: only 3 of 24 slots were collected with a one-hour window); the script decides what a run
+# is: it belongs to the latest slot that has begun, so the first successful run in
+# [slot, next slot) collects it, and a slot that is already collected is skipped. DST is handled
+# by the script. Minute 5 avoids the top-of-hour rush. `collect-watch.yml` raises an alarm when a
+# whole day goes by with no slot.
 on:
   schedule:
-    - cron: '5 5,6,11,12,17,18 * * *'
+    - cron: '5 * * * *'
   workflow_dispatch:
     inputs:
       force:

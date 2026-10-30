@@ -1,15 +1,22 @@
 import { createHash } from 'node:crypto';
-import { sql } from 'drizzle-orm';
+import { and, eq, sql } from 'drizzle-orm';
 import { leadingNumber, normalizeName, type NisGazetteer, type NisStreet } from '@struja/parser';
 import type { Db } from '../db/client.ts';
-import { gazetteerVersion, street, settlement, streetAlias } from '../db/schema.ts';
+import {
+  gazetteerVersion,
+  street,
+  settlement,
+  settlementAlias,
+  streetAlias,
+} from '../db/schema.ts';
 import type { OsmAddress } from './osm-files.ts';
 
 export interface ReviewedAlias {
   raw: string;
   raw_norm: string;
-  // Name of the street as in the gazetteer (name_cyrillic).
-  street: string;
+  // Name of the street as in the gazetteer (name_cyrillic), or of a settlement: one of the two.
+  street?: string;
+  settlement?: string;
   reviewed?: boolean;
   reviewed_at?: string;
 }
@@ -241,7 +248,31 @@ export async function importGazetteer(db: Db, input: ImportInput): Promise<Impor
     }
     for (const a of input.aliases ?? []) {
       if (!a.reviewed) continue;
-      const streetId = byCyrillic.get(a.street);
+      // A reviewed alias of a settlement ("Старе Железничке Колоније" is the neighbourhood
+      // Железничка колонија) goes to settlement_alias, where the admin review also writes.
+      if (a.settlement) {
+        const p = (
+          await tx
+            .select({ id: settlement.id })
+            .from(settlement)
+            .where(and(eq(settlement.city, city), eq(settlement.nameCyrillic, a.settlement)))
+            .limit(1)
+        )[0];
+        if (!p) continue;
+        const res = await tx
+          .insert(settlementAlias)
+          .values({
+            settlementId: p.id,
+            raw: a.raw,
+            rawNorm: a.raw_norm,
+            reviewedAt: a.reviewed_at ? new Date(a.reviewed_at) : new Date(),
+          })
+          .onConflictDoNothing({ target: settlementAlias.rawNorm })
+          .returning({ id: settlementAlias.id });
+        aliases += res.length;
+        continue;
+      }
+      const streetId = a.street === undefined ? undefined : byCyrillic.get(a.street);
       if (streetId === undefined) continue;
       const res = await tx
         .insert(streetAlias)

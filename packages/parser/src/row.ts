@@ -105,6 +105,21 @@ export function resolveRow(segments: readonly Segment[], deps: RowDeps): Segment
     if (res.street) anchors.push(res.street);
   }
 
+  // A name the street ladder could not place at all may be a settlement written like a street
+  // ("делови Банцарева, Чукљеника, Доње Студене": villages of Niška Banja in the genitive, found
+  // on the real pages of 28 Oct 2026). A real street always wins; only an unresolved segment with
+  // no street accepted falls through to the settlement list and its reviewed aliases.
+  out.forEach((res) => {
+    if (res.kind !== 'street' || res.street || res.by === 'ambiguous') return;
+    const norm = normalizeName(res.segment.name);
+    const pinned = deps.settlementAliases?.get(norm);
+    const r = pinned ? null : deps.settlements.resolve(norm);
+    if (pinned || r?.street) {
+      res.kind = 'village';
+      res.candidates = [];
+    }
+  });
+
   // Villages and settlement parts resolve against the settlement list.
   out.forEach((res) => {
     if (res.kind !== 'village') return;

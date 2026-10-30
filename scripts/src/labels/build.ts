@@ -62,9 +62,18 @@ export function buildLabels(
   pages: readonly PageInput[],
   gazetteer: NisGazetteer,
   addressNumbers?: ReadonlyMap<string, ReadonlySet<number>>,
+  aliases: readonly AliasSeedEntry[] = [],
 ): LabelRow[] {
   const resolver = new Resolver(gazetteer.streets);
   const settlements = new StreetIndex(gazetteer.settlements);
+  // Reviewed village aliases ("Старе Железничке Колоније" is the neighbourhood Железничка колонија).
+  const settlementAliases = new Map(
+    aliases.flatMap((a) => {
+      if (!a.settlement || !a.reviewed) return [];
+      const p = gazetteer.settlements.find((s) => s.name === a.settlement);
+      return p ? [[a.raw_norm, p] as const] : [];
+    }),
+  );
   const rows = new Map<string, LabelRow>();
 
   for (const { slot, city, page } of pages) {
@@ -80,7 +89,13 @@ export function buildLabels(
       // The shared two-pass resolution (also used by the server): the row's own streets are the
       // spatial context for segments the cheaper steps could not place.
       const resolutions = inScope
-        ? resolveRow(segments, { resolver, settlements, municipality, addressNumbers })
+        ? resolveRow(segments, {
+            resolver,
+            settlements,
+            settlementAliases,
+            municipality,
+            addressNumbers,
+          })
         : null;
 
       segments.forEach((seg, i) => {
@@ -189,7 +204,9 @@ export function toCsv(rows: readonly LabelRow[], priorCsv = ''): string {
 export interface AliasSeedEntry {
   raw: string;
   raw_norm: string;
-  street: string;
+  // The street the spelling means, or (a reviewed entry only) the settlement.
+  street?: string;
+  settlement?: string;
   source: string;
   confidence: number;
   // Set by a human review. A reviewed entry is never changed or dropped by regeneration.

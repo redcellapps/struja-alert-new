@@ -91,15 +91,10 @@ async function readStoredSlugs(fixturesDir: string): Promise<string[]> {
   }
 }
 
-// Returns null when this slot is not due or is already collected.
+// Returns null when this run's slot is already collected (every moment belongs to one slot:
+// the latest of 07/13/19 Europe/Belgrade that has begun).
 export async function collectSlot(opts: CollectOptions): Promise<SlotSummary | null> {
-  const slot: Slot | null = opts.force ? manualSlot(opts.now) : currentSlot(opts.now);
-  if (!slot) {
-    opts.log(
-      'Outside the collection window (07/13/19 Europe/Belgrade, one hour each); nothing to do.',
-    );
-    return null;
-  }
+  const slot: Slot = opts.force ? manualSlot(opts.now) : currentSlot(opts.now);
   const slotDir = join(opts.fixturesDir, 'eds', slot.key);
   const marker = join(slotDir, '_slot.json');
   if (await exists(marker)) {

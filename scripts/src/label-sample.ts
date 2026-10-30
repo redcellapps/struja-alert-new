@@ -67,16 +67,16 @@ for (const slot of readdirSync(eds)
   }
 }
 
-const rows = buildLabels(pages, gazetteer, addressNumbers);
-
 // Regenerating never loses a review: previous `confirmed`/`notes` and reviewed aliases carry over.
 const labelsPath = join(fixtures, 'labels.csv');
 const aliasesPath = join(root, 'packages', 'parser', 'data', 'aliases.json');
+const previousAliases = existsSync(aliasesPath) ? readJson(aliasesPath) : [];
+const rows = buildLabels(pages, gazetteer, addressNumbers, previousAliases);
 writeFileSync(
   labelsPath,
   toCsv(rows, existsSync(labelsPath) ? readFileSync(labelsPath, 'utf8') : ''),
 );
-const aliases = aliasSeed(rows, existsSync(aliasesPath) ? readJson(aliasesPath) : []);
+const aliases = aliasSeed(rows, previousAliases);
 writeFileSync(aliasesPath, JSON.stringify(aliases, null, 2) + '\n');
 console.log(
   JSON.stringify(

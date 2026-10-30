@@ -1,6 +1,7 @@
 import type { GazStreet } from './gazetteer.ts';
 import { areaAt, type SettlementArea } from './areas.ts';
 import { NIS_MUNICIPALITY_KEYS, nisMunicipality, type NisMunicipality } from './municipality.ts';
+import { EXTRA_SETTLEMENTS } from '../data/settlements.ts';
 import { normalizeName } from './normalize.ts';
 import { haversineMeters } from './similarity.ts';
 
@@ -282,6 +283,23 @@ export function buildNisGazetteer(
       });
     }
   }
+
+  // Settlements EDS names but OSM lacks (packages/parser/data/settlements.ts): a synthetic
+  // negative id, no coordinates, never a duplicate of a place OSM has.
+  EXTRA_SETTLEMENTS.forEach((x, i) => {
+    const nameNorm = normalizeName(x.name);
+    if (!nameNorm || settlements.some((s) => s.nameNorm === nameNorm)) return;
+    settlements.push({
+      id: -(i + 1),
+      name: x.name,
+      nameNorm,
+      altNorms: (x.alts ?? []).map(normalizeName).filter((n) => n && n !== nameNorm),
+      kind: x.kind,
+      municipality: (x.municipality as NisMunicipality | null) ?? null,
+      lat: null,
+      lon: null,
+    });
+  });
 
   const byNorm = new Map<string, OsmStreetWay[]>();
   for (const w of ways) {

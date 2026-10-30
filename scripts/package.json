@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "collect": "node --env-file-if-exists=../.env src/collect-fixtures.ts",
+    "collect-watch": "node src/collect-watch.ts",
     "typecheck": "tsc -p tsconfig.json",
     "test": "vitest run --passWithNoTests --coverage --reporter=default --reporter=junit --outputFile.junit=../test-results/scripts/junit.xml --coverage.reportsDirectory=../test-results/scripts/coverage --coverage.reporter=text-summary --coverage.reporter=lcov",
     "seed-gazetteer": "node --env-file-if-exists=../.env src/seed-gazetteer.ts",

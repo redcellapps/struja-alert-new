@@ -45,7 +45,7 @@ describe('importing the real Niš OSM snapshots into PostGIS', () => {
     expect(first.streets).toBe(source.gazetteer.streets.length);
     expect(first.settlements).toBe(source.gazetteer.settlements.length);
     expect(first.addressPoints).toBeGreaterThan(40_000);
-    expect(first.aliases).toBe(8);
+    expect(first.aliases).toBe(9); // 8 street aliases and the reviewed settlement alias
     expect(first.version).toBe(1);
   });
 
@@ -71,6 +71,16 @@ describe('importing the real Niš OSM snapshots into PostGIS', () => {
     expect(loaded.aliases.get('studenicke')).toBeDefined();
     const r = await t.db.execute(sql`SELECT DISTINCT source, confidence FROM street_alias`);
     expect(r.rows).toEqual([{ source: 'manual', confidence: 1 }]);
+  });
+
+  it('imports a reviewed settlement alias, and the settlement OSM lacks (no geometry)', async () => {
+    const colony = loaded.settlementAliases.get('stare zeleznicke kolonije');
+    expect(colony?.name).toBe('Железничка колонија');
+    const r = await t.db.execute(
+      sql`SELECT kind, municipality, geom IS NULL AS no_geom FROM settlement WHERE name_cyrillic = 'Бојанине воде'`,
+    );
+    expect(r.rows).toEqual([{ kind: 'locality', municipality: 'niska banja', no_geom: true }]);
+    expect(loaded.settlementIndex.resolve('bojaninih voda').street?.name).toBe('Бојанине воде');
   });
 
   it('exposes house numbers from OSM for the scoring step', () => {

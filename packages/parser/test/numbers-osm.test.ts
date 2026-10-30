@@ -156,11 +156,16 @@ describe('buildNisGazetteer', () => {
     expect(r.street?.name).toBe('Булевар 12. фебруар');
   });
   it('lists settlements once, with their kind, skipping non-settlement places', () => {
-    expect(g.settlements).toHaveLength(1);
-    expect(g.settlements[0]).toMatchObject({
+    // OSM's places, plus the hand-kept ones OSM lacks (negative ids; packages/parser/data/settlements.ts)
+    const fromOsm = g.settlements.filter((s) => Number(s.id) > 0);
+    expect(fromOsm).toHaveLength(1);
+    expect(fromOsm[0]).toMatchObject({
       name: 'Трупале',
       kind: 'village',
       municipality: 'pantelej',
     });
+    expect(g.settlements.filter((s) => Number(s.id) < 0).map((s) => s.name)).toEqual([
+      'Бојанине воде',
+    ]);
   });
 });

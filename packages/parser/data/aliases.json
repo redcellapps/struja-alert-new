@@ -1,5 +1,33 @@
 [
   {
+    "raw": "21. маја",
+    "raw_norm": "21 maja",
+    "street": "21. мај",
+    "source": "form",
+    "confidence": 1
+  },
+  {
+    "raw": "Белопаланчке",
+    "raw_norm": "belopalancke",
+    "street": "Белопаланачка",
+    "source": "scored",
+    "confidence": 0.84
+  },
+  {
+    "raw": "Бледске",
+    "raw_norm": "bledske",
+    "street": "Бледска",
+    "source": "placed",
+    "confidence": 0.8
+  },
+  {
+    "raw": "Божидарчеве",
+    "raw_norm": "bozidarceve",
+    "street": "Божидарчева",
+    "source": "form",
+    "confidence": 1
+  },
+  {
     "raw": "Бубањске долине",
     "raw_norm": "bubanjske doline",
     "street": "Бубањска долина",
@@ -7,6 +35,13 @@
     "confidence": 1,
     "reviewed": true,
     "reviewed_at": "2026-10-22"
+  },
+  {
+    "raw": "Булевара Св. Пантелејмона",
+    "raw_norm": "bulevara sveti pantelejmona",
+    "street": "Булевар Светог Пантелејмона",
+    "source": "scored",
+    "confidence": 0.88
   },
   {
     "raw": "Чегарске",
@@ -45,6 +80,20 @@
     "reviewed_at": "2026-10-22"
   },
   {
+    "raw": "Ледене Стене (1-33;",
+    "raw_norm": "ledene stene 1 33",
+    "street": "Ледена стена",
+    "source": "heuristic",
+    "confidence": 0.8
+  },
+  {
+    "raw": "Маријана Бадела",
+    "raw_norm": "marijana badela",
+    "street": "Марјана Бадела",
+    "source": "scored",
+    "confidence": 0.86
+  },
+  {
     "raw": "Матејевачког пута",
     "raw_norm": "matejevackog puta",
     "street": "Матејевачки пут",
@@ -52,6 +101,22 @@
     "confidence": 1,
     "reviewed": true,
     "reviewed_at": "2026-10-22"
+  },
+  {
+    "raw": "Мокрањчеве",
+    "raw_norm": "mokranjceve",
+    "street": "Мокрањчева",
+    "source": "form",
+    "confidence": 1
+  },
+  {
+    "raw": "Старе Железничке Колоније",
+    "raw_norm": "stare zeleznicke kolonije",
+    "settlement": "Железничка колонија",
+    "source": "review",
+    "confidence": 1,
+    "reviewed": true,
+    "reviewed_at": "2026-10-30"
   },
   {
     "raw": "Студеничке",
@@ -63,6 +128,13 @@
     "reviewed_at": "2026-10-22"
   },
   {
+    "raw": "Таковске",
+    "raw_norm": "takovske",
+    "street": "Таковска",
+    "source": "placed",
+    "confidence": 0.8
+  },
+  {
     "raw": "Требињске",
     "raw_norm": "trebinjske",
     "street": "Требињска",
@@ -70,5 +142,26 @@
     "confidence": 1,
     "reviewed": true,
     "reviewed_at": "2026-10-22"
+  },
+  {
+    "raw": "Трга Павла Стојковића",
+    "raw_norm": "trga pavla stojkovica",
+    "street": "Трг Павла Стојковића",
+    "source": "fuzzy",
+    "confidence": 0.8
+  },
+  {
+    "raw": "Винтерове у Насељу 9. Мај",
+    "raw_norm": "vinterove u naselju 9 maj",
+    "street": "Винтерова",
+    "source": "scored",
+    "confidence": 0.8
+  },
+  {
+    "raw": "Железничке Колоније",
+    "raw_norm": "zeleznicke kolonije",
+    "street": "Железничка колонија",
+    "source": "form",
+    "confidence": 1
   }
 ]

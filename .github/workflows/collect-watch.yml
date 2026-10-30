@@ -1,0 +1,61 @@
+name: Watch the EDS collector
+
+# The collector's watchdog: once a day, in the small hours Belgrade time, checks that the last
+# whole day got at least one slot on the `fixtures-collect` branch. A day with none fails this
+# workflow (GitHub mails the failure to the owner) and opens, or comments on, the open issue
+# labelled `collector`. Nothing here requests elektrodistribucija.rs.
+on:
+  schedule:
+    - cron: '20 1 * * *' # 02:20 CET / 03:20 CEST
+  workflow_dispatch:
+    inputs:
+      date:
+        description: 'Belgrade date to check (YYYY-MM-DD); default: yesterday'
+        required: false
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  watch:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check out the fixtures branch
+        run: |
+          git fetch --depth=1 origin fixtures-collect
+          git worktree add fixtures-data origin/fixtures-collect
+
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile --filter "@struja/scripts..."
+
+      - name: Check the last whole day
+        id: check
+        run: pnpm --filter @struja/scripts collect-watch
+        env:
+          FIXTURES_DIR: ${{ github.workspace }}/fixtures-data
+          DATE: ${{ inputs.date }}
+
+      - name: Open or update the issue
+        if: failure() && steps.check.outputs.date != ''
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SUMMARY: ${{ steps.check.outputs.summary }}
+          DATE: ${{ steps.check.outputs.date }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          gh label create collector --color D93F0B --description "EDS fixture collector" --force
+          existing=$(gh issue list --label collector --state open --json number --jq '.[0].number')
+          body="$SUMMARY"$'\n\n'"Run: $RUN_URL"$'\n'"Check the collector runs (Actions → Collect EDS fixtures) and the EDS site."
+          if [ -n "$existing" ]; then
+            gh issue comment "$existing" --body "$body"
+          else
+            gh issue create --title "Collector: no EDS fixtures on $DATE" --label collector --body "$body"
+          fi

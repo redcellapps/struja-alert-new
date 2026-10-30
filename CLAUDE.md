@@ -62,7 +62,7 @@ Every `pnpm test` run writes JUnit and coverage reports to `test-results/<packag
 
 ## Fixture collector (Phase 1)
 
-`scripts/` (`@struja/scripts`): `pnpm --filter @struja/scripts collect` needs `SCRAPER_CONTACT_EMAIL`; it refuses to run without it. It collects only inside the 07/13/19 Europe/Belgrade one-hour windows and dedupes per slot. Raw pages go to `$FIXTURES_DIR/eds/<slot>/`. In CI it runs from `.github/workflows/collect.yml` and pushes to the `fixtures-collect` branch, never to main. Do not run it locally against the live site unless asked.
+`scripts/` (`@struja/scripts`): `pnpm --filter @struja/scripts collect` needs `SCRAPER_CONTACT_EMAIL`; it refuses to run without it. A run belongs to the latest of the 07/13/19 Europe/Belgrade slots that has begun (the window is [slot, next slot), because GitHub's cron fires hours late) and dedupes per slot. Raw pages go to `$FIXTURES_DIR/eds/<slot>/`. In CI it runs hourly from `.github/workflows/collect.yml` and pushes to the `fixtures-collect` branch, never to main; `collect-watch.yml` fails and opens an issue when a whole day gets no slot (`pnpm --filter @struja/scripts collect-watch` with `FIXTURES_DIR`). Do not run it locally against the live site unless asked. To measure the gate on everything collected, copy the branch's `eds/<slot>` folders into `fixtures/eds/` (they are committed).
 
 ## Phase 1 gate and labels
 

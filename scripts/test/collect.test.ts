@@ -88,10 +88,11 @@ describe('pageUrl', () => {
 });
 
 describe('collectSlot', () => {
-  it('does nothing outside the window', async () => {
+  it('a run hours after the slot began still collects it (GitHub’s cron runs late)', async () => {
     const calls: string[] = [];
-    expect(await collectSlot(opts({ now: OUT_OF_SLOT, fetchFn: fakeFetch(3, calls) }))).toBeNull();
-    expect(calls).toHaveLength(0);
+    const s = await collectSlot(opts({ now: OUT_OF_SLOT, fetchFn: fakeFetch(3, calls) }));
+    expect(s?.slot_key).toBe('2026-10-24-07'); // 08:10 local belongs to the 07 slot
+    expect(calls.length).toBeGreaterThan(0);
   });
 
   it('saves raw bytes + meta, stops at the first non-200 day, records max N, sends the UA', async () => {
@@ -163,7 +164,7 @@ describe('collectSlot', () => {
     expect(Object.keys(s?.max_n ?? {})).toContain('Nis');
   });
 
-  it('manual runs bypass the window and use their own key', async () => {
+  it('manual runs use their own key, so they never stand in for a scheduled slot', async () => {
     const s = await collectSlot(opts({ now: OUT_OF_SLOT, force: true }));
     expect(s?.slot_key).toBe('manual-20261024T0610Z');
   });
