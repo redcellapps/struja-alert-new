@@ -43,19 +43,18 @@ export function writeBook(book: AlarmBook, kv: KeyValueStorage = storage()): voi
 export const startAlarmId = activeNotificationId;
 export const endAlarmId = endedNotificationId;
 
-/** The outages of a sync (Početna's data), with the address as the person sees it. */
+/**
+ * The outages of a sync (Početna's data), with the address as the person sees it. The sync is the
+ * whole truth: an outage the server no longer lists (replaced by a newer row, the address removed,
+ * the window past) leaves the book, and with it its alarms. Carrying such entries over was tried
+ * first and booked a "Bez struje" for a replaced outage (found on the phone, 30 Oct).
+ */
 export function bookFromSync(
   outages: AddressOutageDto[],
   addressOf: (subscriptionId: number) => string | undefined,
   previous: AlarmBook,
-  now: Date,
 ): AlarmBook {
   const book: AlarmBook = {};
-  // Outages the server no longer lists (the person removed the address, or the window is past)
-  // are forgotten once they are over; an outage still running stays until its end has been told.
-  for (const [id, entry] of Object.entries(previous)) {
-    if (new Date(entry.endsAt).getTime() > now.getTime()) book[id] = entry;
-  }
   for (const o of outages) {
     const address = addressOf(o.subscriptionId) ?? previous[String(o.id)]?.address ?? '';
     book[String(o.id)] = {

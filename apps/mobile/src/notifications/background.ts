@@ -148,11 +148,20 @@ export function defineBackgroundTask(): void {
   TaskManager.defineTask<Notifications.NotificationTaskPayload>(
     BACKGROUND_TASK,
     async ({ data, error }) => {
-      if (error) return;
+      if (error) {
+        console.log(`[struja-push] ${new Date().toISOString()} task error: ${error.message}`);
+        return;
+      }
       try {
-        await handlePayload(parsePayload(data), await liveDeps(invalidateHook));
-      } catch {
+        const parsed = parsePayload(data);
+        // One line per run for logcat (ReactNativeJS): the phone measurements read it.
+        console.log(
+          `[struja-push] ${new Date().toISOString()} task ran: ${parsed.kind}${parsed.kind === 'boundary' ? ` ${parsed.push.type} outage ${parsed.push.outageId}` : ''}${parsed.kind === 'outage' ? ` kind ${String(parsed.data['kind'])} outage ${String(parsed.data['outageId'])}` : ''}`,
+        );
+        await handlePayload(parsed, await liveDeps(invalidateHook));
+      } catch (e) {
         // A broken push must not crash the headless process; the alarm book stays as it was.
+        console.log(`[struja-push] failed: ${e instanceof Error ? e.message : String(e)}`);
       }
     },
   );

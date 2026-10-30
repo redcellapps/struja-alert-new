@@ -401,14 +401,14 @@ describe('quiet hours and urgency (BRIEF §5)', () => {
     expect(msg?.urgent).toBe(true);
   });
 
-  it('uses one channel per kind otherwise, and groups by address', async () => {
+  it('uses one channel per kind otherwise, and groups by saved address (the subscription)', async () => {
     const a = await addSub({ norm: 'bubanjska dolina' });
     await page('22.11.2026.', [['Палилула - Ниш', '08:00 - 09:00', 'Бубањске долине']]);
     await plan();
     await deliver();
     const msg = provider.sent.find((m) => m.to === a.token);
     expect(msg?.channelId).toBe('new');
-    expect(msg?.groupKey).toBe(`address-${sid('bubanjska dolina')}`);
+    expect(msg?.groupKey).toBe(`address-${a.subId}`);
     expect(msg?.data).toMatchObject({ kind: 'new' });
   });
 });

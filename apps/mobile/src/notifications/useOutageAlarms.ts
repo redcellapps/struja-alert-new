@@ -50,7 +50,7 @@ export function useOutageAlarms(): void {
       }),
     );
     const now = new Date();
-    const book = bookFromSync(outs.data, (id) => names.get(id), readBook(), now);
+    const book = bookFromSync(outs.data, (id) => names.get(id), readBook());
     writeBook(book);
     void syncAlarms(book, i18next.t.bind(i18next), now).catch(() => {});
   }, [subs.data, outs.data, script, language]);

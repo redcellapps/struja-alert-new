@@ -42,22 +42,14 @@ beforeAll(async () => {
 afterEach(() => jest.clearAllMocks());
 
 describe('the alarm book', () => {
-  it('is built from a sync with the address as the person sees it, keeping a running outage', () => {
+  it('is built from a sync with the address as the person sees it; what the server no longer lists is dropped', () => {
     const previous: AlarmBook = {
       '3': {
         outageId: 3,
         subscriptionId: 15,
         address: 'Trebinjska 34',
-        startsAt: '2026-11-03T07:00:00Z',
-        endsAt: '2026-11-03T10:00:00Z', // still running at NOW
-        status: 'active',
-      },
-      '2': {
-        outageId: 2,
-        subscriptionId: 15,
-        address: 'Trebinjska 34',
-        startsAt: '2026-11-02T07:00:00Z',
-        endsAt: '2026-11-02T10:00:00Z', // over: forgotten
+        startsAt: '2026-11-03T09:00:00Z',
+        endsAt: '2026-11-03T14:00:00Z', // replaced by outage 7 on the server: no longer listed
         status: 'active',
       },
     };
@@ -65,9 +57,8 @@ describe('the alarm book', () => {
       [outage(), outage({ id: 8, subscriptionId: 16, status: 'cancelled' })],
       names,
       previous,
-      NOW,
     );
-    expect(Object.keys(book).sort()).toEqual(['3', '7', '8']);
+    expect(Object.keys(book).sort()).toEqual(['7', '8']);
     expect(book['7']).toEqual({
       outageId: 7,
       subscriptionId: 15,

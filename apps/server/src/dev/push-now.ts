@@ -85,9 +85,10 @@ if (command === 'list') {
   console.log(
     `${command}: outage ${signal.outageId} (${signal.startsAt.toISOString()} – ${signal.endsAt.toISOString()}) to subscription ${r.subscriptionId}, ${r.possible ? 'possible' : 'affected'}, sink ${name}, FCM token ${r.nativePushToken ? 'yes' : 'no'}`,
   );
+  console.log(`sending at ${new Date().toISOString()}`);
   if (command === 'started') await sink.started(signal);
   else await sink.ended(signal);
-  console.log(`sent at ${new Date().toISOString()}`);
+  console.log(`accepted at ${new Date().toISOString()}`);
 } else if (command && (KINDS as readonly string[]).includes(command)) {
   const subscriptionId = Number(value('subscription'));
   if (!Number.isInteger(subscriptionId)) usage();

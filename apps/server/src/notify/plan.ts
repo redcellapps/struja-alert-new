@@ -348,7 +348,9 @@ async function emit(
         title: message.title,
         body: message.body,
         channelId: delivery.urgent ? URGENT_CHANNEL : channelForKind(e.kind),
-        groupKey: `address-${e.sub.streetId ?? `p${e.sub.settlementId}`}`,
+        // One key per saved address (the subscription), the same the app uses for its own
+        // "Bez struje" notifications, so the shade groups and replaces per address.
+        groupKey: `address-${e.sub.id}`,
         urgent: delivery.urgent,
         data: {
           outageId: e.outageId,
