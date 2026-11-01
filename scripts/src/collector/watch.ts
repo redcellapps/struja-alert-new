@@ -20,6 +20,13 @@ export function dayToCheck(now: Date): string {
 }
 
 /** Which of the day's three slots have a marker under `<fixturesDir>/eds/`. */
+/** The day to check: the DATE override when it is not blank, else yesterday. The workflow passes
+ *  `inputs.date`, which is the empty string on scheduled runs, so `??` would not do. */
+export function resolveDate(override: string | undefined, now: Date): string {
+  const trimmed = override?.trim();
+  return trimmed ? trimmed : dayToCheck(now);
+}
+
 export function checkDay(fixturesDir: string, date: string): DayReport {
   const present: string[] = [];
   const missing: string[] = [];

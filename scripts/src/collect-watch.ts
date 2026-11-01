@@ -4,11 +4,11 @@
 // then also opens or updates the "Collector" issue. No network requests here.
 //   Env: FIXTURES_DIR (required), DATE (optional override, YYYY-MM-DD), GITHUB_OUTPUT (set by Actions).
 import { appendFileSync } from 'node:fs';
-import { checkDay, dayToCheck, describeDay, isAlarm } from './collector/watch.ts';
+import { checkDay, describeDay, isAlarm, resolveDate } from './collector/watch.ts';
 
 const fixturesDir = process.env.FIXTURES_DIR;
 if (!fixturesDir) throw new Error('FIXTURES_DIR is not set');
-const date = process.env.DATE ?? dayToCheck(new Date());
+const date = resolveDate(process.env.DATE, new Date());
 const report = checkDay(fixturesDir, date);
 const text = describeDay(report);
 console.log(text);

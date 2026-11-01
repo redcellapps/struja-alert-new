@@ -2,7 +2,7 @@ import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { checkDay, dayToCheck, describeDay, isAlarm } from '../src/collector/watch.ts';
+import { checkDay, dayToCheck, describeDay, isAlarm, resolveDate } from '../src/collector/watch.ts';
 
 const branch = (slots: string[]) => {
   const dir = mkdtempSync(join(tmpdir(), 'struja-watch-'));
@@ -43,7 +43,9 @@ describe('the collector watchdog', () => {
     expect(describeDay(one)).toBe(
       '2026-10-30: 1 of 3 slots collected (2026-10-30-19); missing 2026-10-30-07, 2026-10-30-13: fewer than 2.',
     );
-    expect(isAlarm(checkDay(branch(['2026-10-30-07', '2026-10-30-13', '2026-10-30-19']), '2026-10-30'))).toBe(false);
+    expect(
+      isAlarm(checkDay(branch(['2026-10-30-07', '2026-10-30-13', '2026-10-30-19']), '2026-10-30')),
+    ).toBe(false);
   });
 
   it('reports a day with nothing collected', () => {
@@ -54,5 +56,17 @@ describe('the collector watchdog', () => {
     expect(describeDay(r)).toBe(
       'No EDS fixtures were collected on 2026-10-30 (missing: 2026-10-30-07, 2026-10-30-13, 2026-10-30-19).',
     );
+  });
+});
+
+describe('resolveDate', () => {
+  const now = new Date('2026-11-01T01:20:00Z');
+  it('treats the empty DATE of a scheduled run as unset (regression: watchdog failed on 2026-10-31 and 11-01)', () => {
+    expect(resolveDate('', now)).toBe(dayToCheck(now));
+    expect(resolveDate('  ', now)).toBe(dayToCheck(now));
+    expect(resolveDate(undefined, now)).toBe(dayToCheck(now));
+  });
+  it('keeps a manual override', () => {
+    expect(resolveDate('2026-10-30', now)).toBe('2026-10-30');
   });
 });
