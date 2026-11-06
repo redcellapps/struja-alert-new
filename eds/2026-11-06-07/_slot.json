@@ -1,0 +1,155 @@
+{
+  "slot_key": "2026-11-06-07",
+  "started_at": "2026-11-06T09:13:49.107Z",
+  "finished_at": "2026-11-06T09:14:33.006Z",
+  "pages": [
+    {
+      "city": "Beograd",
+      "n": 0,
+      "status": 200,
+      "bytes": 13033,
+      "sha256": "33a76dca0f7f396731671fb663a750349b1c4f8d537dbc7d2aaa48aa0cbee92c"
+    },
+    {
+      "city": "Beograd",
+      "n": 1,
+      "status": 200,
+      "bytes": 3289,
+      "sha256": "ef4daf7aa08c56608ea2c7dc5a82142caea5946e976945618cefa0cfaeaf7a5b"
+    },
+    {
+      "city": "Beograd",
+      "n": 2,
+      "status": 200,
+      "bytes": 1873,
+      "sha256": "68938b07dea9b753c5e33d93d854a4d87651cf457ce6a5b6575ca1fabe31e1d9"
+    },
+    {
+      "city": "Beograd",
+      "n": 3,
+      "status": 200,
+      "bytes": 5751,
+      "sha256": "f5128e0e931063759fb740c7458681998fca4aa550147cac987db0633e7a22e3"
+    },
+    {
+      "city": "Nis",
+      "n": 0,
+      "status": 200,
+      "bytes": 14453,
+      "sha256": "a5bd1cfba63e3307a4d72f0d67203d06ac7136e1d4c764f7b6c6d39ae6c8aa69"
+    },
+    {
+      "city": "Nis",
+      "n": 1,
+      "status": 200,
+      "bytes": 2260,
+      "sha256": "039c3fc6b2f721b56237947698e2bbb03d23c55ec73cae91b799c939cb6e9b71"
+    },
+    {
+      "city": "Nis",
+      "n": 2,
+      "status": 200,
+      "bytes": 1455,
+      "sha256": "70cd859e0ac47b7357e5be288d2d9ca80b51069576ead027c7fd612ace11c47c"
+    },
+    {
+      "city": "Nis",
+      "n": 3,
+      "status": 200,
+      "bytes": 7833,
+      "sha256": "5de19a265ce9e1fa0632ef87dca744255620d866c1576572f3c8c442139ff8a0"
+    },
+    {
+      "city": "Kraljevo",
+      "n": 0,
+      "status": 200,
+      "bytes": 16788,
+      "sha256": "7ee414f59eb132a9f5ff4e6324000c483ad668d7aaa5d4749b49466b978c28e7"
+    },
+    {
+      "city": "Kraljevo",
+      "n": 1,
+      "status": 200,
+      "bytes": 3155,
+      "sha256": "aa0df37f0ddf56d007973f1a7140abe9c8a486ae9e188624c9b7c83994b74a63"
+    },
+    {
+      "city": "Kraljevo",
+      "n": 2,
+      "status": 200,
+      "bytes": 1463,
+      "sha256": "50633306d401f1593559d9a30550b28e01a1bd63437538340544aef937e68eba"
+    },
+    {
+      "city": "Kraljevo",
+      "n": 3,
+      "status": 200,
+      "bytes": 8218,
+      "sha256": "90e44a46ab379f66000d253cb2f3895087e52ddcf9bf8f0b1d8b0a31709720f9"
+    },
+    {
+      "city": "NoviSad",
+      "n": 0,
+      "status": 200,
+      "bytes": 14506,
+      "sha256": "20e3db26749e8e86ee2cb0879047a6abd85103f3aed1ff357924c67cdf70184a"
+    },
+    {
+      "city": "NoviSad",
+      "n": 1,
+      "status": 200,
+      "bytes": 3150,
+      "sha256": "320b741bfd84273a4f6eb0e3f650ad7e8428d0ece360e713ab618ce6dc393e33"
+    },
+    {
+      "city": "NoviSad",
+      "n": 2,
+      "status": 200,
+      "bytes": 1464,
+      "sha256": "551d73f8bc061e043753c7c0c67037d68e9ff29e2ddd5f8b9c44cfecfcffca27"
+    },
+    {
+      "city": "NoviSad",
+      "n": 3,
+      "status": 200,
+      "bytes": 18083,
+      "sha256": "f82805b28e26f567624350db68558d06e6be411d8e91685edaf3dfd2c780df10"
+    },
+    {
+      "city": "Kragujevac",
+      "n": 0,
+      "status": 200,
+      "bytes": 5530,
+      "sha256": "b67a96fddb74e979babb5dbfbcfa03075f26905da506880b20c31ebdf50c3f38"
+    },
+    {
+      "city": "Kragujevac",
+      "n": 1,
+      "status": 200,
+      "bytes": 3361,
+      "sha256": "49b16444e760b3dab6c43443b7cac6e03dc16d4e548c10be8ce0213e1d69f843"
+    },
+    {
+      "city": "Kragujevac",
+      "n": 2,
+      "status": 200,
+      "bytes": 2448,
+      "sha256": "cde5fbc607ce3e3b7d3c54df4ac542f529c316653695f6d9c7d2228c3f058e87"
+    },
+    {
+      "city": "Kragujevac",
+      "n": 3,
+      "status": 200,
+      "bytes": 3132,
+      "sha256": "a7f5a1a1b99e6326312952ff87e1f15cec99fd93485e080ed570503bf8c4b921"
+    }
+  ],
+  "max_n": {
+    "Beograd": 3,
+    "Nis": 3,
+    "Kraljevo": 3,
+    "NoviSad": 3,
+    "Kragujevac": 3
+  },
+  "errors": []
+}
