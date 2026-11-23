@@ -1,0 +1,6 @@
+{
+  "platforms": ["android"],
+  "android": {
+    "modules": ["rs.strujaalert.widget.StrujaWidgetModule"]
+  }
+}

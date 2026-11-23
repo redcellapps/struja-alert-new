@@ -21,7 +21,11 @@ import {
 // What the app knows about the outages it may have to announce, by outage id. Kept in MMKV so the
 // background task (no React, no query cache) can read and write it.
 export interface AlarmBook {
-  [outageId: string]: ActiveOutage & { status: 'active' | 'changed' | 'cancelled' };
+  [outageId: string]: ActiveOutage & {
+    status: 'active' | 'changed' | 'cancelled';
+    // "Moguće pogođeno": the match was not certain (the widget says so).
+    possible?: boolean;
+  };
 }
 
 const BOOK_KEY = 'alarm-book';
@@ -64,6 +68,7 @@ export function bookFromSync(
       startsAt: o.startsAt,
       endsAt: o.endsAt,
       status: o.status,
+      possible: o.match === 'possible',
     };
   }
   return book;
@@ -78,6 +83,7 @@ export interface OutagePushData {
   startsAt: string;
   endsAt: string;
   address: string;
+  possible: boolean;
 }
 
 const asInt = (v: unknown): number | null =>
@@ -110,6 +116,7 @@ export function outagePushData(data: Record<string, unknown>): OutagePushData | 
     startsAt,
     endsAt,
     address: typeof address === 'string' ? address : '',
+    possible: data['possible'] === true,
   };
 }
 
@@ -124,6 +131,7 @@ export function bookFromPush(push: OutagePushData, previous: AlarmBook): AlarmBo
       startsAt: push.startsAt,
       endsAt: push.endsAt,
       status: push.kind === 'cancelled' ? 'cancelled' : 'active',
+      possible: push.possible,
     },
   };
 }

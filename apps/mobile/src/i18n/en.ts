@@ -300,6 +300,17 @@ export const en: Deep<Messages> = {
     active: { title: 'No power: {{address}}', body: 'Back at {{time}}' },
     ended: { title: 'The power is back' },
   },
+  widget: {
+    clear: 'All clear',
+    today: 'No power today',
+    tomorrow: 'No power tomorrow',
+    later: 'No power',
+    active: 'No power',
+    startsAt: 'starts at {time}',
+    backAt: 'back at {time}',
+    noAddress: 'Add an address',
+    open: 'Open the app',
+  },
   banner: {
     offline: 'Showing saved data',
     notificationsOff: 'Notifications are off',

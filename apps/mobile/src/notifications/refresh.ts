@@ -6,6 +6,8 @@ import { i18next, initI18n } from '../i18n';
 import { useAddresses } from '../store/addresses';
 import { useSettings } from '../store/settings';
 import { storage, type KeyValueStorage } from '../store/storage';
+import { refreshWidget } from '../widget/refresh';
+import { writeWidgetAddresses } from '../widget/snapshot';
 import { bookFromSync, readBook, syncAlarms, writeBook, type AlarmBook } from './alarms';
 
 // The second line behind the local alarms (decided 30 Oct): every 15 minutes or so, when the
@@ -25,6 +27,7 @@ export interface RefreshDeps {
   fetchSubscriptions: () => Promise<SubscriptionDto[]>;
   fetchOutages: () => Promise<AddressOutageDto[]>;
   syncAlarms: (book: AlarmBook, t: T, now: Date) => Promise<void>;
+  refreshWidget?: () => Promise<unknown>;
 }
 
 /** One refresh: the book from the server's answer, the alarms from the book. Pure apart from deps. */
@@ -47,7 +50,12 @@ export async function runRefresh(deps: RefreshDeps): Promise<'no-data' | 'synced
   );
   const book = bookFromSync(outages, (id) => names.get(id), readBook(deps.kv));
   writeBook(book, deps.kv);
+  writeWidgetAddresses(
+    subs.map((s) => ({ id: s.id, name: names.get(s.id) ?? '', primary: s.isPrimary })),
+    deps.kv,
+  );
   await deps.syncAlarms(book, deps.t, deps.now());
+  await deps.refreshWidget?.();
   return 'synced';
 }
 
@@ -65,6 +73,7 @@ export async function liveRefreshDeps(): Promise<RefreshDeps> {
     fetchSubscriptions: async () => (await api.subscriptions()).subscriptions,
     fetchOutages: async () => (await api.myOutages('upcoming')).outages,
     syncAlarms,
+    refreshWidget: () => refreshWidget(i18next.t.bind(i18next)),
   };
 }
 

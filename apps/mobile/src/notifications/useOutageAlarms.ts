@@ -6,6 +6,8 @@ import { MY_OUTAGES_KEY, SUBSCRIPTIONS_KEY } from '../home/useHomeData';
 import { queryClient } from '../query/instance';
 import { useAddresses } from '../store/addresses';
 import { useSettings } from '../store/settings';
+import { refreshWidget } from '../widget/refresh';
+import { writeWidgetAddresses } from '../widget/snapshot';
 import { bookFromSync, readBook, syncAlarms, writeBook } from './alarms';
 import { setInvalidateHook } from './background';
 
@@ -52,6 +54,13 @@ export function useOutageAlarms(): void {
     const now = new Date();
     const book = bookFromSync(outs.data, (id) => names.get(id), readBook());
     writeBook(book);
-    void syncAlarms(book, i18next.t.bind(i18next), now).catch(() => {});
+    // the widget shows the same addresses and the same book, nothing of its own
+    writeWidgetAddresses(
+      subs.data.map((s) => ({ id: s.id, name: names.get(s.id) ?? '', primary: s.isPrimary })),
+    );
+    const t = i18next.t.bind(i18next);
+    void syncAlarms(book, t, now)
+      .catch(() => {})
+      .then(() => refreshWidget(t, now));
   }, [subs.data, outs.data, script, language]);
 }

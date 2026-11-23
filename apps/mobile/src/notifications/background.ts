@@ -5,6 +5,7 @@ import type { T } from '../home/format';
 import { i18next, initI18n } from '../i18n';
 import { storage, type KeyValueStorage } from '../store/storage';
 import { useSettings } from '../store/settings';
+import { refreshWidget } from '../widget/refresh';
 import { showActive, showEnded, type ActiveOutage } from './active';
 import {
   bookFromPush,
@@ -82,6 +83,8 @@ export interface TaskDeps {
   syncAlarms: (book: AlarmBook, t: T, now: Date) => Promise<void>;
   // Called when the app's data may be stale (a running app refetches; a headless one does nothing).
   invalidate?: () => void;
+  // Hands the widget the new picture (addresses + book) after anything changed.
+  refreshWidget?: () => Promise<unknown>;
 }
 
 /** What one push means for the phone. Pure apart from `deps`; the test drives it directly. */
@@ -110,6 +113,7 @@ export async function handlePayload(parsed: ParsedPayload, deps: TaskDeps): Prom
       writeBook(rest, deps.kv);
     }
     deps.invalidate?.();
+    await deps.refreshWidget?.();
     return;
   }
   const push = outagePushData(parsed.data);
@@ -118,6 +122,7 @@ export async function handlePayload(parsed: ParsedPayload, deps: TaskDeps): Prom
   writeBook(next, deps.kv);
   await deps.syncAlarms(next, deps.t, deps.now());
   deps.invalidate?.();
+  await deps.refreshWidget?.();
 }
 
 /** The task's real dependencies: MMKV, the notification module and the i18n of the saved language. */
@@ -132,6 +137,7 @@ export async function liveDeps(invalidate?: () => void): Promise<TaskDeps> {
     showEnded,
     cancelAlarm: (id) => Notifications.cancelScheduledNotificationAsync(id),
     syncAlarms,
+    refreshWidget: () => refreshWidget(i18next.t.bind(i18next)),
     ...(invalidate ? { invalidate } : {}),
   };
 }

@@ -20,7 +20,7 @@ Expo (Android first, iOS later) + Fastify/Postgres app that pushes a notificatio
 
 ## Layout
 
-`apps/mobile` (Expo) · `apps/server` (Fastify) · `packages/parser` (pure TS, no I/O) · `packages/shared` (zod schemas, constants) · `fixtures/` · `scripts/` · `docs/`
+`apps/mobile` (Expo; `apps/mobile/modules/struja-widget` is the Android home screen widget, Jetpack Glance in a local Expo module, notes in `docs/widget.md`) · `apps/server` (Fastify) · `packages/parser` (pure TS, no I/O) · `packages/shared` (zod schemas, constants) · `fixtures/` · `scripts/` · `docs/`
 
 ## Conventions
 

@@ -5,6 +5,7 @@ import { queryClient } from '../query/instance';
 import { useAddresses } from '../store/addresses';
 import { useSettings } from '../store/settings';
 import { storage } from '../store/storage';
+import { forgetWidget } from '../widget/refresh';
 import type { DeleteDeps } from './deleteData';
 import { forgetSync } from './sync';
 
@@ -24,5 +25,6 @@ export const realDeleteDeps: DeleteDeps = {
     queryClient.clear();
     await mmkvPersister.removeClient();
     forgetSync(storage());
+    await forgetWidget(storage());
   },
 };

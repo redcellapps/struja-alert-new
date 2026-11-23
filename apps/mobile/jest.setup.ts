@@ -59,6 +59,13 @@ jest.mock('expo-background-task', () => ({
   unregisterTaskAsync: jest.fn(async () => undefined),
 }));
 
+// The widget's native module (modules/struja-widget) is Android-only; the tests record the snapshots.
+jest.mock('./modules/struja-widget', () => ({
+  widgetAvailable: () => true,
+  setWidgetSnapshot: jest.fn(async () => true),
+  clearWidgetSnapshot: jest.fn(async () => undefined),
+}));
+
 // expo-intent-launcher is native; the tests decide which activities exist.
 jest.mock('expo-intent-launcher', () => ({
   startActivityAsync: jest.fn(async () => ({ resultCode: 0 })),

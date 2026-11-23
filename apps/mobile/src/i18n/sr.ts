@@ -308,6 +308,18 @@ export const sr = {
     active: { title: 'Bez struje: {{address}}', body: 'Povratak u {{time}}' },
     ended: { title: 'Struja se vratila' },
   },
+  // The home screen widget (modules/struja-widget): the native side fills {time} itself.
+  widget: {
+    clear: 'Sve u redu',
+    today: 'Danas bez struje',
+    tomorrow: 'Sutra bez struje',
+    later: 'Bez struje',
+    active: 'Bez struje',
+    startsAt: 'počinje u {time}',
+    backAt: 'povratak u {time}',
+    noAddress: 'Dodajte adresu',
+    open: 'Otvorite aplikaciju',
+  },
   banner: {
     offline: 'Prikazujem sačuvane podatke',
     notificationsOff: 'Obaveštenja su isključena',

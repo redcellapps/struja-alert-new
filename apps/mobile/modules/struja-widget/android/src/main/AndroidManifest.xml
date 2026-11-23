@@ -1,0 +1,34 @@
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+  <application>
+    <!-- The small widget (2x2): the primary address. -->
+    <receiver
+      android:name="rs.strujaalert.widget.StrujaSmallWidgetReceiver"
+      android:exported="true"
+      android:label="@string/struja_widget_small_label">
+      <intent-filter>
+        <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+      </intent-filter>
+      <meta-data
+        android:name="android.appwidget.provider"
+        android:resource="@xml/struja_widget_small_info" />
+    </receiver>
+
+    <!-- The medium widget (4x2): up to three addresses. -->
+    <receiver
+      android:name="rs.strujaalert.widget.StrujaMediumWidgetReceiver"
+      android:exported="true"
+      android:label="@string/struja_widget_medium_label">
+      <intent-filter>
+        <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+      </intent-filter>
+      <meta-data
+        android:name="android.appwidget.provider"
+        android:resource="@xml/struja_widget_medium_info" />
+    </receiver>
+
+    <!-- Re-renders the widgets at the next outage start or end, and at midnight. -->
+    <receiver
+      android:name="rs.strujaalert.widget.WidgetTickReceiver"
+      android:exported="false" />
+  </application>
+</manifest>

@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+  <string name="struja_widget_small_label">Struja Alert</string>
+  <string name="struja_widget_small_desc">Glavna adresa: da li je struja u redu, i kad je isključenje.</string>
+  <string name="struja_widget_medium_label">Struja Alert – adrese</string>
+  <string name="struja_widget_medium_desc">Do tri adrese: stanje i vreme isključenja.</string>
+</resources>

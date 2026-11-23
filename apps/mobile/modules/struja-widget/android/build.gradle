@@ -1,0 +1,42 @@
+// The home screen widget (BRIEF §7): Jetpack Glance in a local Expo module. Glance composables need
+// the Compose compiler plugin, which must be on this build script's own classpath (a module's
+// `plugins {}` block cannot resolve it without a version); the Kotlin version is the project's,
+// as expo-modules-core reads it.
+buildscript {
+  repositories {
+    mavenCentral()
+    google()
+    gradlePluginPortal()
+  }
+  dependencies {
+    def kotlinVersion = rootProject.ext.has("kotlinVersion") ? rootProject.ext.get("kotlinVersion") : "2.2.0"
+    classpath("org.jetbrains.kotlin.plugin.compose:org.jetbrains.kotlin.plugin.compose.gradle.plugin:${kotlinVersion}")
+  }
+}
+
+apply plugin: 'com.android.library'
+apply plugin: 'expo-module-gradle-plugin'
+apply plugin: 'org.jetbrains.kotlin.plugin.compose'
+
+group = 'rs.strujaalert.widget'
+version = '0.1.0'
+
+android {
+  namespace 'rs.strujaalert.widget'
+  defaultConfig {
+    versionCode 1
+    versionName '0.1.0'
+  }
+  buildFeatures {
+    compose true
+  }
+  lintOptions {
+    abortOnError false
+  }
+}
+
+dependencies {
+  // androidx.glance 1.2.0 (stable, 26 Aug 2026).
+  implementation 'androidx.glance:glance-appwidget:1.2.0'
+  implementation 'org.jetbrains.kotlinx:kotlinx-coroutines-android:1.10.2'
+}

@@ -66,6 +66,7 @@ describe('the alarm book', () => {
       startsAt: '2026-11-03T09:00:00Z',
       endsAt: '2026-11-03T14:00:00Z',
       status: 'active',
+      possible: false,
     });
     expect(book['8']).toMatchObject({ address: 'Čegarska 2', status: 'cancelled' });
   });
@@ -88,6 +89,7 @@ describe('the alarm book', () => {
       startsAt: '2026-11-03T10:00:00Z',
       endsAt: '2026-11-03T13:00:00Z',
       address: 'Trebinjska 34',
+      possible: false,
     });
     const changed = bookFromPush(push!, {});
     expect(changed['7']).toMatchObject({ startsAt: '2026-11-03T10:00:00Z', status: 'active' });
